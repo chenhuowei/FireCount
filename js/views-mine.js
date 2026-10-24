@@ -1,0 +1,482 @@
+/* ============================================================
+ * 我的页 + 子功能页（UserCenter 模块复刻）：
+ *   多账本管理（Books）· 预算（Budget_v3 日/周/月三环 + 分类预算）
+ *   周期记账（Notice）· 分类管理（RecordtypeManager）
+ *   数据导出/导入（DeriveData / DataBackUps）· 设置（主题/币种/成员）
+ * ============================================================ */
+"use strict";
+
+const ViewsMine = {
+  render(header, main) {
+    header.classList.add("hidden");
+    const s = Store.s;
+    const days = Store.tallyDays();
+    const total = s.records.length;
+    main.innerHTML =
+      '<div class="page page-anim">' +
+      '<div class="me-hero">' +
+        '<div class="me-avatar">🐷</div>' +
+        '<div style="flex:1"><div class="me-name">' + DATA.appName + ' · 我的账本</div>' +
+          '<div style="font-size:12px;color:var(--text-3);margin-top:4px">已坚持记账 ' + days + ' 天 · 累计 ' + total + " 笔账单</div>" +
+          '<div class="me-stats">' +
+            stat(Store.recordsOf().length, "本账单笔") + stat(s.books.length, "账本") + stat(s.accounts.length, "账户") +
+          "</div></div>" +
+      "</div>" +
+      '<div class="card">' +
+        cell("book", "多账本管理", "当前：" + UI.escape(Store.book().name), "books") +
+        cell("budget", "预算设置", budgetDesc(), "budget") +
+        cell("cycle", "周期记账", s.cycles.filter(c => c.enabled).length + " 个启用中", "cycles") +
+        cell("tag", "分类管理", "支出 " + Store.categories("expense").length + " · 收入 " + Store.categories("income").length, "categories") +
+      "</div>" +
+      '<div class="card">' +
+        cell("export", "数据导出", "导出 CSV / JSON 备份", "export") +
+        cell("import", "数据导入", "从 JSON 备份恢复", "import") +
+        cell("theme", "深色模式", s.settings.theme === "deep" ? "已开启" : "已关闭", "themeToggle") +
+        cell("user", "成员管理", s.settings.members.join(" / "), "members") +
+        cell("budget", "币种设置", "当前符号 " + s.settings.currency, "currency") +
+      "</div>" +
+      '<div class="card">' +
+        cell("info", "关于复刻版", "基于口袋记账 v4.5.0 逆向分析复刻", "about") +
+        cell("trash", "清空数据", "删除全部账单与设置", "wipe") +
+      "</div>" +
+      '<div style="text-align:center;color:var(--text-3);font-size:11px;padding:6px 0 20px">小伙记账 · 功能复刻版（纯本地运行）</div></div>';
+
+    UI.$$(".cell[data-go]", main).forEach(el => el.onclick = () => {
+      const go = el.dataset.go;
+      if (go === "themeToggle") {
+        s.settings.theme = s.settings.theme === "deep" ? "light" : "deep";
+        Store.save(); App.applyTheme(); App.refresh();
+        return;
+      }
+      if (go === "export") { ViewsMine.exportSheet(); return; }
+      if (go === "import") { ViewsMine.importSheet(); return; }
+      if (go === "members") { ViewsMine.membersSheet(); return; }
+      if (go === "currency") { ViewsMine.currencySheet(); return; }
+      if (go === "about") {
+        UI.confirm({ title: "关于", body: "本应用按 REA 逆向工作流，对口袋记账（com.qeeniao.mobile.kdjz v4.5.0）的 APK 资源进行分析后复刻实现，仅用于学习研究。<br><br>逆向证据与功能映射见 ANALYSIS.md。", ok: "我知道了" });
+        return;
+      }
+      if (go === "wipe") {
+        UI.confirm({ title: "清空所有数据", body: "将删除全部账单、账户、预算与设置，且无法恢复。建议先导出备份。", ok: "全部清空", danger: true }).then(ok => {
+          if (ok) { Store.reset(); App.applyTheme(); UI.toast("已清空"); App.refresh(); }
+        });
+        return;
+      }
+      if (go === "books" || go === "budget" || go === "cycles" || go === "categories") App.go(go);
+    });
+
+    function stat(v, k) { return '<div class="st"><div class="k">' + k + '</div><div class="v">' + v + "</div></div>"; }
+    function cell(icon, title, desc, go) {
+      return '<div class="cell" data-go="' + go + '"><div class="cell-icon">' + UI.svg(icon, 19) + '</div>' +
+        '<div class="cell-main"><div class="cell-title">' + title + '</div><div class="cell-desc">' + desc + "</div></div>" +
+        UI.svg("arrow", 15) + "</div>";
+    }
+    function budgetDesc() {
+      const b = Store.budget(fmt.curMonth());
+      return b.total ? "本月总预算 " + fmt.money(b.total) + " 元" : "未设置";
+    }
+  },
+
+  /* ================= 多账本（Books 模块） ================= */
+  renderBooks(header, main) {
+    header.classList.remove("hidden");
+    header.innerHTML =
+      '<div class="hd"><button class="hd-btn" data-back>' + UI.svg("back") + '</button><div class="hd-title">账本管理</div>' +
+      '<div class="hd-sub"><button class="txt-btn" id="bkAdd" style="color:var(--brand)">＋新建</button></div></div>';
+    main.innerHTML =
+      '<div class="page page-anim">' +
+      '<div class="card">' + Store.s.books.map(b =>
+        '<div class="cell" data-id="' + b.id + '"><div class="cell-icon">' + UI.svg("book", 18) + "</div>" +
+        '<div class="cell-main"><div class="cell-title">' + UI.escape(b.name) +
+        (b.id === Store.s.currentBookId ? ' <span class="tags" style="font-size:10px;background:var(--brand-soft);color:var(--brand);border-radius:4px;padding:1px 5px">使用中</span>' : "") +
+        "</div>" +
+        '<div class="cell-desc">' + Store.recordsOf(b.id).length + " 笔账单</div></div></div>"
+      ).join("") + "</div>" +
+      '<div class="sec-title">长按账本可重命名 / 删除</div></div>';
+    UI.$("[data-back]", header).onclick = () => App.back();
+    UI.$("#bkAdd").onclick = () => ViewsMine.bookEditDialog(null, () => App.refresh());
+    UI.$$(".cell[data-id]", main).forEach(el => {
+      let timer;
+      el.addEventListener("pointerdown", () => {
+        timer = setTimeout(() => {
+          timer = null;
+          const b = Store.s.books.find(x => x.id === el.dataset.id);
+          if (b) ViewsMine.bookEditDialog(b, () => App.refresh());
+        }, 550);
+      });
+      const cancel = () => timer && clearTimeout(timer);
+      el.addEventListener("pointerup", cancel);
+      el.addEventListener("pointerleave", cancel);
+      el.addEventListener("click", () => {
+        if (timer === null) return; // 长按已处理
+        cancel();
+        Store.s.currentBookId = el.dataset.id; Store.save();
+        UI.toast("已切换到「" + el.textContent.trim().replace(/使用中/, "") + "」");
+        App.back();
+      });
+    });
+  },
+
+  bookEditDialog(book, cb) {
+    const sh = UI.sheet({ title: book ? "编辑账本" : "新建账本" });
+    sh.body.innerHTML = '<div class="form-row" style="border:none"><div class="lab">账本名称</div>' +
+      '<input type="text" id="bkName" maxlength="12" placeholder="如：生活账本 / 装修账本" value="' + (book ? UI.escape(book.name) : "") + '"></div>';
+    sh.foot.innerHTML =
+      (book && Store.s.books.length > 1 ? '<button class="btn btn-danger" id="bkDel" style="margin-bottom:10px;width:100%">删除该账本及其账单</button>' : "") +
+      '<button class="btn btn-primary btn-block" id="bkSave">保存</button>';
+    UI.$("#bkSave", sh.foot).onclick = () => {
+      const name = UI.$("#bkName", sh.body).value.trim();
+      if (!name) { UI.toast("请输入名称"); return; }
+      if (book) Store.renameBook(book.id, name);
+      else { const b = Store.addBook(name); Store.s.currentBookId = b.id; Store.save(); }
+      sh.close(); UI.toast("已保存"); cb && cb();
+    };
+    const del = UI.$("#bkDel", sh.foot);
+    if (del) del.onclick = () => {
+      UI.confirm({ title: "删除账本", body: "「" + UI.escape(book.name) + "」及其下所有账单将被删除。", ok: "删除", danger: true }).then(ok => {
+        if (ok) { Store.deleteBook(book.id); sh.close(); UI.toast("账本已删除"); cb && cb(); }
+      });
+    };
+  },
+
+  /* ================= 预算（Budget_v3 日/周/月三环 + 分类预算） ================= */
+  renderBudget(header, main) {
+    header.classList.remove("hidden");
+    header.innerHTML =
+      '<div class="hd"><button class="hd-btn" data-back>' + UI.svg("back") + '</button><div class="hd-title">预算</div>' +
+      '<div class="hd-sub"><button class="txt-btn" id="bgPrev">' + UI.svg("left", 14) + '</button><span id="bgMonth" style="font-weight:600"></span><button class="txt-btn" id="bgNext">' + UI.svg("right", 14) + "</button></div></div>";
+    const m = App.viewMonth;
+    UI.$("#bgMonth", header).textContent = m.slice(0, 4) + "年" + (+m.slice(5, 7)) + "月";
+    UI.$("[data-back]", header).onclick = () => App.back();
+    UI.$("#bgPrev").onclick = () => { App.shiftMonth(-1); };
+    UI.$("#bgNext").onclick = () => { App.shiftMonth(1); };
+
+    const b = Store.budget(m);
+    const spent = Store.budgetSpent(m);
+    const cur = Store.s.settings.currency;
+    const now = new Date();
+    const dim = new Date(+m.slice(0, 4), +m.slice(5, 7), 0).getDate();
+    const isCurMonth = m === fmt.curMonth();
+    const daysLeft = isCurMonth ? dim - now.getDate() + 1 : 0;
+    const todayStr = fmt.YMD(now);
+
+    /* 周预算：本周（周一起）支出 vs 月总预算 / 当月周数 */
+    const weekSpent = Store.monthRecords(m).filter(r => r.type === "expense" && r.date.slice(0, 10) <= todayStr && withinThisWeek(r.date.slice(0, 10))).reduce((s, r) => s + r.amount, 0);
+    function withinThisWeek(dstr) {
+      const d = fmt.parse(dstr + "T00:00:00");
+      const monday = new Date(now); monday.setDate(now.getDate() - ((now.getDay() + 6) % 7)); monday.setHours(0, 0, 0, 0);
+      const sunday = new Date(monday); sunday.setDate(monday.getDate() + 7);
+      return d >= monday && d < sunday;
+    }
+    const todaySpent = Store.monthRecords(m).filter(r => r.type === "expense" && r.date.slice(0, 10) === todayStr).reduce((s, r) => s + r.amount, 0);
+
+    main.innerHTML =
+      '<div class="page page-anim">' +
+      '<div class="card"><div class="budget-rings">' +
+        ring("bgRingM", spent, b.total, "月预算", isCurMonth && b.total ? "剩 " + fmt.money(Math.max(0, b.total - spent)) + " · " + daysLeft + " 天" : "月度总支出") +
+        ring("bgRingW", weekSpent, b.total ? b.total / (dim / 7) : 0, "周预算", "本周支出") +
+        ring("bgRingD", todaySpent, isCurMonth && b.total && daysLeft ? Math.max(0, b.total - spent) / daysLeft : 0, "日预算", "今日支出") +
+      "</div>" +
+      '<div style="text-align:center;padding:0 14px 14px;font-size:12px;color:var(--text-3)">' +
+        (b.total ? "本月已用 <b style='color:var(--expense)'>" + cur + fmt.money(spent) + "</b> / " + cur + fmt.money(b.total) + (isCurMonth ? " · 日均可用 " + cur + fmt.money(Math.max(0, (b.total - spent) / daysLeft)) : "") : "还未设置预算，去下方设置吧") +
+      "</div></div>" +
+      '<div class="card"><div class="budget-set-row"><div class="lab">月总预算</div>' +
+        '<input type="number" id="bgTotal" step="1" min="0" value="' + (b.total || "") + '" placeholder="0">' +
+        '<button class="btn btn-primary" id="bgSaveTotal" style="padding:8px 18px">保存</button></div></div>' +
+      '<div class="card" style="padding:6px 0 10px"><div class="sec-title" style="padding:8px 14px 4px">分类预算' +
+        '<button class="txt-btn" id="bgAddCat" style="color:var(--brand);font-size:13px">＋设置分类预算</button></div>' +
+        '<div id="bgCatList"></div></div></div>';
+
+    function ring(id, used, budget, title, sub) {
+      const pct = budget > 0 ? used / budget : 0;
+      return '<div class="budget-ring"><canvas id="' + id + '" width="92" height="92" data-h="92"></canvas>' +
+        '<div class="t">' + title + "</div><div class='sub'>" + sub + "</div></div>";
+    }
+    const paint = () => {
+      const b2 = Store.budget(m), spent2 = Store.budgetSpent(m);
+      Charts.ring(UI.$("#bgRingM"), b2.total ? spent2 / b2.total : 0, b2.total ? Math.round(spent2 / b2.total * 100) + "%" : "—", "月", spent2 > b2.total && b2.total > 0);
+      const wkB = b2.total ? b2.total / (dim / 7) : 0;
+      Charts.ring(UI.$("#bgRingW"), wkB ? Math.min(weekSpent / wkB, 1.5) : 0, wkB ? Math.round(weekSpent / wkB * 100) + "%" : "—", "周", weekSpent > wkB && wkB > 0);
+      const dayB = isCurMonth && b2.total && daysLeft ? Math.max(0, b2.total - spent2) / daysLeft : 0;
+      Charts.ring(UI.$("#bgRingD"), dayB ? Math.min(todaySpent / dayB, 1.5) : 0, dayB ? Math.round(todaySpent / dayB * 100) + "%" : "—", "日", todaySpent > dayB && dayB > 0);
+    };
+    paint();
+
+    UI.$("#bgSaveTotal").onclick = () => {
+      const v = parseFloat(UI.$("#bgTotal").value) || 0;
+      const b2 = Store.budget(m);
+      b2.total = v; Store.setBudget(m, b2);
+      UI.toast("预算已保存"); App.refresh();
+    };
+    UI.$("#bgAddCat").onclick = () => ViewsMine.budgetCatPicker(m, () => App.refresh());
+    this.renderBudgetCatList(m);
+  },
+
+  renderBudgetCatList(m) {
+    const host = UI.$("#bgCatList");
+    const b = Store.budget(m);
+    const ids = Object.keys(b.perCategory || {}).filter(id => b.perCategory[id] > 0);
+    if (!ids.length) { host.innerHTML = '<div style="text-align:center;color:var(--text-3);font-size:13px;padding:12px 0">暂无分类预算</div>'; return; }
+    host.innerHTML = ids.map(id => {
+      const c = Store.category(id);
+      if (!c) return "";
+      const budget = b.perCategory[id];
+      const spent = Store.categoryBudgetSpent(m, id);
+      const pct = Math.min(100, spent / budget * 100);
+      const over = spent > budget;
+      return '<div style="padding:8px 14px">' +
+        '<div style="display:flex;align-items:center;gap:8px">' + UI.catIcon(c, "bi-icon") +
+        '<span style="flex:1;font-size:14px">' + UI.escape(c.name) + "</span>" +
+        (over ? '<span class="badge-over">超支</span>' : "") +
+        '<span style="font-size:13px;font-variant-numeric:tabular-nums"><b class="' + (over ? "money-out" : "") + '">' + fmt.money(spent) + "</b><span style='color:var(--text-3)'> / " + fmt.money(budget) + "</span></span>" +
+        '<button class="txt-btn" data-del="' + id + '" style="color:var(--text-3);font-size:12px">✕</button></div>' +
+        '<div class="mini-progress"><i class="' + (over ? "over" : "") + '" style="width:' + pct + '%"></i></div></div>';
+    }).join("");
+    host.querySelectorAll("[data-del]").forEach(el => el.onclick = () => {
+      const b2 = Store.budget(m);
+      delete b2.perCategory[el.dataset.del];
+      Store.setBudget(m, b2);
+      App.refresh();
+    });
+  },
+
+  budgetCatPicker(month, cb) {
+    const sh = UI.sheet({ title: "设置分类预算" });
+    const b = Store.budget(month);
+    sh.body.innerHTML = Store.categories("expense").map(c =>
+      '<div class="cell" data-id="' + c.id + '">' + UI.catIcon(c, "cell-icon") +
+      '<div class="cell-main"><div class="cell-title">' + UI.escape(c.name) + "</div>" +
+      '<div class="cell-desc">本月已支出 ' + fmt.money(Store.categoryBudgetSpent(month, c.id)) + "</div></div>" +
+      '<span style="font-size:13px;color:var(--brand)">' + (b.perCategory[c.id] ? fmt.money(b.perCategory[c.id]) : "设置") + "</span></div>"
+    ).join("");
+    UI.$$(".cell", sh.body).forEach(el => el.onclick = () => {
+      const c = Store.category(el.dataset.id);
+      const sh2 = UI.sheet({ title: c.name + " · 月预算" });
+      sh2.body.innerHTML = '<div class="form-row" style="border:none"><div class="lab">金额</div>' +
+        '<input type="number" id="bgcVal" step="1" min="0" value="' + (b.perCategory[c.id] || "") + '" placeholder="0"></div>';
+      sh2.foot.innerHTML = '<button class="btn btn-primary btn-block" id="bgcSave">保存</button>';
+      UI.$("#bgcSave", sh2.foot).onclick = () => {
+        const v = parseFloat(UI.$("#bgcVal", sh2.body).value) || 0;
+        const b2 = Store.budget(month);
+        if (v > 0) b2.perCategory[c.id] = v; else delete b2.perCategory[c.id];
+        Store.setBudget(month, b2);
+        sh2.close(); sh.close(); UI.toast("已保存"); cb && cb();
+      };
+    });
+  },
+
+  /* ================= 周期记账（Notice 模块） ================= */
+  renderCycles(header, main) {
+    header.classList.remove("hidden");
+    header.innerHTML =
+      '<div class="hd"><button class="hd-btn" data-back>' + UI.svg("back") + '</button><div class="hd-title">周期记账</div>' +
+      '<div class="hd-sub"><button class="txt-btn" id="cyAdd" style="color:var(--brand)">＋新建</button></div></div>';
+    const list = Store.s.cycles;
+    main.innerHTML =
+      '<div class="page page-anim">' +
+      '<div class="sec-title">到期自动记一笔（如房租、工资）</div>' +
+      (list.length ? '<div class="card">' + list.map(cy => {
+        const c = Store.category(cy.categoryId), a = Store.account(cy.accountId);
+        const freqName = { daily: "每天", weekly: "每周", monthly: "每月", yearly: "每年" }[cy.freq] || cy.freq;
+        return '<div class="cell" data-id="' + cy.id + '">' +
+          '<div class="cell-icon">' + (cy.enabled ? "✅" : "⏸️") + "</div>" +
+          '<div class="cell-main"><div class="cell-title">' + UI.escape(cy.note || (c ? c.name : "")) + "</div>" +
+          '<div class="cell-desc">' + (cy.type === "income" ? "收入" : "支出") + " · " + fmt.money(cy.amount) + " · " + freqName +
+          (cy.freq === "monthly" || cy.freq === "yearly" ? cy.day + "日" : "") + " · 下次 " + cy.nextDate + "</div></div>" +
+          '<button class="txt-btn" data-toggle="' + cy.id + '" style="color:var(--brand);font-size:12.5px">' + (cy.enabled ? "停用" : "启用") + "</button></div>";
+      }).join("") + "</div>" : '<div class="empty"><div class="big">🔁</div><div class="t1">还没有周期账单</div></div>') +
+      "</div>";
+    UI.$("[data-back]", header).onclick = () => App.back();
+    UI.$("#cyAdd").onclick = () => ViewsMine.cycleEdit(null, () => App.refresh());
+    main.querySelectorAll("[data-toggle]").forEach(el => el.onclick = e => {
+      e.stopPropagation();
+      const cy = Store.s.cycles.find(x => x.id === el.dataset.toggle);
+      cy.enabled = !cy.enabled; Store.save(); App.refresh();
+    });
+    main.querySelectorAll(".cell[data-id]").forEach(el => el.onclick = () => {
+      const cy = Store.s.cycles.find(x => x.id === el.dataset.id);
+      if (cy) ViewsMine.cycleEdit(cy, () => App.refresh());
+    });
+  },
+
+  cycleEdit(cy, cb) {
+    const editing = !!cy;
+    const sh = UI.sheet({ title: editing ? "编辑周期账单" : "新建周期账单" });
+    const S = editing ? { ...cy } : { type: "expense", amount: "", categoryId: Store.categories("expense")[0]?.id, accountId: Store.s.accounts[0]?.id, freq: "monthly", day: 1, note: "" };
+    sh.body.innerHTML =
+      '<div class="seg" id="cyType"><button data-t="expense" class="' + (S.type === "expense" ? "active" : "") + '">支出</button><button data-t="income" class="' + (S.type === "income" ? "active" : "") + '">收入</button></div>' +
+      '<div class="form-row"><div class="lab">金额</div><input type="number" id="cyAmt" step="0.01" value="' + (S.amount || "") + '" placeholder="0.00"></div>' +
+      '<div class="form-row" data-k="cat"><div class="lab">分类</div><div class="val" id="cyCat"></div></div>' +
+      '<div class="form-row" data-k="acc"><div class="lab">账户</div><div class="val" id="cyAcc"></div></div>' +
+      '<div class="form-row"><div class="lab">频率</div><div class="sel" id="cyFreq">' +
+        ["daily", "weekly", "monthly", "yearly"].map(f => '<button class="chip' + (S.freq === f ? " active" : "") + '" data-f="' + f + '">' + { daily: "每天", weekly: "每周", monthly: "每月", yearly: "每年" }[f] + "</button>").join("") + "</div></div>" +
+      '<div class="form-row" id="cyDayRow"><div class="lab">每月几号</div><input type="number" id="cyDay" min="1" max="31" value="' + (S.day || 1) + '"></div>' +
+      '<div class="form-row"><div class="lab">备注</div><input type="text" id="cyNote" maxlength="12" value="' + UI.escape(S.note || "") + '" placeholder="如：房租"></div>';
+    sh.foot.innerHTML =
+      (editing ? '<button class="btn btn-danger btn-block" id="cyDel" style="margin-bottom:10px">删除</button>' : "") +
+      '<button class="btn btn-primary btn-block" id="cySave">保存</button>';
+    const refresh = () => {
+      const c = Store.category(S.categoryId), a = Store.account(S.accountId);
+      UI.$("#cyCat", sh.body).innerHTML = (c ? c.icon + " " + UI.escape(c.name) : "选择") + " " + UI.svg("arrow", 13);
+      UI.$("#cyAcc", sh.body).innerHTML = (a ? UI.escape(a.name) : "选择") + " " + UI.svg("arrow", 13);
+      UI.$("#cyDayRow", sh.body).style.display = (S.freq === "monthly" || S.freq === "yearly") ? "flex" : "none";
+    };
+    refresh();
+    sh.body.querySelectorAll("#cyType button").forEach(b => b.onclick = () => {
+      S.type = b.dataset.t;
+      sh.body.querySelectorAll("#cyType button").forEach(x => x.classList.toggle("active", x === b));
+      S.categoryId = Store.categories(S.type)[0]?.id; refresh();
+    });
+    sh.body.querySelectorAll("#cyFreq button").forEach(b => b.onclick = () => {
+      S.freq = b.dataset.f;
+      sh.body.querySelectorAll("#cyFreq button").forEach(x => x.classList.toggle("active", x === b));
+      refresh();
+    });
+    sh.body.querySelector('[data-k="cat"]').onclick = () => {
+      const sh2 = UI.sheet({ title: "选择分类" });
+      sh2.body.innerHTML = Store.categories(S.type).map(c =>
+        '<div class="cell" data-id="' + c.id + '">' + UI.catIcon(c, "cell-icon") +
+        '<div class="cell-main"><div class="cell-title">' + c.icon + " " + UI.escape(c.name) + "</div></div></div>").join("");
+      UI.$$(".cell", sh2.body).forEach(el => el.onclick = () => { S.categoryId = el.dataset.id; sh2.close(); refresh(); });
+    };
+    sh.body.querySelector('[data-k="acc"]').onclick = () => ViewsAdd.pickAccount("accountId", S, refresh);
+    UI.$("#cySave", sh.foot).onclick = () => {
+      const amount = parseFloat(UI.$("#cyAmt", sh.body).value);
+      if (!amount || amount <= 0) { UI.toast("请输入金额"); return; }
+      const day = Math.min(31, Math.max(1, parseInt(UI.$("#cyDay", sh.body).value) || 1));
+      const note = UI.$("#cyNote", sh.body).value.trim();
+      const data = { type: S.type, amount, categoryId: S.categoryId, accountId: S.accountId, freq: S.freq, day, note };
+      if (editing) {
+        data.nextDate = cy.nextDate || Store.nextCycleDate(S.freq, day);
+        Store.updateCycle(cy.id, data);
+      } else {
+        Store.addCycle({ ...data, nextDate: Store.nextCycleDate(S.freq, day) });
+      }
+      Store.save(); sh.close(); UI.toast("已保存"); cb && cb();
+    };
+    const del = UI.$("#cyDel", sh.foot);
+    if (del) del.onclick = () => {
+      UI.confirm({ title: "删除周期账单", body: "仅删除周期设置，已生成的账单不受影响。", ok: "删除", danger: true }).then(ok => {
+        if (ok) { Store.deleteCycle(cy.id); sh.close(); UI.toast("已删除"); cb && cb(); }
+      });
+    };
+  },
+
+  /* ================= 分类管理（RecordtypeManagerActivity） ================= */
+  renderCategories(header, main) {
+    header.classList.remove("hidden");
+    header.innerHTML =
+      '<div class="hd"><button class="hd-btn" data-back>' + UI.svg("back") + '</button><div class="hd-title">分类管理</div>' +
+      '<div class="hd-sub"><button class="txt-btn" id="ctAdd" style="color:var(--brand)">＋添加</button></div></div>';
+    const renderList = () => {
+      const mk = (type, title) =>
+        '<div class="sec-title">' + title + " · " + Store.categories(type).length + "</div>" +
+        '<div class="card">' + Store.categories(type).map(c =>
+          '<div class="cell" data-id="' + c.id + '">' + UI.catIcon(c, "cell-icon") +
+          '<div class="cell-main"><div class="cell-title">' + UI.escape(c.name) + "</div>" +
+          '<div class="cell-desc">' + Store.s.records.filter(r => r.categoryId === c.id).length + " 笔</div></div>" +
+          (c.custom ? '<span class="tags" style="font-size:10px;background:var(--brand-soft);color:var(--brand);border-radius:4px;padding:1px 5px">自定义</span>' : "") +
+          UI.svg("arrow", 14) + "</div>"
+        ).join("") + "</div>";
+      main.innerHTML = '<div class="page page-anim">' + mk("expense", "支出分类") + mk("income", "收入分类") + "</div>";
+      UI.$$(".cell[data-id]", main).forEach(el => el.onclick = () => {
+        const c = Store.category(el.dataset.id);
+        ViewsAdd.categoryEditor(c, () => renderList());
+      });
+    };
+    renderList();
+    UI.$("[data-back]", header).onclick = () => App.back();
+    UI.$("#ctAdd").onclick = () => ViewsAdd.categoryEditor(null, () => renderList());
+  },
+
+  /* ================= 导出 / 导入 / 成员 / 币种 ================= */
+  exportSheet() {
+    const sh = UI.sheet({ title: "数据导出" });
+    sh.body.innerHTML =
+      '<div class="cell" data-k="csv"><div class="cell-icon">' + UI.svg("export", 18) + '</div>' +
+      '<div class="cell-main"><div class="cell-title">导出 CSV（当前账本）</div><div class="cell-desc">含日期/分类/金额/账户/备注，可用 Excel 打开</div></div></div>' +
+      '<div class="cell" data-k="json"><div class="cell-icon">' + UI.svg("export", 18) + '</div>' +
+      '<div class="cell-main"><div class="cell-title">导出 JSON 完整备份</div><div class="cell-desc">全部账本 / 账户 / 预算 / 设置</div></div></div>';
+    UI.$$(".cell", sh.body).forEach(el => el.onclick = () => {
+      const k = el.dataset.k;
+      const content = k === "csv" ? Store.exportCSV() : Store.exportJSON();
+      const mime = k === "csv" ? "text/csv;charset=utf-8" : "application/json";
+      const name = "小伙记账备份_" + fmt.YMD(new Date()) + "." + k;
+      if (window.AndroidBridge && window.AndroidBridge.saveFile) {
+        // Android APK 环境：经原生桥保存到系统「下载」目录
+        window.AndroidBridge.saveFile(name, mime, content);
+        sh.close(); UI.toast("已保存到下载目录");
+      } else {
+        const blob = new Blob([content], { type: mime });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = name;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        sh.close(); UI.toast("已开始下载");
+      }
+    });
+  },
+
+  importSheet() {
+    const sh = UI.sheet({ title: "数据导入" });
+    sh.body.innerHTML =
+      '<div style="font-size:13.5px;color:var(--text-2);line-height:1.7;padding:6px 2px 12px">选择此前导出的 JSON 备份文件，导入将<b style="color:var(--danger)">覆盖当前全部数据</b>。</div>' +
+      '<input type="file" id="impFile" accept=".json,application/json" style="display:none">' +
+      '<button class="btn btn-primary btn-block" id="impPick">选择 JSON 文件</button>';
+    UI.$("#impPick", sh.body).onclick = () => UI.$("#impFile", sh.body).click();
+    UI.$("#impFile", sh.body).onchange = e => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const rd = new FileReader();
+      rd.onload = () => {
+        try {
+          const obj = JSON.parse(rd.result);
+          if (!obj.books || !obj.records) throw new Error("bad");
+          UI.confirm({ title: "确认导入", body: "将覆盖当前 " + Store.s.records.length + " 笔账单，替换为备份中的 " + obj.records.length + " 笔。", ok: "覆盖导入", danger: true }).then(ok => {
+            if (!ok) return;
+            Store.replaceState(obj);
+            sh.close(); UI.toast("导入成功");
+            App.applyTheme(); App.viewMonth = fmt.curMonth(); App.refresh();
+          });
+        } catch (err) { UI.toast("文件格式不正确"); }
+      };
+      rd.readAsText(f);
+    };
+  },
+
+  membersSheet() {
+    const sh = UI.sheet({ title: "成员管理（家庭多人记账）" });
+    const render = () => {
+      sh.body.innerHTML = Store.s.settings.members.map(m =>
+        '<div class="cell"><div class="cell-icon">👤</div><div class="cell-main"><div class="cell-title">' + UI.escape(m) + "</div></div>" +
+        (Store.s.settings.members.length > 1 ? '<button class="txt-btn" data-del="' + UI.escape(m) + '" style="color:var(--danger)">删除</button>' : "") + "</div>"
+      ).join("") +
+      '<div class="form-row" style="border:none"><input type="text" id="mbNew" maxlength="6" placeholder="新成员名称" style="text-align:left">' +
+      '<button class="btn btn-primary" id="mbAdd" style="padding:8px 16px">添加</button></div>';
+      sh.body.querySelectorAll("[data-del]").forEach(el => el.onclick = () => {
+        Store.s.settings.members = Store.s.settings.members.filter(x => x !== el.dataset.del);
+        Store.save(); render();
+      });
+      UI.$("#mbAdd", sh.body).onclick = () => {
+        const v = UI.$("#mbNew", sh.body).value.trim();
+        if (!v) return;
+        if (Store.s.settings.members.includes(v)) { UI.toast("已存在"); return; }
+        Store.s.settings.members.push(v); Store.save(); render();
+      };
+    };
+    render();
+  },
+
+  currencySheet(cb) {
+    const sh = UI.sheet({ title: "币种符号" });
+    sh.body.innerHTML = '<div class="form-row" style="border:none"><div class="lab">货币符号</div><div class="sel" style="justify-content:flex-end">' +
+      DATA.currencies.map(c => '<button class="chip' + (Store.s.settings.currency === c ? " active" : "") + '" data-c="' + c + '">' + c + "</button>").join("") + "</div></div>" +
+      '<div style="font-size:12px;color:var(--text-3);padding:4px">注意：仅切换显示符号，不做汇率换算（与原 App 的多币种展示一致）。</div>';
+    sh.body.querySelectorAll("[data-c]").forEach(el => el.onclick = () => {
+      Store.s.settings.currency = el.dataset.c;
+      Store.save(); sh.close(); UI.toast("已切换币种");
+      cb ? cb() : App.refresh();
+    });
+  }
+};
