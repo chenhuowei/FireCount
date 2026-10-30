@@ -70,11 +70,27 @@ const WebDAV = {
 
   async testConn() {
     if (!this.configured()) throw new Error("请先填写服务器与账号");
-    await this.ensureDir();
-    const r = await this.req("PROPFIND", this.dirUrl(), { "Depth": "1", "Content-Type": "application/xml" },
-      '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/><d:getlastmodified/></d:prop></d:propfind>');
-    if (r.code !== 207 && r.code !== 200) throw new Error("连接失败 (" + r.code + ")，请检查地址/账号/密码");
-    return this.parseList(r.body).length;
+    // 分步诊断：逐步报告卡在哪一环，便于定位坚果云常见问题
+    // ① 基础连通性（不带证书校验失败的干扰，直接请求目录）
+    let r = await this.req("PROPFIND", this.dirUrl(), { "Depth": "0", "Content-Type": "application/xml" },
+      '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"/>');
+    if (r.code === -1) throw new Error("网络不通：" + r.body + "（检查手机网络/系统时间是否正确）");
+    if (r.code === 401) throw new Error("认证失败（401）：坚果云必须用「应用密码」而非登录密码（网页版→账户信息→安全选项→添加应用密码）");
+    if (r.code === 404) {
+      // 目录不存在 → 尝试创建
+      const mk = await this.req("MKCOL", this.dirUrl(), null, null);
+      if (mk.code !== 201 && mk.code !== 405) throw new Error("备份目录不存在且创建失败 (" + mk.code + ")");
+      r = await this.req("PROPFIND", this.dirUrl(), { "Depth": "1", "Content-Type": "application/xml" },
+        '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/><d:getlastmodified/></d:prop></d:propfind>');
+    } else if (r.code !== 207 && r.code !== 200) {
+      throw new Error("连接失败 (" + r.code + ")：" + (r.body || "").slice(0, 80));
+    } else {
+      r = await this.req("PROPFIND", this.dirUrl(), { "Depth": "1", "Content-Type": "application/xml" },
+        '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/><d:getlastmodified/></d:prop></d:propfind>');
+    }
+    if (r.code !== 207 && r.code !== 200) throw new Error("列目录失败 (" + r.code + ")");
+    const n = this.parseList(r.body).length;
+    return n;
   },
 
   async backupNow(manual) {
@@ -212,8 +228,8 @@ const WebDAV = {
       saveCfg();
       if (!avail) { UI.toast("仅 APK 版可测试连接"); return; }
       UI.toast("正在连接…");
-      try { const n = await this.testConn(); UI.toast("连接成功，目录内 " + n + " 个文件"); }
-      catch (e) { UI.toast(e.message || "连接失败"); }
+      try { const n = await this.testConn(); UI.toast("✅ 连接成功，目录内 " + n + " 个文件"); }
+      catch (e) { UI.toast((e.message || "连接失败"), 4000); }
     };
     const bk = UI.$("#wdBackup", sh.foot);
     if (bk) bk.onclick = () => { saveCfg(); sh.close(); this.backupNow(true); };

@@ -55,11 +55,11 @@ const UI = {
   },
 
   /* ---------- Toast ---------- */
-  toast(msg) {
+  toast(msg, ms) {
     const host = UI.$("#toastHost");
     host.innerHTML = '<div class="toast">' + String(msg).replace(/</g, "&lt;") + "</div>";
     const t = host.firstChild;
-    setTimeout(() => { t.classList.add("out"); setTimeout(() => { if (t.parentNode) t.remove(); }, 260); }, 1800);
+    setTimeout(() => { t.classList.add("out"); setTimeout(() => { if (t.parentNode) t.remove(); }, 260); }, ms || 1800);
   },
 
   /* ---------- 确认框 ---------- */
