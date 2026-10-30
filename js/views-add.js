@@ -11,7 +11,7 @@ const ViewsAdd = {
   accountChipsHTML(field, selectedId) {
     const chips = Store.s.accounts.map(a =>
       '<button class="pick-chip' + (a.id === selectedId ? " active" : "") + '" data-f="' + field + '" data-id="' + a.id + '">' +
-      '<span class="pc-ico">' + (a.icon || Store.accountTypeMeta(a.type).icon) + "</span>" + UI.escape(a.name) + "</button>"
+      '<span class="pc-ico" style="color:' + (a.color || Store.accountTypeMeta(a.type).color) + '">' + IconUI.raw(a, 15) + "</span>" + UI.escape(a.name) + "</button>"
     ).join("");
     return '<div class="chip-scroll">' + chips +
       '<button class="pick-chip add" data-f="' + field + '" data-addchip>＋</button></div>';
@@ -132,7 +132,7 @@ const ViewsAdd = {
         const catHTML = pages.map((pg, pi) =>
           '<div class="jy-grid-page">' + pg.map(c =>
             '<div class="jy-cat' + (c.id === S.categoryId ? " selected" : "") + '" data-cid="' + c.id + '">' +
-            '<div class="ci" style="background:' + c.color + '22">' + c.icon + "</div>" +
+            '<div class="ci" style="background:' + c.color + '22;color:' + c.color + '">' + IconUI.raw(c, 24) + "</div>" +
             '<div class="cn">' + UI.escape(c.name) + "</div></div>"
           ).join("") +
           (pi === pages.length - 1 ? '<div class="jy-cat" data-addcat><div class="ci" style="background:var(--chip);color:var(--brand)">＋</div><div class="cn">添加</div></div>' : "") +
@@ -142,7 +142,7 @@ const ViewsAdd = {
         body.innerHTML =
           '<div class="jy-amount-zone">' +
             '<div class="jy-cat-chosen">' +
-              '<div class="ci" style="background:' + (chosen ? chosen.color : "#ccc") + '22">' + (chosen ? chosen.icon : "❓") + "</div>" +
+              '<div class="ci" style="background:' + (chosen ? chosen.color : "#ccc") + '22;color:' + (chosen ? chosen.color : "#999") + '">' + (chosen ? IconUI.raw(chosen, 26) : "?") + "</div>" +
               '<div class="cn">' + (chosen ? UI.escape(chosen.name) : "请选择分类") + "</div>" +
             "</div>" + amountZoneHTML() +
           "</div>" +
@@ -399,12 +399,15 @@ const ViewsAdd = {
   categoryEditor(cat, cb) {
     const isNew = !cat;
     const sh = UI.sheet({ title: isNew ? "添加分类" : "编辑分类" });
-    const S = { icon: cat ? cat.icon : "🔖", color: cat ? cat.color : DATA.colorChoices[0], type: cat ? cat.type : "expense" };
+    const S = { icon: cat ? cat.icon : "svg:" + (DATA.iconChoices[0] || "canyin"), color: cat ? cat.color : DATA.colorChoices[0], type: cat ? cat.type : "expense" };
     sh.body.innerHTML =
       (isNew ? '<div class="seg" id="catTypeSeg" style="margin-bottom:6px"><button data-t="expense" class="active">支出分类</button><button data-t="income">收入分类</button></div>' : "") +
       '<div class="form-row"><div class="lab">名称</div><input type="text" id="catName" maxlength="6" placeholder="最多 6 个字" value="' + (cat ? UI.escape(cat.name) : "") + '"></div>' +
       '<div class="form-row" style="flex-direction:column;align-items:stretch"><div class="lab" style="width:auto">图标</div>' +
-      '<div class="emoji-grid" id="emojiGrid" style="margin-top:6px">' + DATA.emojiChoices.map(e => '<button data-e="' + e + '" class="' + (e === S.icon ? "active" : "") + '">' + e + "</button>").join("") + "</div></div>" +
+      '<div class="emoji-grid" id="iconGrid" style="margin-top:6px">' +
+        DATA.iconChoices.map(k => '<button data-e="svg:' + k + '" data-icon="1" class="' + (S.icon === "svg:" + k ? "active" : "") + '" style="color:' + S.color + '">' + IconUI.svg(k, 21) + "</button>").join("") +
+        DATA.emojiChoices.slice(0, 18).map(e => '<button data-e="' + e + '" class="' + (e === S.icon ? "active" : "") + '">' + e + "</button>").join("") +
+      "</div></div>" +
       '<div class="form-row" style="flex-direction:column;align-items:stretch"><div class="lab" style="width:auto">颜色</div>' +
       '<div class="color-row" id="colorRow" style="margin-top:6px">' + DATA.colorChoices.map(c => '<i data-c="' + c + '" style="background:' + c + '" class="' + (c === S.color ? "active" : "") + "'></i>").join("") + "</div></div>";
     sh.foot.innerHTML = '<button class="btn btn-primary btn-block" id="catSave">保存</button>';
@@ -414,9 +417,9 @@ const ViewsAdd = {
         sh.body.querySelectorAll("#catTypeSeg button").forEach(x => x.classList.toggle("active", x === b));
       });
     }
-    sh.body.querySelectorAll("#emojiGrid button").forEach(b => b.onclick = () => {
+    sh.body.querySelectorAll("#iconGrid button").forEach(b => b.onclick = () => {
       S.icon = b.dataset.e;
-      sh.body.querySelectorAll("#emojiGrid button").forEach(x => x.classList.toggle("active", x === b));
+      sh.body.querySelectorAll("#iconGrid button").forEach(x => x.classList.toggle("active", x === b));
     });
     sh.body.querySelectorAll("#colorRow i").forEach(el => el.onclick = () => {
       S.color = el.dataset.c;

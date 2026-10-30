@@ -67,7 +67,7 @@ const ViewsReport = {
       '<div class="rp-legend">' +
         (entries.length ? entries.slice(0, 10).map((e, i) =>
           '<div class="lg"><span class="dot" style="background:' + e.cat.color + '"></span>' +
-          '<span class="nm">' + e.cat.icon + " " + UI.escape(e.cat.name) + '</span>' +
+          '<span class="nm" style="display:inline-flex;align-items:center;gap:5px">' + UI.catIcon(e.cat, "rp-ico") + " " + UI.escape(e.cat.name) + '</span>' +
           '<span class="ct">' + e.count + "笔</span>" +
           '<span class="amt">' + cur + fmt.money(e.amount) + "</span></div>"
         ).join("") : '<div style="text-align:center;color:var(--text-3);padding:10px 0">本月暂无' + (t === "expense" ? "支出" : "收入") + "账单</div>") +
@@ -88,7 +88,7 @@ const ViewsReport = {
     html +=
       '<div class="card" style="padding:8px 2px 12px"><div class="sec-title" style="padding:4px 14px 4px">' + (t === "expense" ? "支出" : "收入") + "排行</div>" +
       (entries.length ? entries.slice(0, 12).map((e, i) =>
-        '<div class="rank-row"><span class="rk">' + (i + 1) + '</span><span class="rn">' + e.cat.icon + " " + UI.escape(e.cat.name) + "</span>" +
+        '<div class="rank-row"><span class="rk">' + (i + 1) + '</span>' + UI.catIcon(e.cat, "rk-ico") + '<span class="rn">' + UI.escape(e.cat.name) + "</span>" +
         '<span class="bar-zone"><i class="bar" style="width:' + Math.max(4, e.amount / maxAmt * 100) + '%"></i></span>' +
         '<span class="amt">' + fmt.money(e.amount) + "</span></div>"
       ).join("") : '<div style="text-align:center;color:var(--text-3);padding:16px 0">暂无数据</div>') +

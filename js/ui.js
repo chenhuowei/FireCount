@@ -51,6 +51,9 @@ const UI = {
     const m = Store.accountTypeMeta(acc.type);
     const bg = acc.color || m.color;
     const icon = acc.icon || m.icon;
+    const mSvg = /^svg:(\w+)$/.exec(icon);
+    if (mSvg && IconUI.has(mSvg[1]))
+      return '<div class="' + (cls || "bi-icon") + '" style="background:' + bg + '22;color:' + bg + '">' + IconUI.svg(mSvg[1], 20) + "</div>";
     return '<div class="' + (cls || "bi-icon") + '" style="background:' + bg + '22">' + icon + "</div>";
   },
 

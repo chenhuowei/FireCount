@@ -80,8 +80,8 @@ const ViewsBills = {
     let icon, title, sub, amt, amtCls, tag = "";
     if (r.type === "transfer") {
       const a1 = Store.account(r.accountId), a2 = Store.account(r.toAccountId);
-      const meta = { icon: "🔁", color: "#3B82F6", name: "转账" };
-      icon = '<div class="bi-icon" style="background:#3B82F622">' + meta.icon + "</div>";
+      const meta = { icon: "svg:swap", color: "#3B82F6", name: "转账" };
+      icon = '<div class="bi-icon" style="background:#3B82F622;color:#3B82F6">' + IconUI.svg("swap", 20) + "</div>";
       title = "转账";
       sub = (a1 ? a1.name : "?") + " → " + (a2 ? a2.name : "?");
       amtCls = "money-flat";

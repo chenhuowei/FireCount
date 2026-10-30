@@ -29,7 +29,7 @@ const ViewsWallet = {
         '<button class="btn btn-ghost" style="flex:1" id="wAdd">＋ 添加账户</button>' +
       "</div>" +
       (groups.length ? groups.map(g =>
-        '<div class="sec-title">' + g.meta.icon + " " + g.meta.name + " · " + g.list.length + "</div>" +
+        '<div class="sec-title" style="display:flex;align-items:center;gap:6px">' + IconUI.svg(g.meta.icon.split(":")[1] || "cash", 16, g.meta.color) + " " + g.meta.name + " · " + g.list.length + "</div>" +
         '<div class="card">' + g.list.map(a => ViewsWallet.accItemHTML(a, cur)).join("") + "</div>"
       ).join("") : '<div class="empty"><div class="big">👛</div><div class="t1">还没有账户</div></div>') +
       "</div>";
@@ -146,7 +146,7 @@ const ViewsWallet = {
           '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:4px 0 10px">' +
           DATA.accountTypes.map(t =>
             '<button class="jy-cat' + (S.type === t.type ? " selected" : "") + '" data-t="' + t.type + '">' +
-            '<div class="ci" style="background:' + t.color + '22">' + t.icon + '</div><div class="cn">' + t.name + "</div></button>"
+            '<div class="ci" style="background:' + t.color + '22;color:' + t.color + '">' + IconUI.raw(t, 24) + '</div><div class="cn">' + t.name + "</div></button>"
           ).join("") + "</div>") +
         '<div class="form-row"><div class="lab">名称</div><input type="text" id="accName" maxlength="10" placeholder="' + (S.type === "bank" ? "如：招商银行" : "账户名称") + '" value="' + UI.escape(S.name || "") + '"></div>' +
         '<div class="form-row"><div class="lab">图标</div><div class="sel">' +
