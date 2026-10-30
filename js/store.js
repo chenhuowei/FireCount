@@ -394,24 +394,28 @@ const Store = {
    * 也兼容本应用导出的 CSV（日期/类型/分类/金额/...）
    * 模式：append 合并（跳过 重复行）或 replace 覆盖当前账本账单
    */
-  importKdjzCSV(text, mode) {
-    const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter(l => l.trim());
-    if (!lines.length) throw new Error("空文件");
-    const parseLine = l => {
-      const out = []; let cur = "", q = false;
-      for (let i = 0; i < l.length; i++) {
-        const ch = l[i];
-        if (q) { if (ch === '"' && l[i+1] === '"') { cur += '"'; i++; } else if (ch === '"') q = false; else cur += ch; }
-        else if (ch === '"') q = true;
-        else if (ch === ",") { out.push(cur); cur = ""; }
-        else cur += ch;
-      }
-      out.push(cur); return out;
-    };
+  /* 从工作表二维数组解析（xlsx/csv 统一入口） */
+  rowsFromSheet(aoa) {
+    if (!aoa || !aoa.length) throw new Error("空文件");
+    // 定位表头行（允许前面有说明行，如微信/支付宝/口袋导出都可能有）
+    let headIdx = -1, head = [];
+    for (let i = 0; i < Math.min(aoa.length, 30); i++) {
+      const cells = (aoa[i] || []).map(v => String(v == null ? "" : v).trim());
+      if (cells.includes("时间") && cells.includes("金额") || cells.includes("日期") && cells.includes("金额")) { headIdx = i; head = cells; break; }
+    }
+    if (headIdx < 0) throw new Error("未找到表头（需含 时间/日期 + 金额 列）");
+    const col = names => { for (const n of names) { const i = head.indexOf(n); if (i >= 0) return i; } return -1; };
+    return { headIdx, head, col };
+  },
+
+  /* 统一导入入口：rows 为二维数组（CSV 行或 XLSX 工作表），mode: preview/append/replace */
+  importRows(rows, mode) {
+    const lines = rows.filter(r => (r || []).some(v => String(v == null ? "" : v).trim()));
+    const parseLine = r => (r || []).map(v => String(v == null ? "" : v));
     // 定位表头行（允许前面有说明行，如微信/支付宝/口袋导出都可能有）
     let headIdx = -1, head = [];
     for (let i = 0; i < Math.min(lines.length, 30); i++) {
-      const cells = parseLine(lines[i]);
+      const cells = parseLine(lines[i]).map(s => s.trim());
       if (cells.includes("时间") && cells.includes("金额") || cells.includes("日期") && cells.includes("金额")) { headIdx = i; head = cells; break; }
     }
     if (headIdx < 0) throw new Error("未找到表头（需含 时间/日期 + 金额 列）");
@@ -432,18 +436,28 @@ const Store = {
     };
     const matchAcc = name => name ? (this.s.accounts.find(a => a.name === name) || {}).id || "" : "";
     const matchBook = name => name ? (this.s.books.find(b => b.name === name) || {}).id || this.book().id : this.book().id;
+    // XLSX 单元格日期可能是 Date 对象或 Excel 序列数
+    const cellText = v => {
+      if (v == null) return "";
+      if (typeof window !== "undefined" && window.XLSX && typeof v === "number" && v > 20000 && v < 60000) {
+        const d = window.XLSX.SSF.parse_date_code(v);
+        if (d) return d.y + "-" + String(d.m).padStart(2, "0") + "-" + String(d.d).padStart(2, "0") + " " + String(d.H).padStart(2, "0") + ":" + String(d.M).padStart(2, "0");
+      }
+      if (v instanceof Date) return v.getFullYear() + "-" + String(v.getMonth() + 1).padStart(2, "0") + "-" + String(v.getDate()).padStart(2, "0") + " " + String(v.getHours()).padStart(2, "0") + ":" + String(v.getMinutes()).padStart(2, "0");
+      return String(v).trim();
+    };
 
     if (mode === "preview") {
       let expense = 0, income = 0, balanceRows = 0, total = 0;
       for (let i = headIdx + 1; i < lines.length; i++) {
         const cells = parseLine(lines[i]);
         if (!cells.length) continue;
-        const cat0 = cCat >= 0 ? (cells[cCat] || "").trim() : "";
+        const cat0 = cCat >= 0 ? cellText(cells[cCat]) : "";
         if (cat0 === "余额变更") { balanceRows++; continue; }
-        const time = (cells[cTime] || "").trim();
-        const amt = parseFloat((cells[cAmt] || "").replace(/[¥￥,\s]/g, ""));
+        const time = cellText(cells[cTime]);
+        const amt = parseFloat(String(cells[cAmt]).replace(/[¥￥,\s]/g, ""));
         if (!time || isNaN(amt) || amt === 0) continue;
-        const t2 = cType >= 0 && cells[cType] ? (cells[cType].includes("收") ? "income" : cells[cType].includes("转") ? "transfer" : "expense") : (amt > 0 ? "income" : "expense");
+        const t2 = cType >= 0 && cells[cType] ? (String(cells[cType]).includes("收") ? "income" : String(cells[cType]).includes("转") ? "transfer" : "expense") : (amt > 0 ? "income" : "expense");
         if (t2 === "transfer") continue;
         total++; if (t2 === "income") income++; else expense++;
       }
@@ -458,31 +472,51 @@ const Store = {
     for (let i = headIdx + 1; i < lines.length; i++) {
       const cells = parseLine(lines[i]);
       if (!cells.length) continue;
-      const cat0 = cCat >= 0 ? (cells[cCat] || "").trim() : "";
+      const cat0 = cCat >= 0 ? cellText(cells[cCat]) : "";
       if (cat0 === "余额变更") { skipped++; continue; }  // 口袋的余额调整行，非真实交易
-      const time = (cells[cTime] || "").trim();
-      const amt = parseFloat((cells[cAmt] || "").replace(/[¥￥,\s]/g, ""));
+      const time = cellText(cells[cTime]);
+      const amt = parseFloat(String(cells[cAmt]).replace(/[¥￥,\s]/g, ""));
       if (!time || isNaN(amt) || amt === 0) { skipped++; continue; }
-      const type = cType >= 0 && cells[cType] ? (cells[cType].includes("收") ? "income" : cells[cType].includes("转") ? "transfer" : "expense") : (amt > 0 ? "income" : "expense");
-      if (type === "transfer") { skipped++; continue; } // CSV 缺转入账户列，转账行无法完整还原
-      const note = cNote >= 0 ? (cells[cNote] || "").trim() : "";
+      const type = cType >= 0 && cells[cType] ? (String(cells[cType]).includes("收") ? "income" : String(cells[cType]).includes("转") ? "transfer" : "expense") : (amt > 0 ? "income" : "expense");
+      if (type === "transfer") { skipped++; continue; } // CSV/XLSX 缺转入账户列，转账行无法完整还原
+      const note = cNote >= 0 ? cellText(cells[cNote]) : "";
       const key = normDate(time) + "|" + type + "|" + Math.abs(amt).toFixed(2) + "|" + note;
       if (existKeys.has(key)) { skipped++; continue; }
       existKeys.add(key);
-      const catName = cat0;
       this.addRecord({
-        bookId: cBook >= 0 ? matchBook((cells[cBook] || "").trim()) : this.book().id,
+        bookId: cBook >= 0 ? matchBook(cellText(cells[cBook])) : this.book().id,
         type, amount: Math.round(Math.abs(amt) * 100) / 100,
-        categoryId: matchCat(catName, type),
-        accountId: cAcc >= 0 ? matchAcc((cells[cAcc] || "").trim()) : "",
-        date: time.replace(/\//g, "-").slice(0, 16),
-        note, member: cMem >= 0 ? (cells[cMem] || "").trim() || "我" : "我",
-        tags: cTags >= 0 ? (cells[cTags] || "").split(/[|;]/).map(s => s.trim()).filter(Boolean) : []
+        categoryId: matchCat(cat0, type),
+        accountId: cAcc >= 0 ? matchAcc(cellText(cells[cAcc])) : "",
+        date: normDate(time),
+        note, member: cMem >= 0 ? cellText(cells[cMem]) || "我" : "我",
+        tags: cTags >= 0 ? cellText(cells[cTags]).split(/[|;]/).map(s => s.trim()).filter(Boolean) : []
       });
       added++;
     }
     this.save();
     return { added, skipped };
+  },
+
+  /* CSV 文本 → 二维数组（供 importRows） */
+  csvToRows(text) {
+    const lines = String(text).replace(/^\uFEFF/, "").split(/\r?\n/).filter(l => l.trim());
+    return lines.map(l => {
+      const out = []; let cur = "", q = false;
+      for (let i = 0; i < l.length; i++) {
+        const ch = l[i];
+        if (q) { if (ch === '"' && l[i+1] === '"') { cur += '"'; i++; } else if (ch === '"') q = false; else cur += ch; }
+        else if (ch === '"') q = true;
+        else if (ch === ",") { out.push(cur); cur = ""; }
+        else cur += ch;
+      }
+      out.push(cur); return out;
+    });
+  },
+
+  /* CSV 文本导入（兼容旧调用） */
+  importKdjzCSV(text, mode) {
+    return this.importRows(this.csvToRows(text), mode);
   },
 
   /* ---------- 演示数据 ---------- */

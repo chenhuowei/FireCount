@@ -431,19 +431,20 @@ const ViewsMine = {
   importSheet() {
     const sh = UI.sheet({ title: "数据导入" });
     sh.body.innerHTML =
-      '<div style="font-size:13.5px;color:var(--text-2);line-height:1.7;padding:6px 2px 12px">选择导入文件。CSV 支持口袋记账导出格式（时间/账目分类/金额），JSON 为本应用完整备份。</div>' +
-      '<input type="file" id="impFile" accept=".json,.csv,application/json,text/csv" style="display:none">' +
-      '<div class="cell" id="impCsv"><div class="cell-icon">📄</div><div class="cell-main"><div class="cell-title">导入 CSV（口袋记账格式）</div><div class="cell-desc">时间/账目分类/金额，可合并或覆盖</div></div>' + UI.svg("arrow", 15) + "</div>" +
+      '<div style="font-size:13.5px;color:var(--text-2);line-height:1.7;padding:6px 2px 12px">支持 XLSX/CSV（口袋记账导出格式：时间/账目分类/金额）与 JSON 完整备份。</div>' +
+      '<input type="file" id="impFile" accept=".json,.csv,.xlsx,application/json,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none">' +
+      '<div class="cell" id="impSheet"><div class="cell-icon">📊</div><div class="cell-main"><div class="cell-title">导入 XLSX / CSV（口袋记账格式）</div><div class="cell-desc">自动识别表头，可合并或覆盖</div></div>' + UI.svg("arrow", 15) + "</div>" +
       '<div class="cell" id="impJson"><div class="cell-icon">🗂️</div><div class="cell-main"><div class="cell-title">导入 JSON 完整备份</div><div class="cell-desc">将覆盖当前全部数据</div></div>' + UI.svg("arrow", 15) + "</div>";
     let pick = null;
-    UI.$("#impCsv", sh.body).onclick = () => { pick = "csv"; UI.$("#impFile", sh.body).click(); };
+    UI.$("#impSheet", sh.body).onclick = () => { pick = "sheet"; UI.$("#impFile", sh.body).click(); };
     UI.$("#impJson", sh.body).onclick = () => { pick = "json"; UI.$("#impFile", sh.body).click(); };
     UI.$("#impFile", sh.body).onchange = e => {
       const f = e.target.files[0];
       if (!f) return;
+      const name = (f.name || "").toLowerCase();
       const rd = new FileReader();
-      rd.onload = () => {
-        if (pick === "json") {
+      if (pick === "json") {
+        rd.onload = () => {
           try {
             const obj = JSON.parse(rd.result);
             if (!obj.books || !obj.records) throw new Error("bad");
@@ -454,14 +455,29 @@ const ViewsMine = {
               App.applyTheme(); App.viewMonth = fmt.curMonth(); App.refresh();
             });
           } catch (err) { UI.toast("文件格式不正确"); }
-          return;
-        }
-        // CSV：先展示解析预览，让用户选合并/覆盖
+        };
+        rd.readAsText(f, "utf-8");
+        return;
+      }
+      // XLSX / CSV 表格导入
+      rd.onload = () => {
+        let rows;
+        try {
+          if (/\.xlsx$/.test(name) || (rd.result instanceof ArrayBuffer && name.endsWith(".xlsx"))) {
+            if (typeof XLSX === "undefined") { UI.toast("XLSX 解析库未加载"); return; }
+            const wb = XLSX.read(rd.result, { type: "array", cellDates: false });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: "" });
+          } else {
+            const text = typeof rd.result === "string" ? rd.result : new TextDecoder("utf-8").decode(rd.result);
+            rows = Store.csvToRows(text);
+          }
+        } catch (err) { UI.toast("文件解析失败：" + (err.message || err)); return; }
         let parsed;
-        try { parsed = Store.importKdjzCSV(rd.result, "preview"); }
-        catch (err) { UI.toast(err.message || "CSV 解析失败"); return; }
+        try { parsed = Store.importRows(rows, "preview"); }
+        catch (err) { UI.toast(err.message || "表头识别失败"); return; }
         sh.close();
-        const sh2 = UI.sheet({ title: "CSV 导入预览" });
+        const sh2 = UI.sheet({ title: "导入预览" });
         sh2.body.innerHTML =
           '<div style="font-size:13.5px;color:var(--text-2);line-height:1.8;padding:6px 2px">' +
           '表头识别成功，共 <b>' + parsed.total + '</b> 行有效数据<br>' +
@@ -470,20 +486,21 @@ const ViewsMine = {
           '<div class="cell" id="csvAppend"><div class="cell-main"><div class="cell-title">合并导入</div><div class="cell-desc">自动跳过与现有重复的账单</div></div>' + UI.svg("arrow", 15) + "</div>" +
           '<div class="cell" id="csvReplace"><div class="cell-main"><div class="cell-title" style="color:var(--danger)">覆盖当前账本</div><div class="cell-desc">删除当前账本全部账单后导入</div></div>' + UI.svg("arrow", 15) + "</div>";
         UI.$("#csvAppend", sh2.body).onclick = () => {
-          const r = Store.importKdjzCSV(rd.result, "append");
+          const r = Store.importRows(rows, "append");
           sh2.close(); UI.toast("导入完成：新增 " + r.added + " 笔，跳过 " + r.skipped + " 条");
           App.viewMonth = fmt.curMonth(); App.refresh();
         };
         UI.$("#csvReplace", sh2.body).onclick = () => {
-          UI.confirm({ title: "覆盖导入", body: "将删除当前账本全部账单（" + Store.bookRecords().length + " 笔）后导入 CSV 数据，且无法恢复。", ok: "覆盖", danger: true }).then(ok => {
+          UI.confirm({ title: "覆盖导入", body: "将删除当前账本全部账单（" + Store.bookRecords().length + " 笔）后导入表格数据，且无法恢复。", ok: "覆盖", danger: true }).then(ok => {
             if (!ok) return;
-            const r = Store.importKdjzCSV(rd.result, "replace");
+            const r = Store.importRows(rows, "replace");
             sh2.close(); UI.toast("导入完成：新增 " + r.added + " 笔");
             App.viewMonth = fmt.curMonth(); App.refresh();
           });
         };
       };
-      rd.readAsText(f, "utf-8");
+      if (/\.xlsx$/.test(name)) rd.readAsArrayBuffer(f);
+      else rd.readAsText(f, "utf-8");
     };
   },
 
