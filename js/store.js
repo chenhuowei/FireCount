@@ -388,6 +388,103 @@ const Store = {
     return "\uFEFF" + [head, ...rows].map(r => r.join(",")).join("\n");
   },
 
+  /* ---------- 口袋记账格式 CSV 导入 ----------
+   * 格式依据：口袋记账 v4.5.0 导出 Excel/CSV（表头：时间 / 账目分类 / 金额 / ...）
+   * 金额：正数=收入，负数=支出；“余额变更”行跳过。
+   * 也兼容本应用导出的 CSV（日期/类型/分类/金额/...）
+   * 模式：append 合并（跳过 重复行）或 replace 覆盖当前账本账单
+   */
+  importKdjzCSV(text, mode) {
+    const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter(l => l.trim());
+    if (!lines.length) throw new Error("空文件");
+    const parseLine = l => {
+      const out = []; let cur = "", q = false;
+      for (let i = 0; i < l.length; i++) {
+        const ch = l[i];
+        if (q) { if (ch === '"' && l[i+1] === '"') { cur += '"'; i++; } else if (ch === '"') q = false; else cur += ch; }
+        else if (ch === '"') q = true;
+        else if (ch === ",") { out.push(cur); cur = ""; }
+        else cur += ch;
+      }
+      out.push(cur); return out;
+    };
+    // 定位表头行（允许前面有说明行，如微信/支付宝/口袋导出都可能有）
+    let headIdx = -1, head = [];
+    for (let i = 0; i < Math.min(lines.length, 30); i++) {
+      const cells = parseLine(lines[i]);
+      if (cells.includes("时间") && cells.includes("金额") || cells.includes("日期") && cells.includes("金额")) { headIdx = i; head = cells; break; }
+    }
+    if (headIdx < 0) throw new Error("未找到表头（需含 时间/日期 + 金额 列）");
+    const col = names => { for (const n of names) { const i = head.indexOf(n); if (i >= 0) return i; } return -1; };
+    const cTime = col(["时间", "日期"]), cAmt = col(["金额"]),
+          cCat = col(["账目分类", "分类"]), cType = col(["类型"]), cNote = col(["备注"]),
+          cAcc = col(["账户"]), cMem = col(["成员"]), cBook = col(["账本"]), cTags = col(["标签"]);
+    if (cTime < 0 || cAmt < 0) throw new Error("表头缺少 时间/金额 列");
+
+    const kdjzMap = { "淘宝": "taobao", "衣服鞋包": "fushi", "水果": "shuiguolingshi", "零食": "shuiguolingshi",
+      "话费": "shoujitongxun", "一般": "yiban", "报销": "baoxiaozhang", "生活用品": "jujia", "房租": "jujia" };
+    const matchCat = (name, type) => {
+      if (!name) return "";
+      const key = kdjzMap[name];
+      if (key) { const c = this.s.categories.find(c => c.id === (type === "income" ? "ci_" : "ce_") + key); if (c) return c.id; }
+      const c = this.s.categories.find(c => c.name === name && c.type === type);
+      return c ? c.id : "";
+    };
+    const matchAcc = name => name ? (this.s.accounts.find(a => a.name === name) || {}).id || "" : "";
+    const matchBook = name => name ? (this.s.books.find(b => b.name === name) || {}).id || this.book().id : this.book().id;
+
+    if (mode === "preview") {
+      let expense = 0, income = 0, balanceRows = 0, total = 0;
+      for (let i = headIdx + 1; i < lines.length; i++) {
+        const cells = parseLine(lines[i]);
+        if (!cells.length) continue;
+        const cat0 = cCat >= 0 ? (cells[cCat] || "").trim() : "";
+        if (cat0 === "余额变更") { balanceRows++; continue; }
+        const time = (cells[cTime] || "").trim();
+        const amt = parseFloat((cells[cAmt] || "").replace(/[¥￥,\s]/g, ""));
+        if (!time || isNaN(amt) || amt === 0) continue;
+        const t2 = cType >= 0 && cells[cType] ? (cells[cType].includes("收") ? "income" : cells[cType].includes("转") ? "transfer" : "expense") : (amt > 0 ? "income" : "expense");
+        if (t2 === "transfer") continue;
+        total++; if (t2 === "income") income++; else expense++;
+      }
+      return { total, expense, income, balanceRows };
+    }
+
+    if (mode === "replace") this.s.records = this.s.records.filter(r => r.bookId !== this.book().id);
+    // 去重键：日期归一化（/→-，去秒）+ 类型 + 金额绝对值 + 备注
+    const normDate = d => String(d || "").replace(/\//g, "-").slice(0, 16);
+    const existKeys = new Set(this.s.records.map(r => normDate(r.date) + "|" + r.type + "|" + (+r.amount).toFixed(2) + "|" + (r.note || "")));
+    let added = 0, skipped = 0;
+    for (let i = headIdx + 1; i < lines.length; i++) {
+      const cells = parseLine(lines[i]);
+      if (!cells.length) continue;
+      const cat0 = cCat >= 0 ? (cells[cCat] || "").trim() : "";
+      if (cat0 === "余额变更") { skipped++; continue; }  // 口袋的余额调整行，非真实交易
+      const time = (cells[cTime] || "").trim();
+      const amt = parseFloat((cells[cAmt] || "").replace(/[¥￥,\s]/g, ""));
+      if (!time || isNaN(amt) || amt === 0) { skipped++; continue; }
+      const type = cType >= 0 && cells[cType] ? (cells[cType].includes("收") ? "income" : cells[cType].includes("转") ? "transfer" : "expense") : (amt > 0 ? "income" : "expense");
+      if (type === "transfer") { skipped++; continue; } // CSV 缺转入账户列，转账行无法完整还原
+      const note = cNote >= 0 ? (cells[cNote] || "").trim() : "";
+      const key = normDate(time) + "|" + type + "|" + Math.abs(amt).toFixed(2) + "|" + note;
+      if (existKeys.has(key)) { skipped++; continue; }
+      existKeys.add(key);
+      const catName = cat0;
+      this.addRecord({
+        bookId: cBook >= 0 ? matchBook((cells[cBook] || "").trim()) : this.book().id,
+        type, amount: Math.round(Math.abs(amt) * 100) / 100,
+        categoryId: matchCat(catName, type),
+        accountId: cAcc >= 0 ? matchAcc((cells[cAcc] || "").trim()) : "",
+        date: time.replace(/\//g, "-").slice(0, 16),
+        note, member: cMem >= 0 ? (cells[cMem] || "").trim() || "我" : "我",
+        tags: cTags >= 0 ? (cells[cTags] || "").split(/[|;]/).map(s => s.trim()).filter(Boolean) : []
+      });
+      added++;
+    }
+    this.save();
+    return { added, skipped };
+  },
+
   /* ---------- 演示数据 ---------- */
   seedDemo() {
     const s = this.s;

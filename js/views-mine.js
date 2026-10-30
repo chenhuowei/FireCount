@@ -33,6 +33,8 @@ const ViewsMine = {
         cell("import", "数据导入", "从 JSON 备份恢复", "import") +
         cell("theme", "深色模式", s.settings.theme === "deep" ? "已开启" : "已关闭", "themeToggle") +
         cell("user", "成员管理", s.settings.members.join(" / "), "members") +
+        cell("lock", "应用锁", (s.settings.lock && s.settings.lock.enabled) ? "已开启" : "未开启", "applock") +
+        cell("cloud", "WebDAV 云备份", webdavDesc(), "webdav") +
         cell("budget", "币种设置", "当前符号 " + s.settings.currency, "currency") +
       "</div>" +
       '<div class="card">' +
@@ -51,6 +53,8 @@ const ViewsMine = {
       if (go === "export") { ViewsMine.exportSheet(); return; }
       if (go === "import") { ViewsMine.importSheet(); return; }
       if (go === "members") { ViewsMine.membersSheet(); return; }
+      if (go === "applock") { Lock.settingsSheet(); return; }
+      if (go === "webdav") { WebDAV.settingsSheet(); return; }
       if (go === "currency") { ViewsMine.currencySheet(); return; }
       if (go === "about") {
         UI.confirm({ title: "关于", body: "本应用按 REA 逆向工作流，对口袋记账（com.qeeniao.mobile.kdjz v4.5.0）的 APK 资源进行分析后复刻实现，仅用于学习研究。<br><br>逆向证据与功能映射见 ANALYSIS.md。", ok: "我知道了" });
@@ -74,6 +78,12 @@ const ViewsMine = {
     function budgetDesc() {
       const b = Store.budget(fmt.curMonth());
       return b.total ? "本月总预算 " + fmt.money(b.total) + " 元" : "未设置";
+    }
+    function webdavDesc() {
+      const c = Store.s.settings.webdav;
+      if (!c || !c.user) return "坚果云 / 123网盘（仅 APK）";
+      return (WebDAV.PRESETS[c.provider] || {}).name + " · " +
+        (c.lastBackupAt ? "上次备份 " + new Date(c.lastBackupAt).toLocaleString("zh-CN") : "已配置未备份");
     }
   },
 
@@ -421,27 +431,59 @@ const ViewsMine = {
   importSheet() {
     const sh = UI.sheet({ title: "数据导入" });
     sh.body.innerHTML =
-      '<div style="font-size:13.5px;color:var(--text-2);line-height:1.7;padding:6px 2px 12px">选择此前导出的 JSON 备份文件，导入将<b style="color:var(--danger)">覆盖当前全部数据</b>。</div>' +
-      '<input type="file" id="impFile" accept=".json,application/json" style="display:none">' +
-      '<button class="btn btn-primary btn-block" id="impPick">选择 JSON 文件</button>';
-    UI.$("#impPick", sh.body).onclick = () => UI.$("#impFile", sh.body).click();
+      '<div style="font-size:13.5px;color:var(--text-2);line-height:1.7;padding:6px 2px 12px">选择导入文件。CSV 支持口袋记账导出格式（时间/账目分类/金额），JSON 为本应用完整备份。</div>' +
+      '<input type="file" id="impFile" accept=".json,.csv,application/json,text/csv" style="display:none">' +
+      '<div class="cell" id="impCsv"><div class="cell-icon">📄</div><div class="cell-main"><div class="cell-title">导入 CSV（口袋记账格式）</div><div class="cell-desc">时间/账目分类/金额，可合并或覆盖</div></div>' + UI.svg("arrow", 15) + "</div>" +
+      '<div class="cell" id="impJson"><div class="cell-icon">🗂️</div><div class="cell-main"><div class="cell-title">导入 JSON 完整备份</div><div class="cell-desc">将覆盖当前全部数据</div></div>' + UI.svg("arrow", 15) + "</div>";
+    let pick = null;
+    UI.$("#impCsv", sh.body).onclick = () => { pick = "csv"; UI.$("#impFile", sh.body).click(); };
+    UI.$("#impJson", sh.body).onclick = () => { pick = "json"; UI.$("#impFile", sh.body).click(); };
     UI.$("#impFile", sh.body).onchange = e => {
       const f = e.target.files[0];
       if (!f) return;
       const rd = new FileReader();
       rd.onload = () => {
-        try {
-          const obj = JSON.parse(rd.result);
-          if (!obj.books || !obj.records) throw new Error("bad");
-          UI.confirm({ title: "确认导入", body: "将覆盖当前 " + Store.s.records.length + " 笔账单，替换为备份中的 " + obj.records.length + " 笔。", ok: "覆盖导入", danger: true }).then(ok => {
+        if (pick === "json") {
+          try {
+            const obj = JSON.parse(rd.result);
+            if (!obj.books || !obj.records) throw new Error("bad");
+            UI.confirm({ title: "确认导入", body: "将覆盖当前 " + Store.s.records.length + " 笔账单，替换为备份中的 " + obj.records.length + " 笔。", ok: "覆盖导入", danger: true }).then(ok => {
+              if (!ok) return;
+              Store.replaceState(obj);
+              sh.close(); UI.toast("导入成功");
+              App.applyTheme(); App.viewMonth = fmt.curMonth(); App.refresh();
+            });
+          } catch (err) { UI.toast("文件格式不正确"); }
+          return;
+        }
+        // CSV：先展示解析预览，让用户选合并/覆盖
+        let parsed;
+        try { parsed = Store.importKdjzCSV(rd.result, "preview"); }
+        catch (err) { UI.toast(err.message || "CSV 解析失败"); return; }
+        sh.close();
+        const sh2 = UI.sheet({ title: "CSV 导入预览" });
+        sh2.body.innerHTML =
+          '<div style="font-size:13.5px;color:var(--text-2);line-height:1.8;padding:6px 2px">' +
+          '表头识别成功，共 <b>' + parsed.total + '</b> 行有效数据<br>' +
+          '预计新增 <b style="color:var(--primary)">' + parsed.expense + '</b> 笔支出、<b style="color:var(--income)">' + parsed.income + '</b> 笔收入' +
+          (parsed.balanceRows ? '<br>跳过余额变更行 ' + parsed.balanceRows + ' 条' : "") + '</div>' +
+          '<div class="cell" id="csvAppend"><div class="cell-main"><div class="cell-title">合并导入</div><div class="cell-desc">自动跳过与现有重复的账单</div></div>' + UI.svg("arrow", 15) + "</div>" +
+          '<div class="cell" id="csvReplace"><div class="cell-main"><div class="cell-title" style="color:var(--danger)">覆盖当前账本</div><div class="cell-desc">删除当前账本全部账单后导入</div></div>' + UI.svg("arrow", 15) + "</div>";
+        UI.$("#csvAppend", sh2.body).onclick = () => {
+          const r = Store.importKdjzCSV(rd.result, "append");
+          sh2.close(); UI.toast("导入完成：新增 " + r.added + " 笔，跳过 " + r.skipped + " 条");
+          App.viewMonth = fmt.curMonth(); App.refresh();
+        };
+        UI.$("#csvReplace", sh2.body).onclick = () => {
+          UI.confirm({ title: "覆盖导入", body: "将删除当前账本全部账单（" + Store.bookRecords().length + " 笔）后导入 CSV 数据，且无法恢复。", ok: "覆盖", danger: true }).then(ok => {
             if (!ok) return;
-            Store.replaceState(obj);
-            sh.close(); UI.toast("导入成功");
-            App.applyTheme(); App.viewMonth = fmt.curMonth(); App.refresh();
+            const r = Store.importKdjzCSV(rd.result, "replace");
+            sh2.close(); UI.toast("导入完成：新增 " + r.added + " 笔");
+            App.viewMonth = fmt.curMonth(); App.refresh();
           });
-        } catch (err) { UI.toast("文件格式不正确"); }
+        };
       };
-      rd.readAsText(f);
+      rd.readAsText(f, "utf-8");
     };
   },
 

@@ -6,17 +6,24 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
+import android.hardware.fingerprint.FingerprintManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.CancellationSignal;
 import android.provider.MediaStore;
+import android.view.Gravity;
 import android.view.View;
+import android.view.Window;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 import android.window.OnBackInvokedCallback;
 import android.window.OnBackInvokedDispatcher;
@@ -38,6 +45,8 @@ public class MainActivity extends Activity {
     private WebView web;
     private ValueCallback<Uri[]> filePathCallback;
     private static final int REQ_FILE = 51001;
+    private CancellationSignal bioSignal;   // 指纹认证取消信号
+    private boolean pageLoaded;             // 首次页面加载完成标记（快捷方式延迟分发）
 
     /* ---------- SQLite 持久化 ---------- */
     private SQLiteDatabase db;
@@ -220,7 +229,6 @@ public class MainActivity extends Activity {
         s.setDisplayZoomControls(false);
         s.setMediaPlaybackRequiresUserGesture(false);
         web.setBackgroundColor(Color.parseColor("#F5F6F8"));
-        web.setWebViewClient(new WebViewClient());
         web.setWebChromeClient(new WebChromeClient() {
             @Override
             public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> cb, FileChooserParams params) {
@@ -252,10 +260,21 @@ public class MainActivity extends Activity {
             }
         });
         web.addJavascriptInterface(new Bridge(), "AndroidBridge");
+        web.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                pageLoaded = true;
+                if (pendingShortcut != null) {
+                    Runnable r = pendingShortcut; pendingShortcut = null;
+                    r.run();
+                }
+            }
+        });
         /* 开启 WebView 远程调试（chrome://inspect），便于真机问题排查 */
         WebView.setWebContentsDebuggingEnabled(true);
         web.loadUrl("file:///android_asset/www/index.html");
         setContentView(web);
+        handleShortcutIntent(getIntent());
         if (Build.VERSION.SDK_INT >= 21) {
             getWindow().setStatusBarColor(Color.parseColor("#F0600A"));
         }
@@ -267,6 +286,13 @@ public class MainActivity extends Activity {
                         public void onBackInvoked() { handleNativeBack(); }
                     });
         }
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleShortcutIntent(intent);
     }
 
     /** 文件选择结果（账单附件 / JSON 导入）；兼容 getData 与 ClipData 两种返回 */
@@ -308,6 +334,8 @@ public class MainActivity extends Activity {
         runOnUiThread(() -> Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show());
     }
 
+    private android.app.AlertDialog bioDialog;
+
     /** JS 桥：SQLite 存取 + 导出保存（dbSave 异步，立即返回不阻塞网页） */
     private class Bridge {
         @JavascriptInterface
@@ -348,5 +376,231 @@ public class MainActivity extends Activity {
                 toast("保存失败：" + e.getMessage());
             }
         }
+
+        /* ---------- 需求①：指纹认证（FingerprintManager 零依赖） ---------- */
+
+        @JavascriptInterface
+        public boolean biometricAvailable() {
+            try {
+                if (Build.VERSION.SDK_INT < 23) return false;
+                FingerprintManager fm = getSystemService(FingerprintManager.class);
+                return fm != null && fm.isHardwareDetected() && fm.hasEnrolledFingerprints();
+            } catch (Exception e) { return false; }
+        }
+
+        @JavascriptInterface
+        public void showBiometric(final String title) {
+            runOnUiThread(() -> showFingerprintDialog(title == null || title.isEmpty() ? "验证指纹" : title));
+        }
+
+        /** 取消进行中的指纹认证（锁屏关闭时调用） */
+        @JavascriptInterface
+        public void cancelBiometric() {
+            runOnUiThread(() -> {
+                if (bioSignal != null) { bioSignal.cancel(); bioSignal = null; }
+            });
+        }
+
+        /* ---------- 需求②：WebDAV HTTP 代理（HttpsURLConnection 零依赖） ---------- */
+
+        @JavascriptInterface
+        public void webdavRequest(final int id, final String method, final String url,
+                                  final String headers, final String body) {
+            new Thread(() -> {
+                int code = 0; String resp = "";
+                try {
+                    javax.net.ssl.HttpsURLConnection conn =
+                        (javax.net.ssl.HttpsURLConnection) new java.net.URL(url).openConnection();
+                    conn.setRequestMethod(method);
+                    conn.setConnectTimeout(15000);
+                    conn.setReadTimeout(45000);
+                    conn.setInstanceFollowRedirects(true);
+                    if (headers != null && !headers.isEmpty()) {
+                        for (String line : headers.split("\n")) {
+                            int i = line.indexOf(": ");
+                            if (i > 0) conn.setRequestProperty(line.substring(0, i), line.substring(i + 2));
+                        }
+                    }
+                    if (body != null && !body.isEmpty()
+                            && !"GET".equals(method) && !"HEAD".equals(method)
+                            && !"PROPFIND".equals(method)) {
+                        conn.setDoOutput(true);
+                        try (java.io.OutputStream os = conn.getOutputStream()) {
+                            os.write(body.getBytes(StandardCharsets.UTF_8));
+                        }
+                    }
+                    code = conn.getResponseCode();
+                    java.io.InputStream is = code >= 400 ? conn.getErrorStream() : conn.getInputStream();
+                    if (is != null) {
+                        java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+                        byte[] buf = new byte[8192];
+                        int n;
+                        while ((n = is.read(buf)) > 0) bos.write(buf, 0, n);
+                        is.close();
+                        resp = bos.toString("UTF-8");
+                    }
+                    if (resp == null) resp = "";
+                } catch (final Exception e) {
+                    code = -1;
+                    resp = "请求失败：" + e.getMessage();
+                }
+                final int fCode = code;
+                final String fResp = resp;
+                evalJs("(window.__webdavCbMap && window.__webdavCbMap['" + id + "]"
+                        + " ? window.__webdavCbMap['" + id + "](" + fCode + ", "
+                        + jqStr(fResp) + ") : 0)");
+            }).start();
+        }
+
+        /** JSON 字符串字面量转义（用于 evaluateJavascript 内联） */
+        private String jqStr(String s) {
+            if (s == null) return "\"\"";
+            StringBuilder sb = new StringBuilder("\"");
+            for (int i = 0; i < s.length(); i++) {
+                char c = s.charAt(i);
+                switch (c) {
+                    case '"':  sb.append("\\\""); break;
+                    case '\\': sb.append("\\\\"); break;
+                    case '\n': sb.append("\\n"); break;
+                    case '\r': sb.append("\\r"); break;
+                    case '\t': sb.append("\\t"); break;
+                    default:
+                        if (c < 0x20) sb.append(String.format("\\u%04x", (int) c));
+                        else sb.append(c);
+                }
+            }
+            return sb.append("\"").toString();
+        }
     }
+
+    /* ============================================================
+     * 指纹对话框（系统 FingerprintManager + 自绘简易 UI，API 23+）
+     * 结果回调到网页 window.__bioResult(ok)
+     * ============================================================ */
+    private void showFingerprintDialog(String title) {
+        if (Build.VERSION.SDK_INT < 23) { evalJs("window.__bioResult && window.__bioResult(false)"); return; }
+        FingerprintManager fm = getSystemService(FingerprintManager.class);
+        if (fm == null || !fm.isHardwareDetected() || !fm.hasEnrolledFingerprints()) {
+            toast("设备未录入指纹，请用 PIN 解锁");
+            evalJs("window.__bioResult && window.__bioResult(false)");
+            return;
+        }
+        cancelBio();
+
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setGravity(android.view.Gravity.CENTER);
+        box.setPadding(dp(28), dp(32), dp(28), dp(24));
+
+        TextView tvIcon = new TextView(this);
+        tvIcon.setText("\uD83D\uDD11"); // 🔑
+        tvIcon.setTextSize(40);
+        tvIcon.setGravity(android.view.Gravity.CENTER);
+        box.addView(tvIcon);
+
+        TextView tvTitle = new TextView(this);
+        tvTitle.setText(title);
+        tvTitle.setTextSize(16);
+        tvTitle.setTextColor(Color.parseColor("#333333"));
+        tvTitle.setPadding(0, dp(16), 0, dp(4));
+        box.addView(tvTitle);
+
+        final TextView tvHint = new TextView(this);
+        tvHint.setText("请触摸指纹传感器");
+        tvHint.setTextSize(13);
+        tvHint.setTextColor(Color.parseColor("#999999"));
+        tvHint.setPadding(0, dp(4), 0, 0);
+        box.addView(tvHint);
+
+        android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(this)
+                .setView(box)
+                .setCancelable(true)
+                .create();
+        bioDialog = dialog;
+        bioSignal = new CancellationSignal();
+        bioSignal.setOnCancelListener(() -> {
+            if (bioDialog != null && bioDialog.isShowing()) bioDialog.dismiss();
+            bioDialog = null;
+            evalJs("window.__bioResult && window.__bioResult(false)");
+        });
+        dialog.setOnDismissListener(d -> { if (bioSignal != null && !bioSignal.isCanceled()) cancelBio(); });
+
+        try {
+            fm.authenticate(null, bioSignal, 0, new FingerprintManager.AuthenticationCallback() {  // CryptoObject=null, flag=0
+                @Override public void onAuthenticationSucceeded(FingerprintManager.AuthenticationResult result) {
+                    closeBio("验证成功");
+                    evalJs("window.__bioResult && window.__bioResult(true)");
+                }
+                @Override public void onAuthenticationError(int code, CharSequence errString) {
+                    closeBio(errString == null ? "验证失败" : errString.toString());
+                    evalJs("window.__bioResult && window.__bioResult(false)");
+                }
+                @Override public void onAuthenticationFailed() {
+                    runOnUiThread(() -> tvHint.setText("指纹不匹配，请重试"));
+                }
+                @Override public void onAuthenticationHelp(int helpCode, CharSequence helpString) {
+                    runOnUiThread(() -> tvHint.setText(helpString == null ? "请重试" : helpString.toString()));
+                }
+            }, new android.os.Handler(android.os.Looper.getMainLooper()));
+        } catch (Exception e) {
+            closeBio("指纹启动失败");
+            evalJs("window.__bioResult && window.__bioResult(false)");
+        }
+        dialog.show();
+        // 设置窗口背景为白色圆角（简化处理：直接白色）
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.WHITE));
+        }
+    }
+
+    private void closeBio(String hint) {
+        if (bioSignal != null) { bioSignal.cancel(); bioSignal = null; }
+        if (bioDialog != null && bioDialog.isShowing()) bioDialog.dismiss();
+        bioDialog = null;
+        if (hint != null) toast(hint);
+    }
+
+    private void cancelBio() {
+        if (bioSignal != null) { bioSignal.cancel(); bioSignal = null; }
+        if (bioDialog != null && bioDialog.isShowing()) bioDialog.dismiss();
+        bioDialog = null;
+    }
+
+    /** 在网页主线程执行 JS（WebView.evaluateJavascript 已保证线程安全） */
+    private void evalJs(String js) {
+        if (web == null) return;
+        runOnUiThread(() -> {
+            if (web != null) web.evaluateJavascript(js, null);
+        });
+    }
+
+    private int dp(int v) { return Math.round(v * getResources().getDisplayMetrics().density); }
+
+    /* ============================================================
+     * 需求③：长按图标快捷方式分发
+     *   ACTION_QUICK_ADD → 网页 App.openQuickAdd()（应用锁内自动延迟）
+     *   ACTION_SYNC_NOW  → 网页 __appAction('sync') → WebDAV.backupNow(true)
+     * ============================================================ */
+    private void handleShortcutIntent(Intent intent) {
+        if (intent == null || intent.getAction() == null) return;
+        final String action = intent.getAction();
+        if (!"com.kdjz.clone.ACTION_QUICK_ADD".equals(action)
+                && !"com.kdjz.clone.ACTION_SYNC_NOW".equals(action)) return;
+        intent.setAction(Intent.ACTION_MAIN); // 防止重建/切回重复触发
+        dispatchShortcut("com.kdjz.clone.ACTION_QUICK_ADD".equals(action) ? "add" : "sync");
+    }
+
+    private void dispatchShortcut(final String type) {
+        Runnable go = () -> {
+            if ("add".equals(type)) {
+                evalJs("(window.__openQuickAdd ? window.__openQuickAdd() : (location.hash = '#add'))");
+            } else {
+                evalJs("(window.__appAction ? window.__appAction('sync') : UI.toast && UI.toast('未就绪'))");
+            }
+        };
+        if (pageLoaded) go.run();
+        else pendingShortcut = go; // onPageFinished 后补发
+    }
+
+    private Runnable pendingShortcut;
 }

@@ -35,7 +35,9 @@ const UI = {
       trash: '<path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2M6.5 7l1 13h9l1-13" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
       chart: '<path d="M4 20V10M10 20V4M16 20v-8M21 20H3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
       info: '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" fill="none"/><path d="M12 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="7.5" r="1.3" fill="currentColor"/>',
-      swap: '<path d="M7 4v13M4 14l3 3 3-3M17 20V7M14 10l3-3 3 3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+      swap: '<path d="M7 4v13M4 14l3 3 3-3M17 20V7M14 10l3-3 3 3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+      lock: '<rect x="5" y="11" width="14" height="9" rx="2.5" stroke="currentColor" stroke-width="2" fill="none"/><path d="M8 11V8a4 4 0 018 0v3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/><circle cx="12" cy="15.5" r="1.6" fill="currentColor"/>',
+      cloud: '<path d="M7 18a4.5 4.5 0 01-.5-8.97A6 6 0 0118.2 9.6 4 4 0 0117.5 18H7z" stroke="currentColor" stroke-width="2" fill="none" stroke-linejoin="round"/>'
     }[name] || "";
     return '<svg viewBox="0 0 24 24" width="' + (size || 22) + '" height="' + (size || 22) + '">' + p + "</svg>";
   },

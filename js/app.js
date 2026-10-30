@@ -33,6 +33,25 @@ const App = {
     const hashPage = (location.hash || "").replace("#/", "");
     this.go(this.PAGES[hashPage] ? hashPage : "bills", null, true);
     if (created) setTimeout(() => UI.toast("周期记账已自动补记 " + created + " 笔"), 600);
+    Lock.init();            // 应用锁：启动验证（若启用）
+    WebDAV.initAuto();      // WebDAV：6 小时自动备份检查
+    if (location.hash === "#add") this.openQuickAdd(); // 快捷方式入口
+  },
+
+  /* 长按图标快捷记账入口（被应用锁拦截时自动延迟到解锁后执行） */
+  openQuickAdd() {
+    if (Lock.active) { Lock.pendingAfterUnlock = () => ViewsAdd.open(); return; }
+    ViewsAdd.open();
+  },
+
+  /* 原生快捷动作分发（需求③：去同步） */
+  __appAction(type) {
+    if (type === "sync") {
+      if (!WebDAV.available()) { UI.toast("仅 APK 版支持云同步"); return; }
+      if (!WebDAV.configured()) { UI.toast("请先在「更多 → WebDAV 同步」中配置坚果云账号"); return; }
+      UI.toast("正在同步备份…");
+      WebDAV.backupNow(true);
+    }
   },
 
   applyTheme() {
@@ -92,6 +111,10 @@ const App = {
     this.render();
   }
 };
+
+/* 供原生桥调用的全局入口（const 声明不挂 window，需显式暴露） */
+window.__appAction = t => App.__appAction(t);
+window.__openQuickAdd = () => App.openQuickAdd();
 
 /* 供模板 onclick 调用的动作 */
 window.A = {

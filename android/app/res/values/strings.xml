@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">小伙记账</string>
+    <string name="shortcut_add">记一笔</string>
+    <string name="shortcut_add_long">快速记一笔</string>
+    <string name="shortcut_sync">同步</string>
+    <string name="shortcut_sync_long">立即同步备份</string>
+</resources>

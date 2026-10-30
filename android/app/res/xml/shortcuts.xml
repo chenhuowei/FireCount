@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 长按应用图标快捷方式（需求③）：
+     记一笔 → #add（App.boot 已处理，含应用锁延迟解锁）
+     去同步 → #sync（app.js 分发到 WebDAV.backupNow） -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="quick_add"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_add"
+        android:shortcutLongLabel="@string/shortcut_add_long">
+        <intent
+            android:action="com.kdjz.clone.ACTION_QUICK_ADD"
+            android:targetPackage="com.kdjz.clone"
+            android:targetClass="com.kdjz.clone.MainActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="sync_now"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_sync"
+        android:shortcutLongLabel="@string/shortcut_sync_long">
+        <intent
+            android:action="com.kdjz.clone.ACTION_SYNC_NOW"
+            android:targetPackage="com.kdjz.clone"
+            android:targetClass="com.kdjz.clone.MainActivity" />
+    </shortcut>
+</shortcuts>
