@@ -1,7 +1,7 @@
 /* ============================================================
  * 我的页 + 子功能页（UserCenter 模块复刻）：
  *   多账本管理（Books）· 预算（Budget_v3 日/周/月三环 + 分类预算）
- *   周期记账（Notice）· 分类管理（RecordtypeManager）
+ *   分类管理（RecordtypeManager）
  *   数据导出/导入（DeriveData / DataBackUps）· 设置（主题/币种/成员）
  * ============================================================ */
 "use strict";
@@ -24,8 +24,7 @@ const ViewsMine = {
       "</div>" +
       '<div class="card">' +
         cell("book", "多账本管理", "当前：" + UI.escape(Store.book().name), "books") +
-        cell("budget", "预算设置", budgetDesc(), "budget") +
-        cell("cycle", "周期记账", s.cycles.filter(c => c.enabled).length + " 个启用中", "cycles") +
+        cell("budget", "预算设置", budgetDesc(), "budget") + +
         cell("tag", "分类管理", "支出 " + Store.categories("expense").length + " · 收入 " + Store.categories("income").length, "categories") +
       "</div>" +
       '<div class="card">' +
@@ -66,7 +65,7 @@ const ViewsMine = {
         });
         return;
       }
-      if (go === "books" || go === "budget" || go === "cycles" || go === "categories") App.go(go);
+      if (go === "books" || go === "budget" || go === "categories") App.go(go);
     });
 
     function stat(v, k) { return '<div class="st"><div class="k">' + k + '</div><div class="v">' + v + "</div></div>"; }
@@ -273,116 +272,6 @@ const ViewsMine = {
         sh2.close(); sh.close(); UI.toast("已保存"); cb && cb();
       };
     });
-  },
-
-  /* ================= 周期记账（Notice 模块） ================= */
-  renderCycles(header, main) {
-    header.classList.remove("hidden");
-    header.innerHTML =
-      '<div class="hd"><button class="hd-btn" data-back>' + UI.svg("back") + '</button><div class="hd-title">周期记账</div>' +
-      '<div class="hd-sub"><button class="txt-btn" id="cyAdd" style="color:var(--brand)">＋新建</button></div></div>';
-    const list = Store.s.cycles;
-    main.innerHTML =
-      '<div class="page page-anim">' +
-      '<div class="sec-title">到期自动记一笔（如房租、工资）</div>' +
-      (list.length ? '<div class="card">' + list.map(cy => {
-        const c = Store.category(cy.categoryId), a = Store.account(cy.accountId);
-        const freqName = { daily: "每天", weekly: "每周", monthly: "每月", yearly: "每年" }[cy.freq] || cy.freq;
-        const dayDesc = cy.freq === "weekly" ? "周" + "日一二三四五六"[cy.day] : (cy.freq === "monthly" || cy.freq === "yearly") ? cy.day + "日" : "";
-        return '<div class="cell" data-id="' + cy.id + '">' +
-          '<div class="cell-icon">' + (cy.enabled ? "✅" : "⏸️") + "</div>" +
-          '<div class="cell-main"><div class="cell-title">' + UI.escape(cy.note || (c ? c.name : "")) + "</div>" +
-          '<div class="cell-desc">' + (cy.type === "income" ? "收入" : "支出") + " · " + fmt.money(cy.amount) + " · " + freqName +
-          dayDesc + " " + (cy.time || "09:00") + " · 下次 " + cy.nextDate + "</div></div>" +
-          '<button class="txt-btn" data-toggle="' + cy.id + '" style="color:var(--brand);font-size:12.5px">' + (cy.enabled ? "停用" : "启用") + "</button></div>";
-      }).join("") + "</div>" : '<div class="empty"><div class="big">🔁</div><div class="t1">还没有周期账单</div></div>') +
-      "</div>";
-    UI.$("[data-back]", header).onclick = () => App.back();
-    UI.$("#cyAdd").onclick = () => ViewsMine.cycleEdit(null, () => App.refresh());
-    main.querySelectorAll("[data-toggle]").forEach(el => el.onclick = e => {
-      e.stopPropagation();
-      const cy = Store.s.cycles.find(x => x.id === el.dataset.toggle);
-      cy.enabled = !cy.enabled; Store.save(); App.refresh();
-    });
-    main.querySelectorAll(".cell[data-id]").forEach(el => el.onclick = () => {
-      const cy = Store.s.cycles.find(x => x.id === el.dataset.id);
-      if (cy) ViewsMine.cycleEdit(cy, () => App.refresh());
-    });
-  },
-
-  cycleEdit(cy, cb) {
-    const editing = !!cy;
-    const sh = UI.sheet({ title: editing ? "编辑周期账单" : "新建周期账单" });
-    const S = editing ? { ...cy } : { type: "expense", amount: "", categoryId: Store.categories("expense")[0]?.id, accountId: Store.s.accounts[0]?.id, freq: "monthly", day: 1, note: "" };
-    sh.body.innerHTML =
-      '<div class="seg" id="cyType"><button data-t="expense" class="' + (S.type === "expense" ? "active" : "") + '">支出</button><button data-t="income" class="' + (S.type === "income" ? "active" : "") + '">收入</button></div>' +
-      '<div class="form-row"><div class="lab">金额</div><input type="number" id="cyAmt" step="0.01" value="' + (S.amount || "") + '" placeholder="0.00"></div>' +
-      '<div class="form-row" data-k="cat"><div class="lab">分类</div><div class="val" id="cyCat"></div></div>' +
-      '<div class="form-row" data-k="acc"><div class="lab">账户</div><div class="val" id="cyAcc"></div></div>' +
-      '<div class="form-row"><div class="lab">频率</div><div class="sel" id="cyFreq">' +
-        ["daily", "weekly", "monthly", "yearly"].map(f => '<button class="chip' + (S.freq === f ? " active" : "") + '" data-f="' + f + '">' + { daily: "每天", weekly: "每周", monthly: "每月", yearly: "每年" }[f] + "</button>").join("") + "</div></div>" +
-      '<div class="form-row" id="cyWeekRow"><div class="lab">每周几</div><div class="sel" id="cyWeek">' +
-        ["日","一","二","三","四","五","六"].map((w, i) => '<button class="chip' + ((S.day || 0) === i ? " active" : "") + '" data-w="' + i + '">周' + w + "</button>").join("") + "</div></div>" +
-      '<div class="form-row" id="cyDayRow"><div class="lab">每月几号</div><input type="number" id="cyDay" min="1" max="31" value="' + (S.day || 1) + '"></div>' +
-      '<div class="form-row"><div class="lab">记账时间</div><input type="time" id="cyTime" value="' + UI.escape(S.time || "09:00") + '"></div>' +
-      '<div class="form-row"><div class="lab">备注</div><input type="text" id="cyNote" maxlength="12" value="' + UI.escape(S.note || "") + '" placeholder="如：房租"></div>';
-    sh.foot.innerHTML =
-      (editing ? '<button class="btn btn-danger btn-block" id="cyDel" style="margin-bottom:10px">删除</button>' : "") +
-      '<button class="btn btn-primary btn-block" id="cySave">保存</button>';
-    const refresh = () => {
-      const c = Store.category(S.categoryId), a = Store.account(S.accountId);
-      UI.$("#cyCat", sh.body).innerHTML = (c ? IconUI.raw(c, 15) + " " + UI.escape(c.name) : "选择") + " " + UI.svg("arrow", 13);
-      UI.$("#cyAcc", sh.body).innerHTML = (a ? UI.escape(a.name) : "选择") + " " + UI.svg("arrow", 13);
-      UI.$("#cyDayRow", sh.body).style.display = (S.freq === "monthly" || S.freq === "yearly") ? "flex" : "none";
-      UI.$("#cyWeekRow", sh.body).style.display = S.freq === "weekly" ? "flex" : "none";
-    };
-    refresh();
-    sh.body.querySelectorAll("#cyType button").forEach(b => b.onclick = () => {
-      S.type = b.dataset.t;
-      sh.body.querySelectorAll("#cyType button").forEach(x => x.classList.toggle("active", x === b));
-      S.categoryId = Store.categories(S.type)[0]?.id; refresh();
-    });
-    sh.body.querySelectorAll("#cyFreq button").forEach(b => b.onclick = () => {
-      S.freq = b.dataset.f;
-      sh.body.querySelectorAll("#cyFreq button").forEach(x => x.classList.toggle("active", x === b));
-      if (S.freq === "weekly" && (S.day == null || S.day > 6)) S.day = new Date().getDay();
-      refresh();
-    });
-    sh.body.querySelectorAll("#cyWeek button").forEach(b => b.onclick = () => {
-      S.day = +b.dataset.w;
-      sh.body.querySelectorAll("#cyWeek button").forEach(x => x.classList.toggle("active", x === b));
-    });
-    sh.body.querySelector('[data-k="cat"]').onclick = () => {
-      const sh2 = UI.sheet({ title: "选择分类" });
-      sh2.body.innerHTML = Store.categories(S.type).map(c =>
-        '<div class="cell" data-id="' + c.id + '">' + UI.catIcon(c, "cell-icon") +
-        '<div class="cell-main"><div class="cell-title">' + IconUI.raw(c, 15) + " " + UI.escape(c.name) + "</div></div></div>").join("");
-      UI.$$(".cell", sh2.body).forEach(el => el.onclick = () => { S.categoryId = el.dataset.id; sh2.close(); refresh(); });
-    };
-    sh.body.querySelector('[data-k="acc"]').onclick = () => ViewsAdd.pickAccount("accountId", S, refresh);
-    UI.$("#cySave", sh.foot).onclick = () => {
-      const amount = parseFloat(UI.$("#cyAmt", sh.body).value);
-      if (!amount || amount <= 0) { UI.toast("请输入金额"); return; }
-      const time = UI.$("#cyTime", sh.body).value || "09:00";
-      const day = S.freq === "weekly"
-        ? (S.day == null ? new Date().getDay() : S.day)
-        : Math.min(31, Math.max(1, parseInt(UI.$("#cyDay", sh.body).value) || 1));
-      const note = UI.$("#cyNote", sh.body).value.trim();
-      const data = { type: S.type, amount, categoryId: S.categoryId, accountId: S.accountId, freq: S.freq, day, time, note };
-      if (editing) {
-        data.nextDate = cy.nextDate || Store.nextCycleDate(S.freq, day, null, time);
-        Store.updateCycle(cy.id, data);
-      } else {
-        Store.addCycle({ ...data, nextDate: Store.nextCycleDate(S.freq, day, null, time) });
-      }
-      Store.save(); sh.close(); UI.toast("已保存"); cb && cb();
-    };
-    const del = UI.$("#cyDel", sh.foot);
-    if (del) del.onclick = () => {
-      UI.confirm({ title: "删除周期账单", body: "仅删除周期设置，已生成的账单不受影响。", ok: "删除", danger: true }).then(ok => {
-        if (ok) { Store.deleteCycle(cy.id); sh.close(); UI.toast("已删除"); cb && cb(); }
-      });
-    };
   },
 
   /* ================= 分类管理（RecordtypeManagerActivity） ================= */

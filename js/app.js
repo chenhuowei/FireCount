@@ -1,6 +1,6 @@
 /* ============================================================
  * 应用入口：路由 / 底部 Tab（tabbar 证据：zhangdan·baobiao·qianbao·gengduo + jiyibi）
- * 启动流程：载入状态 → 周期记账补记 → 渲染
+ * 启动流程：载入状态 → 渲染
  * ============================================================ */
 "use strict";
 
@@ -19,7 +19,6 @@ const App = {
     search:     { render: (h, m, p) => ViewsSearch.render(h, m) },
     books:      { render: (h, m, p) => ViewsMine.renderBooks(h, m) },
     budget:     { render: (h, m, p) => ViewsMine.renderBudget(h, m) },
-    cycles:     { render: (h, m, p) => ViewsMine.renderCycles(h, m) },
     categories: { render: (h, m, p) => ViewsMine.renderCategories(h, m) },
     accountDetail: { render: (h, m, p) => ViewsWallet.renderDetail(h, m, p) }
   },
@@ -27,12 +26,10 @@ const App = {
   boot() {
     Store.boot();
     this.applyTheme();
-    const created = Store.runDueCycles();
     this.viewMonth = fmt.curMonth();
     // 首次使用且无记录 → 直接给出演示入口的空状态
     const hashPage = (location.hash || "").replace("#/", "");
     this.go(this.PAGES[hashPage] ? hashPage : "bills", null, true);
-    if (created) setTimeout(() => UI.toast("周期记账已自动补记 " + created + " 笔"), 600);
     Lock.init();            // 应用锁：启动验证（若启用）
     WebDAV.initAuto();      // WebDAV：6 小时自动备份检查
     if (location.hash === "#add") this.openQuickAdd(); // 快捷方式入口
@@ -129,7 +126,7 @@ window.A = {
       App.refresh();
     };
     if (has) {
-      UI.confirm({ title: "载入演示数据", body: "将在现有数据基础上，追加近 3 个月的演示账单、预算与周期记账。", ok: "载入" }).then(ok => ok && doIt());
+      UI.confirm({ title: "载入演示数据", body: "将在现有数据基础上，追加近 3 个月的演示账单与预算。", ok: "载入" }).then(ok => ok && doIt());
     } else doIt();
   }
 };

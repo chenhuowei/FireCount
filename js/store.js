@@ -309,70 +309,7 @@ const Store = {
     return Math.round(sum * 100) / 100;
   },
 
-  /* ---------- 周期记账（NoticeAddActivity 证据） ---------- */
-  addCycle(c) {
-    const cy = Object.assign({
-      id: this.uid("cy"), type: "expense", amount: 0, categoryId: "", accountId: "",
-      freq: "monthly", day: 1, time: "09:00", note: "", nextDate: "", enabled: true, createdAt: Date.now()
-    }, c);
-    this.s.cycles.push(cy); this.save(); return cy;
-  },
-  updateCycle(id, patch) { const c = this.s.cycles.find(x => x.id === id); if (c) { Object.assign(c, patch); this.save(); } },
-  deleteCycle(id) { this.s.cycles = this.s.cycles.filter(c => c.id !== id); this.save(); },
-  /* 启动时补记到期账单（工资 / 房租等） */
-  runDueCycles() {
-    const today = new Date(); const todayStr = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
-    const ymd = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-    let created = 0;
-    for (const cy of this.s.cycles) {
-      if (!cy.enabled) continue;
-      let guard = 0;
-      while (cy.nextDate && cy.nextDate <= todayStr && guard++ < 240) {
-        const d = new Date(cy.nextDate + "T" + (cy.time || "09:00") + ":00");
-        this.addRecord({
-          type: cy.type, amount: cy.amount, categoryId: cy.categoryId, accountId: cy.accountId,
-          date: cy.nextDate + " " + (cy.time || "09:00"), note: (cy.note || "周期记账") + "(自动)", member: "我"
-        });
-        created++;
-        if (cy.freq === "monthly" || cy.freq === "yearly") {
-          d.setDate(1); // 先归一到 1 号，避免 31 日 + 1 月溢出到下下月
-          d.setMonth(d.getMonth() + (cy.freq === "yearly" ? 12 : 1));
-          const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-          d.setDate(Math.min(cy.day, last));
-          cy.nextDate = ymd(d);
-        } else if (cy.freq === "weekly") {
-          d.setDate(d.getDate() + 7); cy.nextDate = ymd(d);
-        } else if (cy.freq === "daily") {
-          d.setDate(d.getDate() + 1); cy.nextDate = ymd(d);
-        } else break;
-      }
-    }
-    if (created) this.save();
-    return created;
-  },
-  nextCycleDate(freq, day, from, time) {
-    const todayD = new Date(); todayD.setHours(0, 0, 0, 0);
-    const d = from ? new Date(from + "T" + (time || "09:00") + ":00") : new Date();
-    const ymd = x => x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0");
-    const clamp = () => { const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); d.setDate(Math.min(day, last)); };
-    if (freq === "monthly" || freq === "yearly") {
-      const step = freq === "yearly" ? 12 : 1;
-      clamp();
-      let guard = 0;
-      while (d < todayD && guard++ < 600) { // 过去日期持续前推，且每月重新钳制天数
-        d.setDate(1);
-        d.setMonth(d.getMonth() + step);
-        clamp();
-      }
-    } else if (freq === "weekly") {
-      d.setDate(d.getDate() + ((day - d.getDay() + 7) % 7 || 7));
-      let guard = 0;
-      while (d < todayD && guard++ < 600) d.setDate(d.getDate() + 7);
-    } else if (freq === "daily" && d < todayD) {
-      d.setTime(todayD.getTime());
-    }
-    return ymd(d);
-  },
+  /* 周期记账功能已移除（cycles 数据字段保留以兼容旧备份文件的导入导出） */
 
   /* ---------- 导入 / 导出 ---------- */
   exportJSON() { return JSON.stringify(this.s, null, 2); },
@@ -583,13 +520,11 @@ const Store = {
       if (Math.random() > .5) mk("income", rnd(50, 300), "hongbao", 1, at(1 + Math.floor(Math.random() * 25)), "12:00", "微信红包");
       if (m === demoRange.length - 2) mk("income", rnd(800, 2200), "jianzhiwaikuai", 3, at(18), "15:00", "设计私单");
     }
-    // 预算 + 周期记账
+    // 预算
     const cur = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
     const b = this.budget(cur);
     b.total = 4500; b.perCategory = { "ce_canyin": 1200, "ce_gouwu": 800, "ce_jiaotong": 400 };
-    this.setBudget(cur, b);
-    this.addCycle({ type: "expense", amount: 2600, categoryId: cat("jujia").id, accountId: accs[3].id, freq: "monthly", day: 1, note: "房租", nextDate: this.nextCycleDate("monthly", 1, new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().slice(0, 10)), enabled: true });
-    this.addCycle({ type: "income", amount: 12800, categoryId: cat("gongzi").id, accountId: accs[3].id, freq: "monthly", day: 10, note: "工资", nextDate: this.nextCycleDate("monthly", 10, new Date(now.getFullYear(), now.getMonth() + 1, 10).toISOString().slice(0, 10)), enabled: true });
+    this.setBudget(cur, b);
     this.save();
   }
 };
