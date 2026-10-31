@@ -590,5 +590,5 @@ canvas.chart { width: 100%; display: block; }
 
 /* ---------- 快捷条：图标放大（占框 2/3） ---------- */
 .jy-quickbar .qb { position: relative; padding: 10px 14px; }
-.jy-quickbar .qb svg { width: 24px; height: 24px; }
+.jy-quickbar .qb svg { width: 21px; height: 21px; }
 .jy-quickbar .qb .qb-badge { top: -5px; right: -5px; }
