@@ -175,6 +175,52 @@ const UI = {
     };
   },
 
+  /* 年月选择器（月网格，风格同日历）：pick('month'|'year', cur, cb)
+     cur: month 模式 'YYYY-MM' / year 模式 'YYYY' */
+  periodPicker(kind, cur, cb) {
+    const sh = UI.sheet({ title: kind === "month" ? "选择月份" : "选择年份" });
+    let y = cur ? (kind === "month" ? +cur.slice(0, 4) : +cur) : new Date().getFullYear();
+    const body = sh.body;
+    const render = () => {
+      if (kind === "month") {
+        const months = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
+        const nowY = new Date().getFullYear(), nowM = new Date().getMonth() + 1;
+        body.innerHTML =
+          '<div class="cal-head"><button id="ppPrev">' + UI.svg("left", 15) + '</button><div class="m">' + y + '年</div><button id="ppNext">' + UI.svg("right", 15) + "</button></div>" +
+          '<div class="pp-grid">' + months.map((m, i) => {
+            const mm = i + 1;
+            const disabled = y > nowY || (y === nowY && mm > nowM);
+            const on = cur && +cur.slice(0, 4) === y && +cur.slice(5, 7) === mm;
+            return '<div class="pp-cell' + (on ? " on" : "") + (disabled ? " dis" : "") + '" data-m="' + mm + '">' + m + "</div>";
+          }).join("") + "</div>";
+        body.querySelectorAll(".pp-cell:not(.dis)").forEach(el => el.onclick = () => {
+          sh.close();
+          cb(y + "-" + String(+el.dataset.m).padStart(2, "0"));
+        });
+        UI.$("#ppPrev", body).onclick = () => { y--; render(); };
+        UI.$("#ppNext", body).onclick = () => { y++; render(); };
+      } else {
+        const nowY = new Date().getFullYear();
+        const start = nowY - 9;
+        body.innerHTML =
+          '<div class="cal-head"><button id="ppPrev">' + UI.svg("left", 15) + '</button><div class="m">' + y + '</div><button id="ppNext">' + UI.svg("right", 15) + "</button></div>" +
+          '<div class="pp-grid">' + [0,1,2,3,4,5,6,7,8,9,10,11].map(i => {
+            const yy = y - 6 + i;
+            const disabled = yy > nowY;
+            const on = +cur === yy;
+            return '<div class="pp-cell' + (on ? " on" : "") + (disabled ? " dis" : "") + (yy === nowY ? " now" : "") + '" data-y="' + yy + '">' + yy + "</div>";
+          }).join("") + "</div>";
+        body.querySelectorAll(".pp-cell:not(.dis)").forEach(el => el.onclick = () => {
+          sh.close();
+          cb(String(+el.dataset.y));
+        });
+        UI.$("#ppPrev", body).onclick = () => { y -= 12; render(); };
+        UI.$("#ppNext", body).onclick = () => { y += 12; render(); };
+      }
+    };
+    render();
+  },
+
   escape(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); },
 
   /* ---------- 账单附件（图片） ---------- */

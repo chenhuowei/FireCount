@@ -74,32 +74,32 @@ const ViewsReport = {
     const R = this.resolve();
     if (this.range.mode === "month") {
       nav.innerHTML =
-        '<button id="rPrev">' + UI.svg("left", 14) + '</button><div class="m">' + R.title + '</div><button id="rNext">' + UI.svg("right", 14) + "</button>";
+        '<button id="rPrev">' + UI.svg("left", 14) + '</button><div class="m" id="rTitle" style="cursor:pointer">' + R.title + '</div><button id="rNext">' + UI.svg("right", 14) + "</button>";
       UI.$("#rPrev").onclick = () => App.shiftMonth(-1);
       UI.$("#rNext").onclick = () => App.shiftMonth(1);
+      UI.$("#rTitle").onclick = () => UI.periodPicker("month", this.range.month || App.viewMonth, v => { App.viewMonth = v; this.range.month = v; App.refresh(); });
       this.range.month = App.viewMonth;
     } else if (this.range.mode === "year") {
       nav.innerHTML =
-        '<button id="rPrev">' + UI.svg("left", 14) + '</button><div class="m">' + R.title + '</div><button id="rNext">' + UI.svg("right", 14) + "</button>";
+        '<button id="rPrev">' + UI.svg("left", 14) + '</button><div class="m" id="rTitle" style="cursor:pointer">' + R.title + '</div><button id="rNext">' + UI.svg("right", 14) + "</button>";
       UI.$("#rPrev").onclick = () => this.shiftYear(-1);
       UI.$("#rNext").onclick = () => this.shiftYear(1);
+      UI.$("#rTitle").onclick = () => UI.periodPicker("year", String(this.range.year || new Date().getFullYear()), v => { this.range.year = +v; App.refresh(); });
     } else {
       nav.innerHTML =
-        '<input type="date" id="rStart" value="' + this.range.start + '">' +
+        '<div class="rp-datefld" id="rStart">' + fmt.monthDay(this.range.start) + '</div>' +
         '<span class="sep">至</span>' +
-        '<input type="date" id="rEnd" value="' + this.range.end + '">';
-      UI.$("#rStart").onchange = e => {
-        if (!e.target.value) return;
-        this.range.start = e.target.value;
+        '<div class="rp-datefld" id="rEnd">' + fmt.monthDay(this.range.end) + '</div>';
+      UI.$("#rStart").onclick = () => UI.datePicker(this.range.start + " 12:00", v => {
+        this.range.start = v.slice(0, 10);
         if (this.range.end < this.range.start) this.range.end = this.range.start;
         App.refresh();
-      };
-      UI.$("#rEnd").onchange = e => {
-        if (!e.target.value) return;
-        this.range.end = e.target.value;
+      });
+      UI.$("#rEnd").onclick = () => UI.datePicker(this.range.end + " 23:59", v => {
+        this.range.end = v.slice(0, 10);
         if (this.range.end < this.range.start) this.range.start = this.range.end;
         App.refresh();
-      };
+      });
     }
   },
 
