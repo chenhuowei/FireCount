@@ -1,19 +1,19 @@
 /* ============================================================
- * 应用入口：路由 / 底部 Tab（tabbar 证据：zhangdan·baobiao·qianbao·gengduo + jiyibi）
+ * 应用入口：路由 / 底部 Tab（报表 · 记一笔 · 我的）
  * 启动流程：载入状态 → 渲染
  * ============================================================ */
 "use strict";
 
 const App = {
-  page: "bills",
+  page: "report",
   stack: [],
   viewMonth: fmt.curMonth(),
   billFilter: { account: null },
 
   PAGES: {
-    bills:      { render: (h, m, p) => ViewsBills.render(h, m), tab: true },
+    bills:      { render: (h, m, p) => ViewsBills.render(h, m) },
     report:     { render: (h, m, p) => ViewsReport.render(h, m), tab: true },
-    wallet:     { render: (h, m, p) => ViewsWallet.render(h, m), tab: true },
+    wallet:     { render: (h, m, p) => ViewsWallet.render(h, m) },
     mine:       { render: (h, m, p) => ViewsMine.render(h, m), tab: true },
     calendar:   { render: (h, m, p) => ViewsCalendar.render(h, m) },
     search:     { render: (h, m, p) => ViewsSearch.render(h, m) },
@@ -29,7 +29,7 @@ const App = {
     this.viewMonth = fmt.curMonth();
     // 首次使用且无记录 → 直接给出演示入口的空状态
     const hashPage = (location.hash || "").replace("#/", "");
-    this.go(this.PAGES[hashPage] ? hashPage : "bills", null, true);
+    this.go(this.PAGES[hashPage] ? hashPage : "report", null, true);
     Lock.init();            // 应用锁：启动验证（若启用）
     WebDAV.initAuto();      // WebDAV：6 小时自动备份检查
     if (location.hash === "#add") this.openQuickAdd(); // 快捷方式入口
@@ -56,7 +56,7 @@ const App = {
   },
 
   go(page, params, replace) {
-    if (!this.PAGES[page]) page = "bills";
+    if (!this.PAGES[page]) page = "report";
     if (!replace) this.stack.push({ page: this.page, params: this.params });
     this.page = page; this.params = params;
     history.replaceState(null, "", "#/" + page);
@@ -65,7 +65,7 @@ const App = {
 
   back() {
     const prev = this.stack.pop();
-    this.page = prev ? prev.page : "bills";
+    this.page = prev ? prev.page : "report";
     this.params = prev ? prev.params : null;
     history.replaceState(null, "", "#/" + this.page);
     this.render();
@@ -86,10 +86,8 @@ const App = {
     if (!activeTab) { bar.classList.add("hidden"); return; }
     bar.classList.remove("hidden");
     const tabs = [
-      { id: "bills", icon: "list", label: "明细" },
       { id: "report", icon: "pie", label: "报表" },
       { id: "__add", icon: "plus", label: "记一笔", center: true },
-      { id: "wallet", icon: "wallet", label: "钱包" },
       { id: "mine", icon: "user", label: "我的" }
     ];
     bar.innerHTML = tabs.map(t =>

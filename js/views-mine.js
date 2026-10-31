@@ -23,6 +23,8 @@ const ViewsMine = {
           "</div></div>" +
       "</div>" +
       '<div class="card">' +
+        cell("wallet", "钱包资产管理", walletDesc(), "wallet") +
+        cell("list", "账单明细", "按天分组 · 左滑编辑 · 筛选搜索", "bills") +
         cell("book", "多账本管理", "当前：" + UI.escape(Store.book().name), "books") +
         cell("budget", "预算设置", budgetDesc(), "budget") +
         cell("tag", "分类管理", "支出 " + Store.categories("expense").length + " · 收入 " + Store.categories("income").length, "categories") +
@@ -59,12 +61,9 @@ const ViewsMine = {
         UI.confirm({ title: "关于", body: "本应用按 REA 逆向工作流，对口袋记账（com.qeeniao.mobile.kdjz v4.5.0）的 APK 资源进行分析后复刻实现，仅用于学习研究。<br><br>逆向证据与功能映射见 ANALYSIS.md。", ok: "我知道了" });
         return;
       }
-      if (go === "wipe") {
-        UI.confirm({ title: "清空所有数据", body: "将删除全部账单、账户、预算与设置，且无法恢复。建议先导出备份。", ok: "全部清空", danger: true }).then(ok => {
-          if (ok) { Store.reset(); App.applyTheme(); UI.toast("已清空"); App.refresh(); }
-        });
-        return;
-      }
+      if (go === "wipe") { ViewsMine.wipeSheet(); return; }
+      if (go === "wallet") { App.go("wallet"); return; }
+      if (go === "bills") { App.go("bills"); return; }
       if (go === "books" || go === "budget" || go === "categories") App.go(go);
     });
 
@@ -73,6 +72,11 @@ const ViewsMine = {
       return '<div class="cell" data-go="' + go + '"><div class="cell-icon">' + UI.svg(icon, 19) + '</div>' +
         '<div class="cell-main"><div class="cell-title">' + title + '</div><div class="cell-desc">' + desc + "</div></div>" +
         UI.svg("arrow", 15) + "</div>";
+    }
+    function walletDesc() {
+      const w = Store.walletSummary();
+      const t = w.net;
+      return "净资产 " + fmt.money(Math.abs(t)) + (t < 0 ? "（负债）" : "");
     }
     function budgetDesc() {
       const b = Store.budget(fmt.curMonth());
@@ -302,6 +306,48 @@ const ViewsMine = {
   },
 
   /* ================= 导出 / 导入 / 成员 / 币种 ================= */
+  /* 清空数据：随机 6 位确认码（大小写字母+数字+符号都要有），输入正确才可删除 */
+  wipeSheet() {
+    const sh = UI.sheet({ title: "清空所有数据" });
+    // 生成确认码：保证同时含大写、小写、数字、符号
+    const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ", lower = "abcdefghijkmnpqrstuvwxyz", digit = "23456789", symbol = "!@#%&*+=?";
+    const all = upper + lower + digit + symbol;
+    const pick = set => set[Math.floor(Math.random() * set.length)];
+    const code = [pick(upper), pick(lower), pick(digit), pick(symbol)];
+    while (code.length < 6) code.push(pick(all));
+    // 洗牌
+    for (let i = code.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [code[i], code[j]] = [code[j], code[i]]; }
+    const confirmCode = code.join("");
+    const recCount = Store.s.records.length;
+    sh.body.innerHTML =
+      '<div style="font-size:13.5px;color:var(--text-2);line-height:1.7;padding:4px 2px 10px">将删除<b style="color:var(--danger)">仅本地存储</b>的全部数据：' +
+      recCount + " 笔账单、" + Store.s.books.length + " 本账本、" + Store.s.accounts.length + " 个账户、预算与设置。<br>云端备份不受影响；建议先导出备份。" +
+      '</div>' +
+      '<div style="text-align:center;margin:6px 0 14px"><span id="wipeCode" style="font-family:monospace;font-size:24px;letter-spacing:4px;font-weight:700;color:var(--danger);background:var(--chip);padding:8px 18px;border-radius:10px;user-select:none">' + confirmCode + "</span></div>" +
+      '<div class="form-row" style="border-bottom:none"><input type="text" id="wipeInput" maxlength="6" placeholder="输入上方 6 位确认码" style="text-align:center;letter-spacing:2px;font-family:monospace;font-size:16px"></div>';
+    sh.foot.innerHTML =
+      '<button class="btn btn-ghost" style="flex:1" id="wipeRegen">换一个</button>' +
+      '<button class="btn btn-danger" style="flex:2" id="wipeGo" disabled>确认清空</button>';
+    let cur = confirmCode;
+    const regen = () => {
+      const c2 = [pick(upper), pick(lower), pick(digit), pick(symbol)];
+      while (c2.length < 6) c2.push(pick(all));
+      for (let i = c2.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [c2[i], c2[j]] = [c2[j], c2[i]]; }
+      cur = c2.join("");
+      UI.$("#wipeCode", sh.body).textContent = cur;
+      const inp = UI.$("#wipeInput", sh.body); inp.value = ""; check();
+    };
+    const check = () => { UI.$("#wipeGo", sh.foot).disabled = UI.$("#wipeInput", sh.body).value !== cur; };
+    UI.$("#wipeInput", sh.body).oninput = check;
+    UI.$("#wipeRegen", sh.foot).onclick = regen;
+    UI.$("#wipeGo", sh.foot).onclick = () => {
+      if (UI.$("#wipeInput", sh.body).value !== cur) { UI.toast("确认码不正确"); return; }
+      sh.close();
+      Store.reset(); App.applyTheme(); App.viewMonth = fmt.curMonth(); App.go("report", null, true);
+      UI.toast("本地数据已清空");
+    };
+  },
+
   exportSheet() {
     const sh = UI.sheet({ title: "数据导出" });
     sh.body.innerHTML =

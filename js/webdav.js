@@ -191,7 +191,7 @@ const WebDAV = {
     UI.toast("恢复成功");
     App.applyTheme();
     App.viewMonth = fmt.curMonth();
-    App.go("bills");
+    App.go("report");
   },
 
   /* ---------- 自动备份 ---------- */
