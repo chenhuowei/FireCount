@@ -19,8 +19,9 @@ const WebDAV = {
 
   cfg() {
     const s = Store.s.settings;
-    if (!s.webdav) s.webdav = { provider: "jianguoyun", server: "", user: "", pass: "", dir: "/firecount/", keepN: 10, lastBackupAt: 0, autoAfterSave: true, autoDelaySec: 3 };
+    if (!s.webdav) s.webdav = { provider: "jianguoyun", server: "", user: "", pass: "", dir: "/firecount/", keepN: 10, lastBackupAt: 0, autoAfterSave: true, autoDelaySec: 5 };
     if (s.webdav.dir === "/kdjz-backup/") s.webdav.dir = "/firecount/"; // 旧配置迁移
+    if (s.webdav.autoDelaySec === 3) s.webdav.autoDelaySec = 5; // 旧默认值迁移
     if (s.webdav.autoAfterSave === undefined) s.webdav.autoAfterSave = true;
     return s.webdav;
   },
@@ -211,7 +212,7 @@ const WebDAV = {
     const c = this.cfg();
     if (c.autoAfterSave === false || !this.available() || !this.configured()) return;
     clearTimeout(this._saveBackupTimer);
-    const delay = Math.max(1, +c.autoDelaySec || 3) * 1000;
+    const delay = Math.max(1, +c.autoDelaySec || 5) * 1000;
     this._saveBackupTimer = setTimeout(() => this.backupNow(false), delay);
   },
 
@@ -234,7 +235,7 @@ const WebDAV = {
       '<div class="form-row"><div class="lab">保留份数</div><div class="sel">' +
         [5, 10, 20].map(n => '<button class="chip' + (c.keepN === n ? " active" : "") + '" data-n="' + n + '">' + n + " 份</button>").join("") + "</div></div>" +
       '<div class="form-row"><div class="lab">自动备份</div><div class="sel">' +
-        '<button class="chip' + (c.autoAfterSave === false ? "" : " active") + '" data-auto="on">记账后 ' + (c.autoDelaySec || 3) + ' 秒</button>' +
+        '<button class="chip' + (c.autoAfterSave === false ? "" : " active") + '" data-auto="on">记账后 ' + (c.autoDelaySec || 5) + ' 秒</button>' +
         '<button class="chip' + (c.autoAfterSave === false ? " active" : "") + '" data-auto="off">仅手动/6小时</button></div></div>' +
       '<div class="sec-title" id="wdHint">' + this.PRESETS[c.provider].hint + "</div>" +
       '<div class="sec-title">上次备份：' + (c.lastBackupAt ? new Date(c.lastBackupAt).toLocaleString("zh-CN") : "从未备份") +
@@ -274,12 +275,12 @@ const WebDAV = {
       saveCfg();
       b.parentElement.querySelectorAll(".chip").forEach(x => x.classList.toggle("active", x === b));
       UI.$("#wdDelayRow", sh.body).style.display = c.autoAfterSave ? "flex" : "none";
-      UI.toast(c.autoAfterSave ? "已开启：记账后 " + (c.autoDelaySec || 3) + " 秒自动备份" : "已关闭自动备份");
+      UI.toast(c.autoAfterSave ? "已开启：记账后 " + (c.autoDelaySec || 5) + " 秒自动备份" : "已关闭自动备份");
     });
     // 延迟秒数可配置（1~3600 秒），失焦/回车保存
     const delayInput = UI.$("#wdDelay", sh.body);
     const saveDelay = () => {
-      const v = Math.min(3600, Math.max(1, parseInt(delayInput.value) || 3));
+      const v = Math.min(3600, Math.max(1, parseInt(delayInput.value) || 5));
       if (String(v) !== delayInput.value) delayInput.value = v;
       c.autoDelaySec = v; Store.save();
     };
