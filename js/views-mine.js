@@ -39,7 +39,7 @@ const ViewsMine = {
         cell("budget", "币种设置", "当前符号 " + s.settings.currency, "currency") +
       "</div>" +
       '<div class="card">' +
-        cell("info", "关于复刻版", "基于口袋记账 v4.5.0 逆向分析复刻", "about") +
+        cell("info", "关于", "版本 1.0.5", "about") +
         cell("trash", "清空数据", "删除全部账单与设置", "wipe") +
       "</div>" +
       '<div style="text-align:center;color:var(--text-3);font-size:11px;padding:6px 0 20px">小伙记账 · 功能复刻版（纯本地运行）</div></div>';
@@ -58,7 +58,7 @@ const ViewsMine = {
       if (go === "webdav") { WebDAV.settingsSheet(); return; }
       if (go === "currency") { ViewsMine.currencySheet(); return; }
       if (go === "about") {
-        UI.confirm({ title: "关于", body: "本应用按 REA 逆向工作流，对口袋记账（com.qeeniao.mobile.kdjz v4.5.0）的 APK 资源进行分析后复刻实现，仅用于学习研究。<br><br>逆向证据与功能映射见 ANALYSIS.md。", ok: "我知道了" });
+        UI.toast("小伙记账 · FirCount v1.0.5", 2500);
         return;
       }
       if (go === "wipe") { ViewsMine.wipeSheet(); return; }

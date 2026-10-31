@@ -127,18 +127,28 @@ const ViewsAdd = {
         const cats = Store.categories(S.mode);
         const chosen = Store.category(S.categoryId) || cats[0];
         if (!S.categoryId && chosen) S.categoryId = chosen.id;
-        const PER = 8, pages = [];
-        for (let i = 0; i < cats.length; i += PER) pages.push(cats.slice(i, i + PER));
-        const catHTML = pages.map((pg, pi) =>
-          '<div class="jy-grid-page">' + pg.map(c =>
+        // 全量平铺宫格（不分页，可换行滚动）
+        const catHTML =
+          '<div class="jy-grid-page jy-grid-full">' + cats.map(c =>
             '<div class="jy-cat' + (c.id === S.categoryId ? " selected" : "") + '" data-cid="' + c.id + '">' +
             '<div class="ci" style="background:' + c.color + '22;color:' + c.color + '">' + IconUI.raw(c, 24) + "</div>" +
             '<div class="cn">' + UI.escape(c.name) + "</div></div>"
           ).join("") +
-          (pi === pages.length - 1 ? '<div class="jy-cat" data-addcat><div class="ci" style="background:var(--chip);color:var(--brand)">＋</div><div class="cn">添加</div></div>' : "") +
-          "</div>"
-        ).join("");
+          '<div class="jy-cat" data-addcat><div class="ci" style="background:var(--chip);color:var(--brand)">＋</div><div class="cn">添加</div></div>' +
+          "</div>";
         const acc = Store.account(S.accountId);
+        // 计算器上方单行快捷条：月日 / 现金 / 我 / 标签+ / 附件+ / 备注+
+        const quickBar =
+          '<div class="jy-quickbar">' +
+            '<button class="qb" data-qb="date">' + UI.svg("calendar", 14) + '<span id="qbDate">' + fmt.dayLabel(S.date.slice(0, 10)) + " " + fmt.timeLabel(S.date) + '</span></button>' +
+            (S.mode === "transfer" ? "" :
+              '<button class="qb" data-qb="acc"><span>' + UI.escape((Store.account(S.accountId) || { name: "现金" }).name) + '</span></button>') +
+            (S.mode === "transfer" ? "" :
+              '<button class="qb" data-qb="member"><span>' + UI.escape(S.member || "我") + '</span></button>') +
+            '<button class="qb" data-qb="tag">#<span>' + (S.tags.length ? S.tags.length : "标签") + '</span></button>' +
+            '<button class="qb" data-qb="photo">📎<span>' + (S.photos.length ? S.photos.length : "附件") + '</span></button>' +
+            '<button class="qb" data-qb="note">✎<span>' + (S.note ? UI.escape(S.note.slice(0, 4)) : "备注") + '</span></button>' +
+          "</div>";
         body.innerHTML =
           '<div class="jy-amount-zone">' +
             '<div class="jy-cat-chosen">' +
@@ -146,8 +156,8 @@ const ViewsAdd = {
               '<div class="cn">' + (chosen ? UI.escape(chosen.name) : "请选择分类") + "</div>" +
             "</div>" + amountZoneHTML() +
           "</div>" +
-          '<div class="jy-grid-wrap"><div class="jy-grid-pages" id="jyPages">' + catHTML + "</div>" +
-          '<div class="jy-dots" id="jyDots">' + pages.map((_, i) => "<i class='" + (i === 0 ? "on" : "") + "'></i>").join("") + "</div></div>";
+          '<div class="jy-grid-wrap"><div class="jy-grid-pages" id="jyPages">' + catHTML + "</div></div>" +
+          quickBar;
         body.querySelectorAll(".jy-cat[data-cid]").forEach(el => {
           el.onclick = () => { S.categoryId = el.dataset.cid; renderBody(); };
           // 长按：排序模式（拖动换位）或弹出操作（编辑/移除）
@@ -162,33 +172,33 @@ const ViewsAdd = {
         });
         const addBtn = body.querySelector("[data-addcat]");
         if (addBtn) addBtn.onclick = () => ViewsAdd.categoryEditor(null, c => { S.categoryId = c.id; renderBody(); });
-        const pager = body.querySelector("#jyPages"), dots = body.querySelectorAll("#jyDots i");
-        pager.addEventListener("scroll", () => {
-          const idx = Math.round(pager.scrollLeft / pager.clientWidth);
-          dots.forEach((d, i) => d.classList.toggle("on", i === idx));
-        }, { passive: true });
+        // 快捷条：月日/现金/我/标签+/附件+/备注+
+        body.querySelectorAll(".qb[data-qb]").forEach(b => b.onclick = e => {
+          e.stopPropagation();
+          const k = b.dataset.qb;
+          if (k === "date") UI.datePicker(S.date, v => { S.date = v; renderBody(); });
+          else if (k === "acc") ViewsAdd.pickAccount("accountId", S, () => renderBody());
+          else if (k === "member") {
+            // 成员轮换选择（单选，点一下换下一位）
+            const members = Store.s.settings.members;
+            const idx = members.indexOf(S.member || "我");
+            S.member = members[(idx + 1) % members.length] || members[0];
+            renderBody();
+          }
+          else if (k === "tag") ViewsAdd.tagManagerSheet(S, () => renderBody());
+          else if (k === "photo") {
+            const inp = body.querySelector("#jyPhotoFile");
+            if (inp) inp.click();
+          }
+          else if (k === "note") ViewsAdd.noteSheet(S, () => renderBody());
+        });
       }
-      /* 属性行（时间/备注）+ 平铺直选（账户/成员/标签） */
+      /* 隐藏附件 input（快捷条触发） */
       const attrs = document.createElement("div");
-      attrs.className = "jy-attrs";
-      attrs.innerHTML =
-        '<div class="jy-attr" data-a="date"><div class="lab">时间</div><div class="val">' + fmt.dayLabel(S.date.slice(0, 10)) + " " + fmt.timeLabel(S.date) + "</div></div>" +
-        (S.mode === "transfer" ? "" :
-          '<div class="jy-attr jy-attr-chips"><div class="lab">账户</div>' + ViewsAdd.accountChipsHTML("accountId", S.accountId) + "</div>") +
-        (S.mode === "transfer" ? "" :
-          '<div class="jy-attr jy-attr-chips"><div class="lab">成员</div>' + ViewsAdd.memberChipsHTML(S.member) + "</div>") +
-        '<div class="jy-attr jy-attr-chips"><div class="lab">标签</div>' + ViewsAdd.tagChipsHTML(S.tags) + "</div>" +
-        '<div class="jy-attr" style="align-items:center"><div class="lab">附件</div><div class="photo-row">' +
-          S.photos.map((p, i) =>
-            '<div class="photo-thumb"><img src="' + p + '" onclick="event.stopPropagation();A.viewPhoto(this.src)">' +
-            '<button class="ph-del" data-delphoto="' + i + '">✕</button></div>').join("") +
-          (S.photos.length < 3 ? '<button class="photo-add" data-addphoto title="添加图片附件">＋</button>' : "") +
-        "</div>" +
-        '<input type="file" id="jyPhotoFile" accept="image/*" multiple style="display:none"></div>' +
-        '<div class="jy-attr" style="padding:4px 14px"><div class="lab">备注</div>' +
-        '<input type="text" id="jyNote" placeholder="点击填写备注" value="' + UI.escape(S.note) + '" maxlength="60"></div>';
+      attrs.style.display = "none";
+      attrs.innerHTML = '<input type="file" id="jyPhotoFile" accept="image/*" multiple style="display:none">';
       body.appendChild(attrs);
-      /* 平铺直选：账户 / 成员 / 标签 点击即选中，＋ 快速新建 */
+
       body.querySelectorAll(".pick-chip[data-id]").forEach(el => el.onclick = e => {
         e.stopPropagation();
         S[el.dataset.f] = el.dataset.id;
@@ -214,10 +224,8 @@ const ViewsAdd = {
         e.stopPropagation();
         ViewsAdd.tagManagerSheet(S, () => renderBody());
       });
-      /* 附件：＋ 选图（自动压缩）、✕ 删除 */
-      const addPhotoBtn = body.querySelector("[data-addphoto]");
+      /* 附件：快捷条触发选图（自动压缩），已有照片时点开管理弹层 */
       const photoInput = body.querySelector("#jyPhotoFile");
-      if (addPhotoBtn) addPhotoBtn.onclick = e => { e.stopPropagation(); photoInput.click(); };
       if (photoInput) photoInput.onchange = async e => {
         const files = [...e.target.files].slice(0, 3 - S.photos.length);
         e.target.value = "";
@@ -227,20 +235,6 @@ const ViewsAdd = {
         }
         renderBody();
       };
-      body.querySelectorAll("[data-delphoto]").forEach(b => b.onclick = e => {
-        e.stopPropagation();
-        S.photos.splice(+b.dataset.delphoto, 1);
-        renderBody();
-      });
-      attrs.querySelectorAll(".jy-attr").forEach(el => el.onclick = e => {
-        if (e.target.id === "jyNote") return;
-        const a = el.dataset.a;
-        if (a === "date") {
-          UI.datePicker(S.date, v => { S.date = v; renderBody(); });
-        }
-      });
-      const noteEl = body.querySelector("#jyNote");
-      if (noteEl) noteEl.oninput = () => { S.note = noteEl.value; };
       const curBtn = body.querySelector("#curBtn");
       if (curBtn) curBtn.onclick = () => ViewsMine.currencySheet(() => renderBody());
       ViewsAdd.centerChips(body);
@@ -405,6 +399,21 @@ const ViewsAdd = {
   },
 
   /* 分类编辑器（新建 / 编辑自定义分类） */
+  /* 备注编辑弹层 */
+  noteSheet(S, onChange) {
+    const sh = UI.sheet({ title: "备注" });
+    sh.body.innerHTML =
+      '<div style="padding:4px 2px 10px"><input type="text" id="nsInput" maxlength="60" placeholder="点击填写备注" value="' + UI.escape(S.note) + '" style="width:100%;border:none;background:var(--chip);border-radius:10px;padding:12px;font-size:15px;outline:none"></div>';
+    sh.foot.innerHTML = '<button class="btn btn-primary btn-block" id="nsOk">确定</button>';
+    setTimeout(() => { const i = UI.$("#nsInput", sh.body); if (i) i.focus(); }, 80);
+    const save = () => {
+      S.note = UI.$("#nsInput", sh.body).value.trim();
+      sh.close(); onChange && onChange();
+    };
+    UI.$("#nsOk", sh.foot).onclick = save;
+    UI.$("#nsInput", sh.body).addEventListener("keydown", e => { if (e.key === "Enter") save(); });
+  },
+
   /* 分类长按菜单：编辑 / 移除（仅自定义分类可移除） */
   catLongPress(cid, refresh) {
     const c = Store.category(cid);

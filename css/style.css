@@ -565,3 +565,27 @@ canvas.chart { width: 100%; display: block; }
 .sort-item .si-grip { color: var(--text-3); font-size: 16px; }
 .sort-item.dragging { opacity: .55; border-style: dashed; border-color: var(--brand); }
 .jy-cat.sort-ready .ci { outline: 2px dashed var(--brand); outline-offset: 2px; }
+
+/* ---------- 记一笔：计算器上方单行快捷条 ---------- */
+.jy-quickbar {
+  display: flex; gap: 6px; padding: 8px 10px; overflow-x: auto;
+  border-bottom: 1px solid var(--line); -webkit-overflow-scrolling: touch;
+}
+.jy-quickbar .qb {
+  flex: none; display: inline-flex; align-items: center; gap: 4px;
+  border: 1px solid var(--line); background: var(--card); border-radius: 16px;
+  padding: 6px 12px; font-size: 12.5px; color: var(--text-2);
+  -webkit-tap-highlight-color: transparent; white-space: nowrap;
+}
+.jy-quickbar .qb:active { background: var(--brand-soft, #FFF1E8); color: var(--brand); border-color: var(--brand); }
+.jy-quickbar .qb svg { width: 14px; height: 14px; }
+.jy-quickbar .qb span { max-width: 72px; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- 全量分类宫格（不分页） ---------- */
+.jy-grid-wrap { overflow-y: auto; max-height: 42vh; -webkit-overflow-scrolling: touch; }
+.jy-grid-pages { display: block; }
+.jy-grid-page.jy-grid-full {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px 0;
+  padding: 10px 2px; width: 100%;
+}
+.jy-dots { display: none; }
