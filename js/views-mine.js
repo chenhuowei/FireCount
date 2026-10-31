@@ -24,7 +24,7 @@ const ViewsMine = {
       "</div>" +
       '<div class="card">' +
         cell("book", "多账本管理", "当前：" + UI.escape(Store.book().name), "books") +
-        cell("budget", "预算设置", budgetDesc(), "budget") + +
+        cell("budget", "预算设置", budgetDesc(), "budget") +
         cell("tag", "分类管理", "支出 " + Store.categories("expense").length + " · 收入 " + Store.categories("income").length, "categories") +
       "</div>" +
       '<div class="card">' +
