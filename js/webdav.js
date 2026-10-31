@@ -197,7 +197,9 @@ const WebDAV = {
           '<button class="chip' + (c.provider === k ? " active" : "") + '" data-p="' + k + '">' + this.PRESETS[k].name + "</button>").join("") + "</div></div>" +
       '<div class="form-row"><div class="lab">服务器</div><input type="text" id="wdServer" placeholder="' + this.PRESETS[c.provider].server + '" value="' + UI.escape(c.server) + '"></div>' +
       '<div class="form-row"><div class="lab">账号</div><input type="text" id="wdUser" autocomplete="off" value="' + UI.escape(c.user) + '"></div>' +
-      '<div class="form-row"><div class="lab">密码</div><input type="password" id="wdPass" autocomplete="new-password" value="' + UI.escape(c.pass) + '"></div>' +
+      '<div class="form-row wd-pass-row"><div class="lab">应用密码</div>' +
+        '<input type="password" id="wdPass" autocomplete="new-password" value="' + UI.escape(c.pass) + '">' +
+        '<button type="button" class="wd-eye" id="wdEye" data-on="0" aria-label="显示/隐藏密码">' + UI.svg("scan", 18) + '</button></div>' +
       '<div class="form-row"><div class="lab">目录</div><input type="text" id="wdDir" value="' + UI.escape(c.dir) + '"></div>' +
       '<div class="form-row"><div class="lab">保留份数</div><div class="sel">' +
         [5, 10, 20].map(n => '<button class="chip' + (c.keepN === n ? " active" : "") + '" data-n="' + n + '">' + n + " 份</button>").join("") + "</div></div>" +
@@ -217,6 +219,16 @@ const WebDAV = {
       c.pass = UI.$("#wdPass", sh.body).value.trim();
       c.dir = UI.$("#wdDir", sh.body).value.trim() || "/kdjz-backup/";
       Store.save();
+    };
+    // 密码显示/隐藏切换
+    const eye = UI.$("#wdEye", sh.body);
+    const eyeSvg = on => UI.svg(on ? "eye-off" : "eye", 18);
+    eye.innerHTML = eyeSvg(0);
+    eye.onclick = () => {
+      const on = eye.dataset.on === "1";
+      eye.dataset.on = on ? "0" : "1";
+      UI.$("#wdPass", sh.body).type = on ? "password" : "text";
+      eye.innerHTML = eyeSvg(on ? 0 : 1);
     };
     sh.body.querySelectorAll("[data-p]").forEach(b => b.onclick = () => {
       c.provider = b.dataset.p; Store.save(); sh.close(); this.settingsSheet();

@@ -498,3 +498,16 @@ body[data-theme="deep"] .bill-top { background: linear-gradient(150deg, #D95E12,
 @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 .page-anim { animation: fadeUp .22s ease; }
 canvas.chart { width: 100%; display: block; }
+
+/* ---------- WebDAV 密码框 ---------- */
+.wd-pass-row input[type=password], .wd-pass-row input[type=text] {
+  flex: 1; border: none; background: none; outline: none; font-size: 15px; text-align: right;
+  padding: 4px 0; letter-spacing: .5px; min-width: 0;
+}
+.wd-eye {
+  flex: none; width: 32px; height: 32px; border: none; background: none; padding: 5px;
+  color: var(--text-3); cursor: pointer; display: flex; align-items: center; justify-content: center;
+  border-radius: 8px; -webkit-tap-highlight-color: transparent;
+}
+.wd-eye:active { background: var(--chip); color: var(--brand); }
+.wd-eye svg { width: 19px; height: 19px; }

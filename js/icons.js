@@ -65,7 +65,19 @@ const ICONS = {
   flower:      '<circle cx="12" cy="9" r="2"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="11.5" r="2"/><circle cx="15" cy="11.5" r="2"/><path d="M12 13.5c-1.5 2-2.5 4.5-2.5 7.5h5c0-3-1-5.5-2.5-7.5z"/>',
   ring:        '<circle cx="12" cy="14" r="6"/><path d="M9 8l1.5-4h3L15 8M9 8l3 2 3-2"/>',
   baby:        '<circle cx="12" cy="9" r="4.5"/><path d="M9.5 8.5v.01M14.5 8.5v.01M10.5 11c.9.7 2.1.7 3 0M12 14.5V17M8.5 19c1 1.5 2 2.5 3.5 2.5s2.5-1 3.5-2.5"/>',
-  dog:         '<path d="M5 8a3 3 0 013-3h8a3 3 0 013 3v2l1.5 4-2.5 1v3a2 2 0 01-2 2H8a2 2 0 01-2-2v-4L4.5 12 5 10V8z"/><circle cx="14" cy="11" r="0.6"/><path d="M11 16h2"/>'
+  dog:         '<path d="M5 8a3 3 0 013-3h8a3 3 0 013 3v2l1.5 4-2.5 1v3a2 2 0 01-2 2H8a2 2 0 01-2-2v-4L4.5 12 5 10V8z"/><circle cx="14" cy="11" r="0.6"/><path d="M11 16h2"/>',
+  /* ---- 导入常见分类补充（口袋记账导出高频分类） ---- */
+  maicai:      '<path d="M4 10h16l-1.5 9.5a1.5 1.5 0 01-1.5 1.3H7a1.5 1.5 0 01-1.5-1.3L4 10z"/><path d="M8.5 13v5M12 13v5M15.5 13v5"/><path d="M7 10V7a5 5 0 0110 0v3"/>',
+  yaopin:      '<rect x="9" y="2.5" width="6" height="19" rx="3" transform="rotate(45 12 12)"/><path d="M9.5 14.5l5-5"/>',
+  hufu:        '<rect x="9" y="9" width="6" height="12" rx="2"/><path d="M10.5 9V5a1.5 1.5 0 011.5-1.5 1.5 1.5 0 011.5 1.5v4"/><path d="M9.5 3.5c-.8-.4-1.5-.4-2.3 0"/><path d="M12 12v6"/>',
+  shuma:       '<rect x="3.5" y="5" width="17" height="11" rx="2"/><path d="M8 19h8M12 16v3"/><path d="M9 8.5l-1.5 2.5L9 13.5M15 8.5l1.5 2.5L15 13.5"/>',
+  lifa:        '<circle cx="6" cy="7" r="2.5"/><circle cx="6" cy="17" r="2.5"/><path d="M8.2 8.5L20 19M8.2 15.5L20 5M13 12h0"/>',
+  juhui:       '<path d="M6 3h4v5a2 2 0 01-4 0V3zM14 3h4v5a2 2 0 01-4 0V3z"/><path d="M6 13v7M14 13v7M4 20h4M12 20h4M8 8h8"/>',
+  lvyou:       '<rect x="4" y="7" width="16" height="13" rx="2.5"/><path d="M9 7V4.5A1.5 1.5 0 0110.5 3h3A1.5 1.5 0 0115 4.5V7M8 7v13M16 7v13M12 7v13"/>',
+  liwu:        '<rect x="4" y="10" width="16" height="10" rx="1.5"/><path d="M3 7h18v3H3zM12 7v13M12 7c-2 0-4.5-.8-4.5-2.7C7.5 3 8.5 2 10 2c1.4 0 2 1.5 2 5 0-3.5.6-5 2-5 1.5 0 2.5 1 2.5 2.3C16.5 6.2 14 7 12 7z"/>',
+  jiazhuang:   '<rect x="5" y="9" width="14" height="12" rx="1.5"/><path d="M12 9v12M5 13h14"/><path d="M12 3v6M9.5 3h5"/>',
+  gupiao:      '<path d="M3 20V4M3 20h18"/><path d="M6 15l3.5-4 3 2.5L18 7"/><path d="M14.5 7H18v3.5"/><path d="M7.5 17.5h2M11.5 17.5h2M15.5 17.5h2"/>',
+  sport:       '<path d="M8 3h8l-1 5.5a3.5 3.5 0 01-6 0L8 3z"/><path d="M10 8.5L9 21h6l-1-12.5"/><path d="M9 12h6M9 15.5h6"/>'
 };
 
 const IconUI = {

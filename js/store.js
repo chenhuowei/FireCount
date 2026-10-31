@@ -425,14 +425,22 @@ const Store = {
           cAcc = col(["账户"]), cMem = col(["成员"]), cBook = col(["账本"]), cTags = col(["标签"]);
     if (cTime < 0 || cAmt < 0) throw new Error("表头缺少 时间/金额 列");
 
+    // 导入分类名 → 图标键/分类名映射（覆盖口袋记账导出高频分类）
     const kdjzMap = { "淘宝": "taobao", "衣服鞋包": "fushi", "水果": "shuiguolingshi", "零食": "shuiguolingshi",
-      "话费": "shoujitongxun", "一般": "yiban", "报销": "baoxiaozhang", "生活用品": "jujia", "房租": "jujia" };
+      "话费": "shoujitongxun", "一般": "yiban", "报销": "baoxiaozhang", "生活用品": "jujia", "房租": "jujia",
+      "买菜": "maicai", "药品": "yaopin", "护肤彩妆": "hufu", "数码产品": "shuma", "理发": "lifa",
+      "聚会": "juhui", "旅游": "lvyou", "礼物": "liwu", "家装": "jiazhuang", "股票": "gupiao",
+      "酒水饮料": "yanjiuyinliao", "美容健身": "meirongjianshen", "人情送礼": "renqingsongli" };
     const matchCat = (name, type) => {
       if (!name) return "";
       const key = kdjzMap[name];
       if (key) { const c = this.s.categories.find(c => c.id === (type === "income" ? "ci_" : "ce_") + key); if (c) return c.id; }
-      const c = this.s.categories.find(c => c.name === name && c.type === type);
-      return c ? c.id : "";
+      let c = this.s.categories.find(c => c.name === name && c.type === type);
+      if (!c) {
+        // 导入的新分类自动创建（带对应线性图标，无映射用通用图标）
+        c = this.addCategory(type, name, "svg:" + (key || "qita"), DATA.colorChoices[this.s.categories.length % DATA.colorChoices.length]);
+      }
+      return c.id;
     };
     const matchAcc = name => name ? (this.s.accounts.find(a => a.name === name) || {}).id || "" : "";
     const matchBook = name => name ? (this.s.books.find(b => b.name === name) || {}).id || this.book().id : this.book().id;

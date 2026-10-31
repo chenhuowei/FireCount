@@ -37,7 +37,9 @@ const UI = {
       info: '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" fill="none"/><path d="M12 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="7.5" r="1.3" fill="currentColor"/>',
       swap: '<path d="M7 4v13M4 14l3 3 3-3M17 20V7M14 10l3-3 3 3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
       lock: '<rect x="5" y="11" width="14" height="9" rx="2.5" stroke="currentColor" stroke-width="2" fill="none"/><path d="M8 11V8a4 4 0 018 0v3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/><circle cx="12" cy="15.5" r="1.6" fill="currentColor"/>',
-      cloud: '<path d="M7 18a4.5 4.5 0 01-.5-8.97A6 6 0 0118.2 9.6 4 4 0 0117.5 18H7z" stroke="currentColor" stroke-width="2" fill="none" stroke-linejoin="round"/>'
+      cloud: '<path d="M7 18a4.5 4.5 0 01-.5-8.97A6 6 0 0118.2 9.6 4 4 0 0117.5 18H7z" stroke="currentColor" stroke-width="2" fill="none" stroke-linejoin="round"/>',
+      eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" stroke="currentColor" stroke-width="1.8" fill="none"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8" fill="none"/>',
+      "eye-off": '<path d="M4 4l16 16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M9.9 5.9A9.5 9.5 0 0112 5.5c6 0 9.5 6.5 9.5 6.5a17 17 0 01-3.2 4M6.6 8A16 16 0 002.5 12S6 18.5 12 18.5a9 9 0 004.3-1.1" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/><path d="M9.9 9.9a3 3 0 004.2 4.2" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/>'
     }[name] || "";
     return '<svg viewBox="0 0 24 24" width="' + (size || 22) + '" height="' + (size || 22) + '">' + p + "</svg>";
   },
