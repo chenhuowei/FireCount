@@ -481,10 +481,15 @@ const ViewsMine = {
             const text = new TextDecoder("utf-8").decode(u8 || rd.result);
             rows = Store.csvToRows(text);
           }
-        } catch (err) { UI.toast("文件解析失败：" + (err.message || err)); return; }
+        } catch (err) { UI.toast("解析失败[" + name + "/" + (u8 ? u8.length : "txt") + "B]: " + (err.message || err), 5000); return; }
         let parsed;
         try { parsed = Store.importRows(rows, "preview"); }
-        catch (err) { UI.toast(err.message || "表头识别失败"); return; }
+        catch (err) {
+          // 诊断信息：文件名/大小/首行内容，便于远程定位
+          const first = JSON.stringify((rows[0] || []).slice(0, 5));
+          UI.toast("表头未识别[" + name + " " + (u8 ? u8.length + "B" : "") + "] 首行:" + first.slice(0, 60), 6000);
+          return;
+        }
         sh.close();
         const sh2 = UI.sheet({ title: "导入预览" });
         sh2.body.innerHTML =
