@@ -98,12 +98,23 @@ const UI = {
   /* ---------- 底部弹层（支持堆叠：记一笔之上再开分类/账户选择器） ---------- */
   _sheets: [],
   sheet(opts) {
-    // 单例：同一时刻只保留最上层一个弹层。连点工具按钮不再叠加多个弹窗，
-    // 也避免 240ms 延迟移除期间重复实例堆积、需多次关闭的问题。
-    // 立即移除旧弹层节点（不走 240ms 渐隐），确保 DOM 与栈同步清空
-    if (UI._sheets.length) {
-      for (const old of UI._sheets.splice(0)) {
+    // 弹层管理：
+    //  · 普通弹层（默认）：单例——立即移除已打开的弹层，连点不叠加
+    //  · 子弹层（opts.sub:true）：叠在当前弹层之上（如记一笔上开标签管理），
+    //    不清除下层；但同层级的连续子弹层仍互相替换
+    if (opts.sub) {
+      // 子弹层：仅替换同为子弹层的实例，保留主层
+      const subs = UI._sheets.filter(x => x.sub);
+      for (const old of subs) {
         try { old.node.remove(); } catch (e) {}
+        UI._sheets = UI._sheets.filter(x => x !== old);
+      }
+    } else {
+      // 主弹层：清除所有已打开弹层（含子弹层），重新开始
+      if (UI._sheets.length) {
+        for (const old of UI._sheets.splice(0)) {
+          try { old.node.remove(); } catch (e) {}
+        }
       }
     }
     const host = UI.$("#sheetHost");
@@ -121,7 +132,7 @@ const UI = {
     host.appendChild(node);
     const wrap = node.querySelector(".sheet-wrap"), mask = node.querySelector(".sheet-mask"), sheet = node.querySelector(".sheet");
     requestAnimationFrame(() => { mask.style.opacity = 1; sheet.classList.add("on"); });
-    const entry = { node };
+    const entry = { node, sub: !!opts.sub };
     const close = () => {
       mask.style.opacity = 0; sheet.classList.remove("on");
       setTimeout(() => { node.remove(); }, 240);

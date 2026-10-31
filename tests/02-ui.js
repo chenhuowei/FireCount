@@ -480,5 +480,44 @@ test('切换打开不同弹层，旧的立即移除', () => {
   ok(doc.querySelector('#wdRestore') || doc.getElementById('impFile') || doc.querySelector('#sheetHost .sheet'), '新弹层正常');
 });
 
+
+suite('记一笔 · 子弹层机制');
+test('记一笔主层无扫码按钮（已移除）', () => {
+  openAdd();
+  const head = doc.querySelector('#sheetHost .sheet-head');
+  ok(head, '应有弹层头');
+  ok(!head.querySelector('.hd-btn[data-close2] svg'), '不应有右上角扫码图标');
+  ok(doc.querySelector('#sheetHost .sheet-head').textContent.includes('记一笔'), '标题应为记一笔');
+});
+test('从记一笔打开子层，关闭子层后记一笔仍在', () => {
+  openAdd();
+  App.page = 'bills';   // 模拟从账单页打开（openAdd 内 resetState 会重置 App 状态）
+  doc.querySelector('.jy-quickbar [data-qb="tag"]').onclick({ stopPropagation() {} });
+  eq(UI._sheets.length, 2, '主层+子层');
+  UI.closeSheet();  // 关闭子层
+  ok(doc.getElementById('jyKeys'), '关闭子层后记一笔键盘应仍在');
+  ok(doc.getElementById('jyBody'), '记一笔内容应仍在');
+  eq(App.page, 'bills', '不应退出到其他页面');
+});
+test('子层互斥：连点子层按钮只保留一个子层', () => {
+  openAdd();
+  const tag = doc.querySelector('.jy-quickbar [data-qb="tag"]');
+  tag.onclick({ stopPropagation() {} });
+  tag.onclick({ stopPropagation() {} });
+  tag.onclick({ stopPropagation() {} });
+  eq(UI._sheets.length, 2, '应为 主层 + 1 个子层');
+  // 等渐隐移除后 DOM 也应为 2
+});
+test('关闭主层时子层一并关闭', async () => {
+  openAdd();
+  doc.querySelector('.jy-quickbar [data-qb="photo"]').onclick({ stopPropagation() {} });
+  eq(UI._sheets.length, 2);
+  UI.closeSheet();  // 关子层
+  UI.closeSheet();  // 关主层
+  await new Promise(r => setTimeout(r, 300));
+  eq(doc.querySelectorAll('#sheetHost .sheet').length, 0, '应全部关闭');
+  eq(UI._sheets.length, 0, '栈应清空');
+});
+
 const okAll = summary();
 process.exit(okAll ? 0 : 1);
