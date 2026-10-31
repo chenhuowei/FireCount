@@ -133,53 +133,45 @@ const UI = {
   },
 
   /* 通用日期选择弹层（今天/昨天/自定义） */
-  /* 日期+时间选择（App 风格：快捷日 chips + 日期/时间行） */
+  /* 日期+时间选择（与账单页日历视图同风格：月历网格） */
   datePicker(current, cb) {
-    const sh = UI.sheet({ title: "选择时间" });
     const date = (current || fmt.YMD(new Date()) + " 12:00");
-    const curD = date.slice(0, 10), curT = date.slice(11, 16) || "12:00";
-    const days = [
-      { lab: "今天", d: new Date() },
-      { lab: "昨天", d: new Date(Date.now() - 86400000) },
-      { lab: "前天", d: new Date(Date.now() - 2 * 86400000) }
-    ];
-    const weekOf = d => "周" + DATA.weeks[d.getDay()];
+    let selD = date.slice(0, 10), selT = date.slice(11, 16) || "12:00";
+    const sh = UI.sheet({ title: "选择时间" });
+    let viewY = +selD.slice(0, 4), viewM = +selD.slice(5, 7);
+    const todayStr = fmt.YMD(new Date());
     sh.body.innerHTML =
-      '<div class="dp-days">' +
-        days.map((it, i) => {
-          const on = curD === fmt.YMD(it.d);
-          return '<div class="dp-day' + (on ? " on" : "") + '" data-d="' + i + '"><div class="dd-lab">' + it.lab + '</div><div class="dd-sub">' + weekOf(it.d) + "</div></div>";
-        }).join("") +
-        '<div class="dp-day' + (days.every(it => curD !== fmt.YMD(it.d)) ? " on" : "") + '" data-d="other"><div class="dd-lab">其他</div><div class="dd-sub">自选</div></div>' +
-      "</div>" +
-      '<div class="dp-inputs' + (days.every(it => curD !== fmt.YMD(it.d)) ? "" : " hide") + '">' +
-        '<div class="dp-field"><div class="dp-lab">日期</div><input type="date" id="dpDate" value="' + curD + '"></div>' +
-        '<div class="dp-field"><div class="dp-lab">时间</div><input type="time" id="dpTime" value="' + curT + '"></div>' +
-      "</div>";
-    const foot = sh.foot;
-    foot.innerHTML = '<button class="btn btn-primary btn-block" id="dpOk">确定</button>';
-    let sel = { d: curD, t: curT };
-    const isOther = () => days.every(it => sel.d !== fmt.YMD(it.d));
-    // 快捷日
-    sh.body.querySelectorAll(".dp-day[data-d]").forEach(el => el.onclick = () => {
-      sh.body.querySelectorAll(".dp-day").forEach(x => x.classList.remove("on"));
-      el.classList.add("on");
-      const k = el.dataset.d;
-      if (k === "other") {
-        sel.d = UI.$("#dpDate", sh.body).value || curD;
-        sh.body.querySelector(".dp-inputs").classList.remove("hide");
-      } else {
-        sel.d = fmt.YMD(days[+k].d);
-        sh.body.querySelector(".dp-inputs").classList.add("hide");
+      '<div class="cal-head"><button id="dpPrev">' + UI.svg("left", 15) + '</button><div class="m" id="dpM"></div><button id="dpNext">' + UI.svg("right", 15) + "</button></div>" +
+      '<div class="cal-week">' + ["日", "一", "二", "三", "四", "五", "六"].map(w => "<span>" + w + "</span>").join("") + "</div>" +
+      '<div class="cal-grid" id="dpGrid"></div>' +
+      '<div class="dp-timerow"><div class="dp-lab">时间</div><input type="time" id="dpTime" value="' + selT + '"></div>';
+    sh.foot.innerHTML = '<button class="btn btn-primary btn-block" id="dpOk">确定</button>';
+    const grid = UI.$("#dpGrid", sh.body);
+    const render = () => {
+      UI.$("#dpM", sh.body).textContent = viewY + "年" + viewM + "月";
+      const first = new Date(viewY, viewM - 1, 1);
+      const dim = new Date(viewY, viewM, 0).getDate();
+      let cells = "";
+      for (let i = 0; i < first.getDay(); i++) cells += "<div class='cal-cell dim'></div>";
+      for (let d = 1; d <= dim; d++) {
+        const ds = viewY + "-" + String(viewM).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+        cells += '<div class="cal-cell dp-cell' + (ds === todayStr ? " today" : "") + (ds === selD ? " sel" : "") + '" data-d="' + ds + '"><div class="d">' + d + "</div></div>";
       }
-    });
-    UI.$("#dpDate", sh.body).onchange = e => { sel.d = e.target.value; };
-    UI.$("#dpTime", sh.body).onchange = e => { sel.t = e.target.value; };
-    UI.$("#dpOk", foot).onclick = () => {
-      if (isOther()) { sel.d = UI.$("#dpDate", sh.body).value || sel.d; sel.t = UI.$("#dpTime", sh.body).value || sel.t; }
-      if (!sel.d) { UI.toast("请选择日期"); return; }
+      grid.innerHTML = cells;
+      grid.querySelectorAll(".dp-cell").forEach(c => c.onclick = () => {
+        selD = c.dataset.d;
+        grid.querySelectorAll(".dp-cell").forEach(x => x.classList.remove("sel"));
+        c.classList.add("sel");
+      });
+    };
+    render();
+    UI.$("#dpPrev", sh.body).onclick = () => { viewM--; if (viewM < 1) { viewM = 12; viewY--; } render(); };
+    UI.$("#dpNext", sh.body).onclick = () => { viewM++; if (viewM > 12) { viewM = 1; viewY++; } render(); };
+    UI.$("#dpTime", sh.body).onchange = e => { selT = e.target.value; };
+    UI.$("#dpOk", sh.foot).onclick = () => {
+      if (!selD) { UI.toast("请选择日期"); return; }
       sh.close();
-      cb(sel.d + " " + (sel.t || "12:00"));
+      cb(selD + " " + (selT || "12:00"));
     };
   },
 
