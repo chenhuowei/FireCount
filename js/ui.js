@@ -98,6 +98,14 @@ const UI = {
   /* ---------- 底部弹层（支持堆叠：记一笔之上再开分类/账户选择器） ---------- */
   _sheets: [],
   sheet(opts) {
+    // 单例：同一时刻只保留最上层一个弹层。连点工具按钮不再叠加多个弹窗，
+    // 也避免 240ms 延迟移除期间重复实例堆积、需多次关闭的问题。
+    // 立即移除旧弹层节点（不走 240ms 渐隐），确保 DOM 与栈同步清空
+    if (UI._sheets.length) {
+      for (const old of UI._sheets.splice(0)) {
+        try { old.node.remove(); } catch (e) {}
+      }
+    }
     const host = UI.$("#sheetHost");
     const node = document.createElement("div");
     node.innerHTML =

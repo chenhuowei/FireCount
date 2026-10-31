@@ -433,5 +433,52 @@ test('切换模式后快捷条不重复', () => {
   eq(doc.querySelectorAll('.jy-quickbar [data-qb]').length, 6, '按钮不应重复');
 });
 
+
+suite('弹层单例（连点不叠加）');
+test('连点工具按钮只保留一个弹层', async () => {
+  openAdd();
+  const btn = doc.querySelector('.jy-quickbar [data-qb="tag"]');
+  for (let i = 0; i < 5; i++) btn.onclick({ stopPropagation() {} });
+  eq(doc.querySelectorAll('#sheetHost .sheet').length, 1, '连点 5 次应只有 1 个弹层');
+  eq(UI._sheets.length, 1, '栈深度应为 1');
+});
+test('各弹层入口连点均不叠加', async () => {
+  const cases = [
+    ['附件', () => ViewsAdd.photoSheet({ photos: [] }, () => {})],
+    ['备注', () => ViewsAdd.noteSheet({ note: '' }, () => {})],
+    ['账户', () => ViewsAdd.pickAccount('accountId', { accountId: '' }, () => {})],
+    ['导出', () => ViewsMine.exportSheet()],
+    ['导入', () => ViewsMine.importSheet()],
+    ['清空', () => ViewsMine.wipeSheet()],
+    ['成员', () => ViewsMine.membersSheet()],
+    ['币种', () => ViewsMine.currencySheet()],
+    ['应用锁', () => Lock.settingsSheet()],
+    ['WebDAV', () => WebDAV.settingsSheet()],
+    ['日期', () => UI.datePicker('2026-10-31 12:00', () => {})]
+  ];
+  for (const [name, open] of cases) {
+    doc.getElementById('sheetHost').innerHTML = ''; if (UI._sheets) UI._sheets = [];
+    open(); open(); open();
+    const n = doc.querySelectorAll('#sheetHost .sheet').length;
+    eq(n, 1, name + ' 连点 3 次应只有 1 个弹层，实际 ' + n);
+  }
+});
+test('closeSheet 渐隐动画后节点被移除', async () => {
+  doc.getElementById('sheetHost').innerHTML = ''; if (UI._sheets) UI._sheets = [];
+  ViewsMine.exportSheet();
+  eq(doc.querySelectorAll('#sheetHost .sheet').length, 1);
+  UI.closeSheet();
+  await new Promise(r => setTimeout(r, 300));
+  eq(doc.querySelectorAll('#sheetHost .sheet').length, 0, '关闭后节点应移除');
+  eq(UI._sheets.length, 0, '栈应清空');
+});
+test('切换打开不同弹层，旧的立即移除', () => {
+  doc.getElementById('sheetHost').innerHTML = ''; if (UI._sheets) UI._sheets = [];
+  ViewsMine.exportSheet();
+  ViewsMine.importSheet();
+  eq(doc.querySelectorAll('#sheetHost .sheet').length, 1, '旧弹层应立即移除');
+  ok(doc.querySelector('#wdRestore') || doc.getElementById('impFile') || doc.querySelector('#sheetHost .sheet'), '新弹层正常');
+});
+
 const okAll = summary();
 process.exit(okAll ? 0 : 1);
