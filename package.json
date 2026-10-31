@@ -1,0 +1,18 @@
+{
+  "name": "fircount",
+  "version": "1.0.5",
+  "private": true,
+  "description": "小伙记账 · FirCount —— 零依赖记账 SPA + Android WebView 壳",
+  "scripts": {
+    "serve": "node tests/serve.js",
+    "test": "node tests/run-all.js",
+    "test:static": "node tests/static-audit.js",
+    "test:core": "node tests/01-core.js",
+    "test:ui": "node tests/02-ui.js",
+    "test:apk": "node tests/03-apk.js",
+    "test:assets": "node tests/04-assets.js"
+  },
+  "devDependencies": {
+    "jsdom": "^24.0.0"
+  }
+}

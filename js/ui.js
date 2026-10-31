@@ -104,7 +104,7 @@ const UI = {
       '<div class="sheet-mask"></div><div class="sheet-wrap"><div class="sheet">' +
       '<div class="sheet-head">' +
       '<button class="hd-btn" data-close>' + (opts.closeIcon === false ? "" : UI.svg("back")) + "</button>" +
-      '<div class="sheet-title">' + (opts.title || "") + "</div>" +
+      '<div class="sheet-title">' + UI.escape(opts.title || "") + "</div>" +
       '<button class="hd-btn" data-close2>' + (opts.right || "") + "</button>" +
       "</div>" +
       '<div class="sheet-body"></div>' +

@@ -180,16 +180,14 @@ const ViewsAdd = {
           else if (k === "acc") ViewsAdd.pickAccount("accountId", S, () => renderBody());
           else if (k === "member") {
             // 成员轮换选择（单选，点一下换下一位）
-            const members = Store.s.settings.members;
+            const members = (Store.s.settings.members || []).filter(Boolean);
+            if (!members.length) { UI.toast("请先在「我的 → 成员管理」添加成员"); return; }
             const idx = members.indexOf(S.member || "我");
-            S.member = members[(idx + 1) % members.length] || members[0];
+            S.member = members[(idx + 1) % members.length];
             renderBody();
           }
           else if (k === "tag") ViewsAdd.tagManagerSheet(S, () => renderBody());
-          else if (k === "photo") {
-            const inp = body.querySelector("#jyPhotoFile");
-            if (inp) inp.click();
-          }
+          else if (k === "photo") ViewsAdd.photoSheet(S, () => renderBody());
           else if (k === "note") ViewsAdd.noteSheet(S, () => renderBody());
         });
       }
@@ -400,6 +398,50 @@ const ViewsAdd = {
 
   /* 分类编辑器（新建 / 编辑自定义分类） */
   /* 备注编辑弹层 */
+  /* 附件管理：缩略图预览 / 删除 / 新增（最多 3 张） */
+  photoSheet(S, onChange) {
+    const sh = UI.sheet({ title: "账单附件" });
+    const render = () => {
+      sh.body.innerHTML =
+        (S.photos.length
+          ? '<div class="pa-grid">' + S.photos.map((p, i) =>
+              '<div class="pa-item"><img src="' + p + '" data-view="' + i + '" alt="附件' + (i + 1) + '">' +
+              '<button class="pa-del" data-del="' + i + '">✕</button></div>').join("") + "</div>"
+          : '<div class="empty" style="padding:20px 0"><div class="big">📎</div><div class="t1">还没有附件</div></div>') +
+        '<div class="sec-title">最多 3 张，图片自动压缩至 ~720px 存储</div>';
+      sh.body.querySelectorAll("[data-view]").forEach(img => img.onclick = () => UI.viewPhoto(img.src));
+      sh.body.querySelectorAll("[data-del]").forEach(b => b.onclick = e => {
+        e.stopPropagation();
+        S.photos.splice(+b.dataset.del, 1);
+        render(); onChange && onChange();
+      });
+    };
+    render();
+    sh.foot.innerHTML = S.photos.length < 3
+      ? '<button class="btn btn-primary btn-block" id="paAdd">＋ 添加图片</button>'
+      : '<button class="btn btn-ghost btn-block" disabled>已达上限 3 张</button>';
+    const add = UI.$("#paAdd", sh.foot);
+    if (add) add.onclick = () => {
+      const inp = document.createElement("input");
+      inp.type = "file"; inp.accept = "image/*"; inp.multiple = true;
+      inp.onchange = async e => {
+        const files = [...e.target.files].slice(0, 3 - S.photos.length);
+        for (const f of files) {
+          try { S.photos.push(await UI.compressImage(f)); }
+          catch (err) { UI.toast(err.message || "图片处理失败"); }
+        }
+        render();
+        sh.foot.innerHTML = S.photos.length < 3
+          ? '<button class="btn btn-primary btn-block" id="paAdd">＋ 添加图片</button>'
+          : '<button class="btn btn-ghost btn-block" disabled>已达上限 3 张</button>';
+        const a2 = UI.$("#paAdd", sh.foot);
+        if (a2) a2.onclick = add.onclick;
+        onChange && onChange();
+      };
+      inp.click();
+    };
+  },
+
   noteSheet(S, onChange) {
     const sh = UI.sheet({ title: "备注" });
     sh.body.innerHTML =

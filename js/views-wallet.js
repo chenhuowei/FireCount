@@ -117,7 +117,7 @@ const ViewsWallet = {
       const other = Store.account(out ? r.toAccountId : r.accountId);
       title = (out ? "转出 → " : "转入 ← ") + (other ? other.name : "?");
       cls = "money-flat"; amt = (out ? "-" : "+") + fmt.money(r.amount);
-      icon = '<div class="bi-icon" style="background:#3B82F622">🔁</div>';
+      icon = '<div class="bi-icon" style="background:#3B82F622;color:#3B82F6">' + UI.svg("swap", 20) + '</div>';
     } else {
       title = (c ? c.name : "未分类") + (r.note ? " · " + r.note : "");
       cls = r.type === "income" ? "money-in" : "money-out";

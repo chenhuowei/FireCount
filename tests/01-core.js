@@ -1,0 +1,266 @@
+/**
+ * 核心逻辑测试：数据层 / 记账 / 导入导出 / 统计
+ */
+const { createEnv, suite, test, assert, eq, ok, throws, summary } = require('./harness');
+
+const { window, T } = createEnv();
+const S = T.Store, fmt = T.fmt;
+
+/* ============ 数据层 ============ */
+suite('数据层 · 初始化');
+test('boot 生成默认账本/账户/分类', () => {
+  S.boot();
+  ok(S.s.books.length >= 1, '应有默认账本');
+  ok(S.s.accounts.length >= 1, '应有默认账户');
+  eq(S.categories('expense').length, 17, '支出分类 17 项');
+  eq(S.categories('income').length, 9, '收入分类 9 项');
+});
+test('分类按 order 排序', () => {
+  const cats = S.categories('expense');
+  for (let i = 1; i < cats.length; i++) ok(cats[i - 1].order <= cats[i].order, 'order 应升序');
+});
+test('分类图标均为 svg: 前缀且键存在', () => {
+  for (const c of S.categories()) ok(/^svg:/.test(c.icon), c.name + ' 图标应为 svg: 前缀');
+});
+
+suite('数据层 · 记账 CRUD');
+test('addRecord 写入并可查', () => {
+  const before = S.s.records.length;
+  const r = S.addRecord({ type: 'expense', amount: 25.5, categoryId: 'ce_canyin', accountId: S.s.accounts[0].id, date: '2026-10-01 12:00', note: '午饭' });
+  eq(S.s.records.length, before + 1);
+  eq(r.amount, 25.5);
+  ok(r.id, '应有 id');
+});
+test('updateRecord 修改生效', () => {
+  const r = S.s.records[S.s.records.length - 1];
+  S.updateRecord(r.id, { amount: 30 });
+  eq(S.category(r.categoryId).id, 'ce_canyin');
+  eq(S.s.records.find(x => x.id === r.id).amount, 30);
+});
+test('deleteRecord 删除生效', () => {
+  const r = S.addRecord({ type: 'expense', amount: 1, categoryId: 'ce_canyin', accountId: S.s.accounts[0].id, date: '2026-10-02 10:00' });
+  const n = S.s.records.length;
+  S.deleteRecord(r.id);
+  eq(S.s.records.length, n - 1);
+});
+test('addRecord 默认值完整（tags/photos/member）', () => {
+  const r = S.addRecord({ amount: 5, date: '2026-10-03 10:00' });
+  ok(Array.isArray(r.tags) && Array.isArray(r.photos), 'tags/photos 应为数组');
+  ok(r.member, '应有默认成员');
+});
+
+/* ============ 统计 ============ */
+suite('统计 · 月/区间汇总');
+test('monthSummary 收支分离正确', () => {
+  S.reset(); S.boot();
+  S.addRecord({ type: 'income', amount: 1000, categoryId: 'ci_gongzi', accountId: S.s.accounts[0].id, date: '2026-05-10 09:00' });
+  S.addRecord({ type: 'expense', amount: 300, categoryId: 'ce_canyin', accountId: S.s.accounts[0].id, date: '2026-05-11 09:00' });
+  S.addRecord({ type: 'expense', amount: 200, categoryId: 'ce_gouwu', accountId: S.s.accounts[0].id, date: '2026-05-12 09:00' });
+  const sum = S.monthSummary('2026-05');
+  eq(sum.in, 1000); eq(sum.out, 500); eq(sum.balance, 500);
+});
+test('转账不计入收支', () => {
+  const accs = S.s.accounts;
+  S.addRecord({ type: 'transfer', amount: 999, accountId: accs[0].id, toAccountId: accs[1].id, date: '2026-05-13 09:00' });
+  const sum = S.monthSummary('2026-05');
+  eq(sum.in, 1000, '收入不受转账影响');
+  eq(sum.out, 500, '支出不受转账影响');
+});
+test('rangeSummary 区间含端点', () => {
+  const r = S.rangeSummary('2026-05-10', '2026-05-11');
+  eq(r.in, 1000); eq(r.out, 300);
+});
+test('byCategory 汇总与排序', () => {
+  const list = S.byCategory('2026-05', 'expense');
+  eq(list.length, 2);
+  eq(list[0].amount, 300, '金额降序');
+});
+test('rangeByCategory 与 byCategory 一致', () => {
+  const a = S.byCategory('2026-05', 'expense');
+  const b = S.rangeByCategory('2026-05-01', '2026-05-31', 'expense');
+  eq(a.length, b.length);
+  eq(a[0].amount, b[0].amount);
+});
+test('monthDaysWithRecords 统计正确', () => {
+  eq(S.monthDaysWithRecords('2026-05'), 4, '4 天有记录（含转账日）');
+});
+
+/* ============ 账户余额 ============ */
+suite('账户 · 余额计算');
+test('钱包汇总：支出使资产减少', () => {
+  S.reset(); S.boot();
+  const cash = S.s.accounts[0];
+  const before = S.accountBalance(cash.id);
+  S.addRecord({ type: 'expense', amount: 300, categoryId: 'ce_canyin', accountId: cash.id, date: '2026-06-01 10:00' });
+  eq(S.accountBalance(cash.id), before - 300, '支出后余额减少 300');
+  const w = S.walletSummary();
+  ok(typeof w.asset === 'number' && typeof w.debt === 'number' && typeof w.net === 'number', '汇总字段齐全');
+  eq(w.net, Math.round((w.asset - w.debt) * 100) / 100, '净资产 = 资产 - 负债');
+});
+test('转账双向变动余额', () => {
+  S.reset(); S.boot();
+  const a = S.s.accounts[0], b = S.s.accounts[1];
+  a.initial = 1000; b.initial = 0;
+  S.addRecord({ type: 'transfer', amount: 400, accountId: a.id, toAccountId: b.id, date: '2026-06-02 10:00' });
+  eq(S.accountBalance(a.id), 600, '转出账户减少');
+  eq(S.accountBalance(b.id), 400, '转入账户增加');
+});
+
+/* ============ 预算 ============ */
+suite('预算');
+test('setBudget / budgetSpent', () => {
+  S.reset(); S.boot();
+  S.setBudget('2026-07', { total: 1000, perCategory: {} });
+  S.addRecord({ type: 'expense', amount: 250, categoryId: 'ce_canyin', accountId: S.s.accounts[0].id, date: '2026-07-05 10:00' });
+  eq(S.budget('2026-07').total, 1000);
+  eq(S.budgetSpent('2026-07'), 250);
+  eq(S.categoryBudgetSpent('2026-07', 'ce_canyin'), 250);
+});
+
+/* ============ 导入导出 ============ */
+suite('导入导出 · JSON');
+test('exportJSON → replaceState 往返一致', () => {
+  S.reset(); S.boot();
+  S.addRecord({ type: 'expense', amount: 12.34, categoryId: 'ce_canyin', accountId: S.s.accounts[0].id, date: '2026-08-01 10:00', note: '测试' });
+  const json = S.exportJSON();
+  const n = S.s.records.length;
+  S.replaceState(JSON.parse(json));
+  eq(S.s.records.length, n);
+  eq(S.s.records[0].amount, 12.34);
+});
+test('exportCSV 含 BOM 与表头', () => {
+  const csv = S.exportCSV();
+  ok(csv.charCodeAt(0) === 0xFEFF, '应含 UTF-8 BOM');
+  ok(csv.includes('日期') && csv.includes('金额'), '应含表头');
+  ok(csv.includes('12.34'), '应含数据');
+});
+
+suite('导入导出 · CSV/XLSX');
+test('口袋格式 CSV 导入（正负号判收支）', () => {
+  S.reset(); S.boot();
+  const csv = '时间,账目分类,金额\n2026-09-01 09:00,餐饮,-35.50\n2026-09-05 10:00,工资,8000';
+  const r = S.importKdjzCSV(csv, 'append');
+  eq(r.added, 2);
+  const recs = S.s.records;
+  eq(recs.find(x => x.type === 'expense').amount, 35.5);
+  eq(recs.find(x => x.type === 'income').amount, 8000);
+});
+test('余额变更行被跳过', () => {
+  S.reset(); S.boot();
+  const csv = '时间,账目分类,金额\n2026-09-01 09:00,余额变更,1000';
+  const r = S.importKdjzCSV(csv, 'append');
+  eq(r.added, 0);
+  eq(S.s.records.length, 0);
+});
+test('重复导入全部去重', () => {
+  S.reset(); S.boot();
+  const csv = '时间,账目分类,金额\n2026-09-01 09:00,餐饮,-35.50';
+  S.importKdjzCSV(csv, 'append');
+  const r2 = S.importKdjzCSV(csv, 'append');
+  eq(r2.added, 0, '第二次应全部跳过');
+  eq(S.s.records.length, 1);
+});
+test('未知分类自动创建且带图标', () => {
+  S.reset(); S.boot();
+  const csv = '时间,账目分类,金额\n2026-09-01 09:00,全新分类名,-10';
+  S.importKdjzCSV(csv, 'append');
+  const c = S.s.categories.find(x => x.name === '全新分类名');
+  ok(c, '应自动创建分类');
+  ok(/^svg:/.test(c.icon), '应有 svg 图标');
+});
+test('覆盖模式清空当前账本', () => {
+  S.reset(); S.boot();
+  S.addRecord({ type: 'expense', amount: 99, categoryId: 'ce_canyin', accountId: S.s.accounts[0].id, date: '2026-09-01 08:00', note: '旧数据' });
+  const csv = '时间,账目分类,金额\n2026-09-10 09:00,餐饮,-20';
+  S.importKdjzCSV(csv, 'replace');
+  eq(S.s.records.length, 1, '应只剩新导入的 1 笔');
+  eq(S.s.records[0].amount, 20);
+});
+test('无表头文件抛出明确错误', () => {
+  throws(() => S.importKdjzCSV('随便,一行\n数据,没有表头', 'append'), '应抛错');
+});
+test('表头前置说明行可跳过', () => {
+  S.reset(); S.boot();
+  const csv = '口袋记账导出\n导出时间：2026-10-01\n时间,账目分类,金额\n2026-09-01 09:00,餐饮,-10';
+  const r = S.importKdjzCSV(csv, 'append');
+  eq(r.added, 1);
+});
+test('引号内逗号不被拆分', () => {
+  S.reset(); S.boot();
+  const csv = '时间,账目分类,金额,备注\n2026-09-01 09:00,餐饮,-10,"麦当劳,汉堡"';
+  S.importKdjzCSV(csv, 'append');
+  eq(S.s.records[0].note, '麦当劳,汉堡');
+});
+test('Excel 序列日期转换', () => {
+  S.reset(); S.boot();
+  const rows = [['时间', '金额'], [45870.5, -55]];
+  S.importRows(rows, 'append');
+  ok(/^2025-0?8-/.test(S.s.records[0].date) || /^2025-/.test(S.s.records[0].date), '序列日期应转为 YYYY-MM-DD，实际 ' + S.s.records[0].date);
+});
+
+/* ============ 账本 / 标签 / 分类管理 ============ */
+suite('账本 · 标签 · 分类');
+test('新建账本后记录隔离', () => {
+  S.reset(); S.boot();
+  const b1 = S.book().id;
+  S.addRecord({ type: 'expense', amount: 10, categoryId: 'ce_canyin', accountId: S.s.accounts[0].id, date: '2026-10-01 10:00' });
+  const nb = S.addBook('工作');
+  S.s.currentBookId = nb.id;
+  eq(S.bookRecords().length, 0, '新账本应为空');
+  S.s.currentBookId = b1;
+  eq(S.bookRecords().length, 1);
+});
+test('标签增删与账单剥离', () => {
+  S.reset(); S.boot();
+  S.addTag('报销');
+  ok(S.tags().includes('报销'));
+  const r = S.addRecord({ type: 'expense', amount: 10, categoryId: 'ce_canyin', accountId: S.s.accounts[0].id, date: '2026-10-01 10:00', tags: ['报销'] });
+  S.deleteTag('报销');
+  ok(!S.tags().includes('报销'), '标签应删除');
+  ok(!S.s.records.find(x => x.id === r.id).tags.includes('报销'), '账单上的标签应剥离');
+});
+test('分类排序持久化', () => {
+  S.reset(); S.boot();
+  const cats = S.categories('expense');
+  const last = cats[cats.length - 1];
+  S.updateCategory(last.id, { order: -1 });
+  eq(S.categories('expense')[0].id, last.id);
+});
+test('有账单的分类不可删除', () => {
+  S.reset(); S.boot();
+  S.addRecord({ type: 'expense', amount: 10, categoryId: 'ce_canyin', accountId: S.s.accounts[0].id, date: '2026-10-01 10:00' });
+  eq(S.deleteCategory('ce_canyin'), false, '应拒绝删除');
+  const custom = S.addCategory('expense', '测试类', 'svg:canyin', '#FF0000');
+  eq(S.deleteCategory(custom.id), true, '空分类可删除');
+});
+
+/* ============ 搜索 ============ */
+suite('搜索');
+test('按备注/分类/金额搜索', () => {
+  S.reset(); S.boot();
+  S.addRecord({ type: 'expense', amount: 88, categoryId: 'ce_canyin', accountId: S.s.accounts[0].id, date: '2026-10-01 10:00', note: '星巴克咖啡' });
+  eq(S.searchRecords('星巴克').length, 1);
+  eq(S.searchRecords('餐饮').length, 1, '按分类名可搜');
+  eq(S.searchRecords('88').length, 1, '按金额可搜');
+  eq(S.searchRecords('不存在的东西').length, 0);
+});
+
+/* ============ 工具函数 ============ */
+suite('工具函数');
+test('fmt.monthDay 格式正确', () => {
+  eq(fmt.monthDay('2026-10-05'), '10月5日');
+  eq(fmt.monthDay('2026-01-31'), '1月31日');
+});
+test('fmt.dayLabel 今天/昨天', () => {
+  const today = fmt.YMD(new Date());
+  eq(fmt.dayLabel(today), '今天');
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  eq(fmt.dayLabel(fmt.YMD(y)), '昨天');
+});
+test('fmt.money 两位小数', () => {
+  eq(fmt.money(1234.5), '1,234.50');
+  eq(fmt.money(0), '0.00');
+});
+
+const okAll = summary();
+process.exit(okAll ? 0 : 1);

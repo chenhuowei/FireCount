@@ -162,12 +162,14 @@ const ViewsReport = {
     html += lineBlock;
 
     /* 分类排行 */
-    const maxAmt = entries.length ? entries[0].amount : 1;
+    const maxAmt = entries.length ? (entries[0].amount || 0) : 0;
+    // 防御：总额为 0（如只有 0 元账单）时避免除零产生 NaN
+    const barPct = amt => (maxAmt > 0 ? Math.max(4, (amt / maxAmt) * 100) : 4);
     html +=
       '<div class="card" style="padding:8px 2px 12px"><div class="sec-title" style="padding:4px 14px 4px">' + (t === "expense" ? "支出" : "收入") + "排行</div>" +
       (entries.length ? entries.slice(0, 12).map((e, i) =>
         '<div class="rank-row"><span class="rk">' + (i + 1) + "</span>" + UI.catIcon(e.cat, "rk-ico") + '<span class="rn">' + UI.escape(e.cat.name) + "</span>" +
-        '<span class="bar-zone"><i class="bar" style="width:' + Math.max(4, e.amount / maxAmt * 100) + '%"></i></span>' +
+        '<span class="bar-zone"><i class="bar" style="width:' + barPct(e.amount) + '%"></i></span>' +
         '<span class="amt">' + fmt.money(e.amount) + "</span></div>"
       ).join("") : '<div style="text-align:center;color:var(--text-3);padding:16px 0">暂无数据</div>') +
       "</div>";

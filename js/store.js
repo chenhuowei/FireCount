@@ -378,11 +378,12 @@ const Store = {
   /* 统一导入入口：rows 为二维数组（CSV 行或 XLSX 工作表），mode: preview/append/replace */
   importRows(rows, mode) {
     const lines = rows.filter(r => (r || []).some(v => String(v == null ? "" : v).trim()));
-    const parseLine = r => (r || []).map(v => String(v == null ? "" : v));
+    // 保留原始单元格类型（数字/Date），否则 Excel 序列日期无法识别；需要字符串时再转
+    const parseLine = r => (r || []).map(v => (v == null ? "" : v));
     // 定位表头行（允许前面有说明行，如微信/支付宝/口袋导出都可能有）
     let headIdx = -1, head = [];
     for (let i = 0; i < Math.min(lines.length, 30); i++) {
-      const cells = parseLine(lines[i]).map(s => s.trim());
+      const cells = parseLine(lines[i]).map(v => String(v == null ? "" : v).trim());
       if (cells.includes("时间") && cells.includes("金额") || cells.includes("日期") && cells.includes("金额")) { headIdx = i; head = cells; break; }
     }
     if (headIdx < 0) throw new Error("未找到表头（需含 时间/日期 + 金额 列）");

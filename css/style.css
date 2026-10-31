@@ -110,8 +110,6 @@ ul { list-style: none; }
 .cell .cell-main { flex: 1; min-width: 0; }
 .cell .cell-title { font-size: 15px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
 .cell .cell-desc { font-size: 12px; color: var(--text-3); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cell .cell-value { font-size: 14px; color: var(--text-2); flex: none; display: flex; align-items: center; gap: 4px; }
-.cell .cell-arrow { color: var(--text-3); font-size: 12px; }
 .sec-title { font-size: 13px; color: var(--text-3); padding: 6px 4px; display: flex; justify-content: space-between; align-items: center; }
 
 /* ---------- 金额颜色 ---------- */
@@ -249,24 +247,10 @@ body[data-theme="deep"] .bill-top { background: linear-gradient(150deg, #D95E12,
   content: ""; position: absolute; inset: -3px; border: 2.5px solid var(--brand); border-radius: 16px;
 }
 .jy-cat.selected .cn { color: var(--brand); font-weight: 700; }
-.jy-dots { display: flex; justify-content: center; gap: 5px; padding: 6px 0 8px; }
-.jy-dots i { width: 6px; height: 6px; border-radius: 3px; background: var(--line); transition: all .2s; }
-.jy-dots i.on { width: 16px; background: var(--brand); }
 
 /* 记一笔属性行（时间/账户/成员/备注 证据） */
-.jy-attrs { background: var(--card); border-radius: 14px; box-shadow: var(--shadow); padding: 2px 0; }
-.jy-attr { display: flex; align-items: center; gap: 10px; padding: 11px 14px; }
-.jy-attr + .jy-attr { border-top: 1px solid var(--line); }
-.jy-attr .lab { width: 52px; font-size: 14px; color: var(--text-2); flex: none; }
-.jy-attr .val { flex: 1; text-align: right; font-size: 14px; font-weight: 500; display: flex; align-items: center; justify-content: flex-end; gap: 6px; min-width: 0; }
-.jy-attr .val .ph { color: var(--text-3); font-weight: 400; }
-.jy-attr:active { background: var(--chip); }
-.jy-attr input[type=text] { border: none; background: none; text-align: right; width: 100%; font-size: 14px; outline: none; }
 
 /* 平铺横滑直选（账户/成员）——替代底部弹层，过多时左滑查看 */
-.jy-attr-chips { padding: 7px 14px 8px; }
-.jy-attr-chips:active { background: none; }
-.jy-attr-chips .lab { align-self: center; }
 .chip-scroll {
   position: relative; flex: 1; min-width: 0; display: flex; gap: 8px;
   overflow-x: auto; -webkit-overflow-scrolling: touch;
@@ -285,19 +269,6 @@ body[data-theme="deep"] .bill-top { background: linear-gradient(150deg, #D95E12,
 .jy-transfer-box .row-chips { padding: 7px 0 8px; }
 
 /* 账单附件（图片）：记一面缩略图行 + 全屏查看器 */
-.photo-row { flex: 1; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-.photo-thumb { position: relative; width: 46px; height: 46px; border-radius: 9px; overflow: hidden; flex: none; }
-.photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.ph-del {
-  position: absolute; top: 0; right: 0; width: 17px; height: 17px;
-  background: rgba(0, 0, 0, .55); color: #fff; font-size: 10px;
-  border-radius: 0 0 0 9px; display: flex; align-items: center; justify-content: center;
-}
-.photo-add {
-  width: 46px; height: 46px; border-radius: 9px; background: var(--chip);
-  color: var(--brand); font-size: 20px; font-weight: 700; flex: none;
-  display: flex; align-items: center; justify-content: center;
-}
 .photo-viewer {
   position: fixed; inset: 0; z-index: 150; background: rgba(0, 0, 0, .88);
   display: flex; align-items: center; justify-content: center; cursor: zoom-out;
@@ -531,7 +502,6 @@ canvas.chart { width: 100%; display: block; }
 .sort-item .si-nm { flex: 1; font-size: 14.5px; }
 .sort-item .si-grip { color: var(--text-3); font-size: 16px; }
 .sort-item.dragging { opacity: .55; border-style: dashed; border-color: var(--brand); }
-.jy-cat.sort-ready .ci { outline: 2px dashed var(--brand); outline-offset: 2px; }
 
 /* ---------- 记一笔：计算器上方单行快捷条 ---------- */
 .jy-quickbar {
@@ -555,7 +525,6 @@ canvas.chart { width: 100%; display: block; }
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px 0;
   padding: 10px 2px; width: 100%;
 }
-.jy-dots { display: none; }
 
 /* ---------- 快捷条：纯图标按钮 + 角标 ---------- */
 .jy-quickbar .qb { position: relative; padding: 8px 13px; }
@@ -604,3 +573,13 @@ canvas.chart { width: 100%; display: block; }
   cursor: pointer; min-width: 88px; text-align: center; -webkit-tap-highlight-color: transparent;
 }
 .rp-datefld:active { background: var(--brand-soft, #FFF1E8); color: var(--brand); }
+
+/* ---------- 附件管理弹层 ---------- */
+.pa-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 6px 0 10px; }
+.pa-item { position: relative; aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: var(--chip); }
+.pa-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pa-del {
+  position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border-radius: 50%;
+  border: none; background: rgba(0,0,0,.55); color: #fff; font-size: 12px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+}

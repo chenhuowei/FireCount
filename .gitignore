@@ -1,12 +1,3 @@
-# 构建产物与本地凭据
-*.apk
-*.keystore
-android/build/
-android/app/assets/
-tools/
-
-# 系统
-.DS_Store
-Thumbs.db
-Desktop.ini
 node_modules/
+package-lock.json
+*.apk
