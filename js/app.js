@@ -5,13 +5,13 @@
 "use strict";
 
 const App = {
-  page: "report",
+  page: "bills",
   stack: [],
   viewMonth: fmt.curMonth(),
   billFilter: { account: null },
 
   PAGES: {
-    bills:      { render: (h, m, p) => ViewsBills.render(h, m) },
+    bills:      { render: (h, m, p) => ViewsBills.render(h, m), tab: true },
     report:     { render: (h, m, p) => ViewsReport.render(h, m), tab: true },
     wallet:     { render: (h, m, p) => ViewsWallet.render(h, m) },
     mine:       { render: (h, m, p) => ViewsMine.render(h, m), tab: true },
@@ -29,7 +29,7 @@ const App = {
     this.viewMonth = fmt.curMonth();
     // 首次使用且无记录 → 直接给出演示入口的空状态
     const hashPage = (location.hash || "").replace("#/", "");
-    this.go(this.PAGES[hashPage] ? hashPage : "report", null, true);
+    this.go(this.PAGES[hashPage] ? hashPage : "bills", null, true);
     Lock.init();            // 应用锁：启动验证（若启用）
     WebDAV.initAuto();      // WebDAV：6 小时自动备份检查
     if (location.hash === "#add") this.openQuickAdd(); // 快捷方式入口
@@ -56,7 +56,7 @@ const App = {
   },
 
   go(page, params, replace) {
-    if (!this.PAGES[page]) page = "report";
+    if (!this.PAGES[page]) page = "bills";
     if (!replace) this.stack.push({ page: this.page, params: this.params });
     this.page = page; this.params = params;
     history.replaceState(null, "", "#/" + page);
@@ -65,7 +65,7 @@ const App = {
 
   back() {
     const prev = this.stack.pop();
-    this.page = prev ? prev.page : "report";
+    this.page = prev ? prev.page : "bills";
     this.params = prev ? prev.params : null;
     history.replaceState(null, "", "#/" + this.page);
     this.render();
@@ -83,20 +83,25 @@ const App = {
 
   renderTabbar(activeTab) {
     const bar = UI.$("#tabbar");
-    if (!activeTab) { bar.classList.add("hidden"); return; }
+    if (!activeTab) {
+      bar.classList.add("hidden");
+      UI.$("#fabAdd").style.display = "none";
+      return;
+    }
     bar.classList.remove("hidden");
+    UI.$("#fabAdd").style.display = "flex";
     const tabs = [
       { id: "report", icon: "pie", label: "报表" },
-      { id: "__add", icon: "plus", label: "记一笔", center: true },
+      { id: "bills", icon: "list", label: "明细", center: true },
       { id: "mine", icon: "user", label: "我的" }
     ];
     bar.innerHTML = tabs.map(t =>
       t.center
-        ? '<button class="tab-jy' + (activeTab === "__add" ? " active" : "") + '"><span class="jy-ball">' + UI.svg("plus", 26) + '</span><span class="jy-label">记一笔</span></button>'
+        ? '<div class="tab-center"><button class="tab' + (activeTab === t.id ? " active" : "") + '" data-t="' + t.id + '">' + UI.svg(t.icon) + "<span>" + t.label + "</span></button></div>"
         : '<button class="tab' + (activeTab === t.id ? " active" : "") + '" data-t="' + t.id + '">' + UI.svg(t.icon) + "<span>" + t.label + "</span></button>"
     ).join("");
     bar.querySelectorAll("[data-t]").forEach(b => b.onclick = () => this.go(b.dataset.t));
-    bar.querySelector(".tab-jy").onclick = () => ViewsAdd.open();
+    UI.$("#fabAdd").onclick = () => this.openQuickAdd();
   },
 
   shiftMonth(delta) {
