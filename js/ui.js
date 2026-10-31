@@ -165,7 +165,7 @@ const UI = {
     let viewY = +selD.slice(0, 4), viewM = +selD.slice(5, 7);
     const todayStr = fmt.YMD(new Date());
     sh.body.innerHTML =
-      '<div class="cal-head"><button id="dpPrev">' + UI.svg("left", 15) + '</button><div class="m" id="dpM"></div><button id="dpNext">' + UI.svg("right", 15) + "</button></div>" +
+      '<div class="cal-head"><button id="dpPrev">' + UI.svg("left", 15) + '</button><div class="m" id="dpM" style="cursor:pointer" title="点击快速选择年月"></div><button id="dpNext">' + UI.svg("right", 15) + "</button></div>" +
       '<div class="cal-week">' + ["日", "一", "二", "三", "四", "五", "六"].map(w => "<span>" + w + "</span>").join("") + "</div>" +
       '<div class="cal-grid" id="dpGrid"></div>' +
       '<div class="dp-timerow"><div class="dp-lab">时间</div><input type="time" id="dpTime" value="' + selT + '"></div>';
@@ -189,6 +189,7 @@ const UI = {
       });
     };
     render();
+    UI.$("#dpM", sh.body).onclick = () => UI.periodPicker("month", viewY + "-" + String(viewM).padStart(2, "0"), v => { viewY = +v.slice(0, 4); viewM = +v.slice(5, 7); render(); });
     UI.$("#dpPrev", sh.body).onclick = () => { viewM--; if (viewM < 1) { viewM = 12; viewY--; } render(); };
     UI.$("#dpNext", sh.body).onclick = () => { viewM++; if (viewM > 12) { viewM = 1; viewY++; } render(); };
     UI.$("#dpTime", sh.body).onchange = e => { selT = e.target.value; };

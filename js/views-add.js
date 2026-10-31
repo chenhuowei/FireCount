@@ -373,7 +373,7 @@ const ViewsAdd = {
     UI.toast(S.editing ? "已保存修改" : "记账成功");
     // 若记录月份与当前查看月份不同，自动跳转
     const rm = data.date.slice(0, 7);
-    if (rm !== App.viewMonth) App.viewMonth = rm;
+    if (rm !== App.billMonth) App.billMonth = rm;
     App.refresh();
   },
 

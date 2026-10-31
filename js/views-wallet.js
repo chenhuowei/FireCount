@@ -250,7 +250,7 @@ const ViewsWallet = {
       });
       sh.close(); UI.toast("转账成功");
       const rm = S.date.slice(0, 7);
-      if (rm !== App.viewMonth) App.viewMonth = rm;
+      if (rm !== App.billMonth) App.billMonth = rm;
       App.refresh();
     };
   }

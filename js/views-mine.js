@@ -157,7 +157,7 @@ const ViewsMine = {
     header.innerHTML =
       '<div class="hd"><button class="hd-btn" data-back>' + UI.svg("back") + '</button><div class="hd-title">预算</div>' +
       '<div class="hd-sub"><button class="txt-btn" id="bgPrev">' + UI.svg("left", 14) + '</button><span id="bgMonth" style="font-weight:600"></span><button class="txt-btn" id="bgNext">' + UI.svg("right", 14) + "</button></div></div>";
-    const m = App.viewMonth;
+    const m = App.billMonth;
     UI.$("#bgMonth", header).textContent = m.slice(0, 4) + "年" + (+m.slice(5, 7)) + "月";
     UI.$("[data-back]", header).onclick = () => App.back();
     UI.$("#bgPrev").onclick = () => { App.shiftMonth(-1); };
@@ -343,7 +343,7 @@ const ViewsMine = {
     UI.$("#wipeGo", sh.foot).onclick = () => {
       if (UI.$("#wipeInput", sh.body).value !== cur) { UI.toast("确认码不正确"); return; }
       sh.close();
-      Store.reset(); App.applyTheme(); App.viewMonth = fmt.curMonth(); App.go("report", null, true);
+      Store.reset(); App.applyTheme(); App.billMonth = fmt.curMonth(); App.go("report", null, true);
       UI.toast("本地数据已清空");
     };
   },
@@ -400,7 +400,7 @@ const ViewsMine = {
               if (!ok) return;
               Store.replaceState(obj);
               sh.close(); UI.toast("导入成功");
-              App.applyTheme(); App.viewMonth = fmt.curMonth(); App.refresh();
+              App.applyTheme(); App.billMonth = fmt.curMonth(); App.refresh();
             });
           } catch (err) { UI.toast("文件格式不正确"); }
         };
@@ -450,14 +450,14 @@ const ViewsMine = {
         UI.$("#csvAppend", sh2.body).onclick = () => {
           const r = Store.importRows(rows, "append");
           sh2.close(); UI.toast("导入完成：新增 " + r.added + " 笔，跳过 " + r.skipped + " 条");
-          App.viewMonth = fmt.curMonth(); App.refresh();
+          App.billMonth = fmt.curMonth(); App.refresh();
         };
         UI.$("#csvReplace", sh2.body).onclick = () => {
           UI.confirm({ title: "覆盖导入", body: "将删除当前账本全部账单（" + Store.bookRecords().length + " 笔）后导入表格数据，且无法恢复。", ok: "覆盖", danger: true }).then(ok => {
             if (!ok) return;
             const r = Store.importRows(rows, "replace");
             sh2.close(); UI.toast("导入完成：新增 " + r.added + " 笔");
-            App.viewMonth = fmt.curMonth(); App.refresh();
+            App.billMonth = fmt.curMonth(); App.refresh();
           });
         };
       };

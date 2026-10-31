@@ -9,7 +9,7 @@
 const ViewsBills = {
   render(header, main) {
     header.classList.add("hidden");
-    const m = App.viewMonth;
+    const m = App.billMonth;
     const sum = Store.monthSummary(m);
     const book = Store.book();
     const y = +m.slice(0, 4), mm = +m.slice(5, 7);
@@ -22,7 +22,7 @@ const ViewsBills = {
           '<button class="bill-book-btn" id="bBookBtn">' + UI.svg("book", 15) + UI.escape(book.name) + UI.svg("down", 13) + "</button>" +
           '<div class="bill-month-switch">' +
             '<button id="mPrev">' + UI.svg("left", 16) + "</button>" +
-            '<div class="cur">' + y + "年" + mm + "月</div>" +
+            '<div class="cur" id="mTitle" style="cursor:pointer">' + y + "年" + mm + "月</div>" +
             '<button id="mNext">' + UI.svg("right", 16) + "</button>" +
           "</div>" +
         "</div>" +
@@ -39,6 +39,7 @@ const ViewsBills = {
       "</div>" +
       '<div id="billList"></div>' +
       "</div>";
+    UI.$("#mTitle").onclick = () => UI.periodPicker("month", App.billMonth, v => { App.billMonth = v; App.refresh({ skipAnim: true }); });
     UI.$("#mPrev").onclick = () => App.shiftMonth(-1);
     UI.$("#mNext").onclick = () => App.shiftMonth(1);
     UI.$("#bBookBtn").onclick = () => ViewsBills.bookSheet();
@@ -50,7 +51,7 @@ const ViewsBills = {
 
   renderList() {
     const host = UI.$("#billList");
-    const groups = Store.dayGroups(App.viewMonth, App.billFilter.account);
+    const groups = Store.dayGroups(App.billMonth, App.billFilter.account);
     const cur = Store.s.settings.currency;
     if (!groups.length) {
       const hasAny = Store.s.records.length > 0;
@@ -188,7 +189,7 @@ const ViewsBills = {
 /* ================= 日历视图（CalendarRecord 模块复刻） ================= */
 const ViewsCalendar = {
   render(header, main) {
-    const m = App.viewMonth;
+    const m = App.billMonth;
     const y = +m.slice(0, 4), mm = +m.slice(5, 7);
     const first = new Date(y, mm - 1, 1);
     const days = new Date(y, mm, 0).getDate();
@@ -211,7 +212,7 @@ const ViewsCalendar = {
       cells +=
         '<div class="cal-cell' + (ds === todayStr ? " today" : "") + '" data-d="' + ds + '">' +
         '<div class="d">' + d + "</div>" +
-        (st ? '<div class="io">' + (st.in ? '<div class="i">+' + Math.round(st.in) + "</div>" : "") + (st.out ? '<div class="o">-' + Math.round(st.out) + "</div>" : "") + "</div>" : "") +
+        (st ? '<div class="io">' + (st.in ? '<div class="i">+' + fmt.money(st.in) + "</div>" : "") + (st.out ? '<div class="o">-' + fmt.money(st.out) + "</div>" : "") + "</div>" : "") +
         "</div>";
     }
     const sum = Store.monthSummary(m);

@@ -15,6 +15,9 @@ const ViewsReport = {
     const now = new Date();
     const ym = m => m.getFullYear() + "-" + String(m.getMonth() + 1).padStart(2, "0");
     const ymd = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    if (r.mode === "all") {
+      return { start: "0000-01-01", end: "9999-12-31", title: "全部账单" };
+    }
     if (r.mode === "month") {
       if (!r.month) r.month = ym(now);
       const [y, mm] = r.month.split("-").map(Number);
@@ -37,7 +40,12 @@ const ViewsReport = {
   shiftMonth(delta) { App.shiftMonth(delta); },
   shiftYear(delta) {
     this.range.year = (this.range.year || new Date().getFullYear()) + delta;
-    App.refresh();
+    this.refreshBody();   // 局部更新，不整页闪烁
+  },
+  /* 局部刷新：仅重绘 rpBody 与导航标题（模式栏/toggle 保持不动） */
+  refreshBody() {
+    this.renderNav();
+    this.renderBody();
   },
 
   render(header, main) {
@@ -47,7 +55,7 @@ const ViewsReport = {
     main.innerHTML =
       '<div class="page page-anim">' +
       '<div class="rp-modebar"><div class="sel" id="rpMode">' +
-        [["month", "按月"], ["year", "按年"], ["custom", "自定义"]].map(([v, l]) =>
+        [["month", "按月"], ["year", "按年"], ["custom", "自定义"], ["all", "全部"]].map(([v, l]) =>
           '<button class="chip' + (this.range.mode === v ? " active" : "") + '" data-mode="' + v + '">' + l + "</button>").join("") +
       "</div></div>" +
       '<div class="rp-monthbar" id="rpNav"></div>' +
@@ -77,14 +85,16 @@ const ViewsReport = {
         '<button id="rPrev">' + UI.svg("left", 14) + '</button><div class="m" id="rTitle" style="cursor:pointer">' + R.title + '</div><button id="rNext">' + UI.svg("right", 14) + "</button>";
       UI.$("#rPrev").onclick = () => App.shiftMonth(-1);
       UI.$("#rNext").onclick = () => App.shiftMonth(1);
-      UI.$("#rTitle").onclick = () => UI.periodPicker("month", this.range.month || App.viewMonth, v => { App.viewMonth = v; this.range.month = v; App.refresh(); });
-      this.range.month = App.viewMonth;
+      UI.$("#rTitle").onclick = () => UI.periodPicker("month", this.range.month, v => { this.range.month = v; this.refreshBody(); });
+      // range.month 自治：首次为 null 时 resolve() 会用当前月
     } else if (this.range.mode === "year") {
       nav.innerHTML =
         '<button id="rPrev">' + UI.svg("left", 14) + '</button><div class="m" id="rTitle" style="cursor:pointer">' + R.title + '</div><button id="rNext">' + UI.svg("right", 14) + "</button>";
       UI.$("#rPrev").onclick = () => this.shiftYear(-1);
       UI.$("#rNext").onclick = () => this.shiftYear(1);
-      UI.$("#rTitle").onclick = () => UI.periodPicker("year", String(this.range.year || new Date().getFullYear()), v => { this.range.year = +v; App.refresh(); });
+      UI.$("#rTitle").onclick = () => UI.periodPicker("year", String(this.range.year || new Date().getFullYear()), v => { this.range.year = +v; this.refreshBody(); });
+    } else if (this.range.mode === "all") {
+      nav.innerHTML = '<div class="m" style="font-size:15px;color:var(--text-2)">全部账单 · 不限时间</div>';
     } else {
       nav.innerHTML =
         '<div class="rp-datefld" id="rStart">' + fmt.monthDay(this.range.start) + '</div>' +
@@ -93,12 +103,12 @@ const ViewsReport = {
       UI.$("#rStart").onclick = () => UI.datePicker(this.range.start + " 12:00", v => {
         this.range.start = v.slice(0, 10);
         if (this.range.end < this.range.start) this.range.end = this.range.start;
-        App.refresh();
+        this.refreshBody();
       });
       UI.$("#rEnd").onclick = () => UI.datePicker(this.range.end + " 23:59", v => {
         this.range.end = v.slice(0, 10);
         if (this.range.end < this.range.start) this.range.start = this.range.end;
-        App.refresh();
+        this.refreshBody();
       });
     }
   },
@@ -152,7 +162,9 @@ const ViewsReport = {
     let lineBlock = "";
     const monthDiff = (new Date(R.end + "T00:00:00").getFullYear() - new Date(R.start + "T00:00:00").getFullYear()) * 12
       + (new Date(R.end + "T00:00:00").getMonth() - new Date(R.start + "T00:00:00").getMonth()) + 1;
-    if (this.range.mode === "month") {
+    if (this.range.mode === "all") {
+      // 全部模式无时间轴，不显示折线
+    } else if (this.range.mode === "month") {
       const tr = Store.trend(6);
       lineBlock = this._lineCard("收支趋势 · 近 6 个月", tr);
     } else if (monthDiff <= 24) {

@@ -198,14 +198,15 @@ test('金额计算器表达式求值', () => {
 suite('选择器 · 统一日历风格');
 test('datePicker 渲染月历网格', () => {
   let out = null;
-  UI.datePicker('2026-10-15 09:30', v => { out = v; });
+  const curMonthDay = fmt.curMonth() + '-15 09:30';
+  UI.datePicker(curMonthDay, v => { out = v; });
   ok(doc.querySelector('#dpGrid'), '应有日历网格');
   ok(doc.querySelectorAll('#dpGrid .dp-cell').length >= 28, '应渲染整月日期');
   ok(doc.querySelector('#dpGrid .dp-cell.sel'), '应有选中态');
   ok(doc.querySelector('#dpGrid .dp-cell.today'), '应标记今天');
   ok(doc.getElementById('dpTime').value === '09:30', '时间应回填');
   doc.getElementById('dpOk').onclick();
-  eq(out, '2026-10-15 09:30');
+  eq(out, curMonthDay);
 });
 test('datePicker 切换月份', () => {
   UI.datePicker('2026-10-15 09:30', () => {});
@@ -611,6 +612,54 @@ test('多次重绘后返回按钮仍有效', () => {
   setTimeout(() => {
     eq(doc.querySelectorAll('#sheetHost .sheet').length, 0, '多次重绘后返回仍可关闭（240ms 动画后）');
   }, 300);
+});
+
+
+suite('日期/报表修复回归');
+test('月份状态隔离：报表切月不影响账单（Bug 回归）', () => {
+  resetState(); S.seedDemo();
+  App.page = 'bills'; ViewsBills.render(header(), main());
+  const billMonthBefore = App.billMonth;
+  // 报表切到别的月
+  ViewsReport.range = { mode: 'month', month: '2026-01', year: null, start: null, end: null };
+  ViewsReport.render(header(), main());
+  eq(App.billMonth, billMonthBefore, '账单月份不应被报表改动');
+});
+test('日历格显示两位小数（Bug 回归）', () => {
+  resetState();
+  App.billMonth = fmt.curMonth();
+  S.addRecord({ type: 'expense', amount: 35.5, categoryId: 'ce_canyin', accountId: S.s.accounts[0].id, date: fmt.curMonth() + '-05 12:00' });
+  T.ViewsCalendar.render(header(), main());
+  ok(main().innerHTML.includes('35.50'), '日历应显示 35.50 而非四舍五入的 36');
+});
+test('账单月份标题可点击直选（Bug 回归）', () => {
+  resetState(); ViewsBills.render(header(), main());
+  const t = doc.getElementById('mTitle');
+  ok(t, '应有月份标题');
+  eq(t.style.cursor, 'pointer', '应可点击');
+});
+test('datePicker 日历头支持年月快切（Bug 回归）', () => {
+  UI.datePicker('2026-10-15 12:00', () => {});
+  const m = doc.getElementById('dpM');
+  ok(m, '应有日历头');
+  eq(m.style.cursor, 'pointer', '应可点击');
+});
+test('报表全部模式（Bug 回归）', () => {
+  resetState(); S.seedDemo();
+  ViewsReport.range = { mode: 'all' };
+  ViewsReport.render(header(), main());
+  const html = main().innerHTML;
+  ok(html.includes('全部账单'), '应显示全部账单标题');
+  ok(html.includes('rp-kpi'), '应有 KPI');
+  ok(!html.includes('rpLine'), '全部模式无折线');
+  ok(!html.includes('NaN'), '无 NaN');
+});
+test('全部模式统计跨所有月份', () => {
+  resetState();
+  S.addRecord({ type: 'expense', amount: 100, categoryId: 'ce_canyin', accountId: S.s.accounts[0].id, date: '2025-01-01 10:00' });
+  S.addRecord({ type: 'expense', amount: 200, categoryId: 'ce_canyin', accountId: S.s.accounts[0].id, date: '2026-12-01 10:00' });
+  const r = S.rangeSummary('0000-01-01', '9999-12-31');
+  eq(r.out, 300, '应统计跨年全部账单');
 });
 
 const okAll = summary();

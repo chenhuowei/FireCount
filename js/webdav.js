@@ -195,7 +195,7 @@ const WebDAV = {
     Store.replaceState(obj);
     UI.toast("恢复成功");
     App.applyTheme();
-    App.viewMonth = fmt.curMonth();
+    App.billMonth = fmt.curMonth();
     App.go("report");
   },
 

@@ -7,7 +7,7 @@
 const App = {
   page: "bills",
   stack: [],
-  viewMonth: fmt.curMonth(),
+  billMonth: fmt.curMonth(),
   billFilter: { account: null },
 
   PAGES: {
@@ -26,7 +26,7 @@ const App = {
   boot() {
     Store.boot();
     this.applyTheme();
-    this.viewMonth = fmt.curMonth();
+    this.billMonth = fmt.curMonth();
     // 首次使用且无记录 → 直接给出演示入口的空状态
     const hashPage = (location.hash || "").replace("#/", "");
     this.go(this.PAGES[hashPage] ? hashPage : "bills", null, true);
@@ -73,13 +73,19 @@ const App = {
 
   refresh() { this.render(); },
 
-  render() {
+  render(opts) {
     const header = UI.$("#pageHeader"), main = UI.$("#pageMain");
-    main.scrollTop = 0;
+    if (!(opts && opts.skipAnim)) main.scrollTop = 0;
     const conf = this.PAGES[this.page];
     conf.render(header, main, this.params);
+    // 局部刷新（切月等）不重播进场动画，避免整页闪烁
+    if (opts && opts.skipAnim) {
+      const pg = main.querySelector(".page-anim");
+      if (pg) pg.classList.remove("page-anim");
+    }
     this.renderTabbar(conf.tab && this.page);
   },
+  refresh(opts) { this.render(opts); },
 
   renderTabbar(activeTab) {
     const bar = UI.$("#tabbar");
@@ -125,7 +131,7 @@ window.A = {
     const has = Store.s.records.length > 0;
     const doIt = () => {
       Store.seedDemo();
-      App.viewMonth = fmt.curMonth();
+      App.billMonth = fmt.curMonth();
       UI.toast("演示数据已载入");
       App.refresh();
     };
