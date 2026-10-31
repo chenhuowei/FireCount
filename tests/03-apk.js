@@ -265,12 +265,12 @@ suite('WebDAV · 坚果云同步');
   });
 
 
-  test('保留份数默认 2，可手动输入 1~5', () => {
+  test('保留份数默认 1，可手动输入 1~5', () => {
     S.reset(); S.boot();
-    eq(WebDAV.cfg().keepN, 2, '默认保留 2 份');
+    eq(WebDAV.cfg().keepN, 1, '默认保留 1 份');
     // 旧值越界自动收敛
-    WebDAV.cfg().keepN = 10; eq(WebDAV.cfg().keepN, 2, '旧值 10 应收敛为 2');
-    WebDAV.cfg().keepN = 20; eq(WebDAV.cfg().keepN, 2, '旧值 20 应收敛为 2');
+    WebDAV.cfg().keepN = 10; eq(WebDAV.cfg().keepN, 1, '旧值 10 应收敛为 1');
+    WebDAV.cfg().keepN = 20; eq(WebDAV.cfg().keepN, 1, '旧值 20 应收敛为 1');
     WebDAV.cfg().keepN = 4;  eq(WebDAV.cfg().keepN, 4, '合法值 4 保留');
     // 设置页输入框
     const c = WebDAV.cfg(); c.user = 'u'; c.pass = 'p'; c.provider = 'jianguoyun';
@@ -285,7 +285,7 @@ suite('WebDAV · 坚果云同步');
     inp.value = '0'; inp.onchange();
     eq(WebDAV.cfg().keepN, 1, '超下限应钳到 1');
     inp.value = 'abc'; inp.onchange();
-    eq(WebDAV.cfg().keepN, 2, '非数字回退默认 2');
+    eq(WebDAV.cfg().keepN, 1, '非数字回退默认 1');
   });
   test('备份文件名前缀为 firecount_', async () => {
     const { T: t2, window: w2 } = createEnv({ android: true });
@@ -318,6 +318,47 @@ suite('WebDAV · 坚果云同步');
     eq(!!t2.WebDAV._saveBackupTimer, false, '备份内部不应重排自动备份定时器');
     await new Promise(r => setTimeout(r, 1400));
     eq(puts, 1, '1.4 秒后仍只上传 1 次（不得循环）');
+  });
+
+
+  test('定时兜底周期为 24 小时', () => {
+    eq(WebDAV.AUTO_MS, 24 * 3600 * 1000, 'AUTO_MS 应为 24 小时');
+    eq(WebDAV.CHECK_MS, 30 * 60 * 1000, '检查间隔 30 分钟');
+    S.reset(); S.boot();
+    const c = WebDAV.cfg();
+    c.user = 'u'; c.pass = 'p'; c.provider = 'jianguoyun';
+    c.lastBackupAt = Date.now() - 23 * 3600 * 1000;  // 23 小时前
+    let called = 0;
+    const orig = WebDAV.backupNow;
+    WebDAV.backupNow = () => { called++; return Promise.resolve(); };
+    WebDAV.check();
+    eq(called, 0, '23 小时不应触发兜底');
+    c.lastBackupAt = Date.now() - 25 * 3600 * 1000;  // 25 小时前
+    WebDAV.check();
+    eq(called, 1, '25 小时应触发兜底');
+    WebDAV.backupNow = orig;
+  });
+  test('保留 1 份时只保留最新时间戳文件 + latest.json', async () => {
+    const { T: t2, window: w2 } = createEnv({ android: true });
+    t2.Store.reset(); t2.Store.boot();
+    const c = t2.WebDAV.cfg();
+    c.user = 'u'; c.pass = 'p'; c.provider = 'jianguoyun'; c.keepN = 1;
+    const deleted = [];
+    w2.AndroidBridge.webdavRequest = (id, method, url) => {
+      let body = '';
+      if (method === 'PROPFIND') {
+        body = ['firecount_20261031_120000.json', 'firecount_20261030_120000.json', 'firecount_20261029_120000.json', 'latest.json']
+          .map(n => '<d:response><d:href>/firecount/' + n + '</d:href></d:response>').join('');
+      }
+      if (method === 'DELETE') deleted.push(url.split('/').pop());
+      setTimeout(() => w2.__webdavCbMap && w2.__webdavCbMap[id] && w2.__webdavCbMap[id](method === 'PROPFIND' ? 207 : (method === 'PUT' ? 201 : 200), body), 0);
+    };
+    t2.UI.toast = () => {};
+    const p = t2.WebDAV.backupNow(true);
+    await new Promise(r => setTimeout(r, 100));
+    await p;
+    eq(deleted.length, 2, '应删除 2 个旧文件，实际 ' + JSON.stringify(deleted));
+    ok(!deleted.includes('latest.json'), '不应删除 latest.json');
   });
 
   test('设置弹层不抛错且所有按钮均绑定事件（Bug 回归）', () => {

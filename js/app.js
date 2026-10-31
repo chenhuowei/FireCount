@@ -31,7 +31,7 @@ const App = {
     const hashPage = (location.hash || "").replace("#/", "");
     this.go(this.PAGES[hashPage] ? hashPage : "bills", null, true);
     Lock.init();            // 应用锁：启动验证（若启用）
-    WebDAV.initAuto();      // WebDAV：6 小时自动备份检查
+    WebDAV.initAuto();      // WebDAV：24 小时兜底备份检查
     if (location.hash === "#add") this.openQuickAdd(); // 快捷方式入口
   },
 

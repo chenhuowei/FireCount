@@ -7,7 +7,7 @@
 "use strict";
 
 const WebDAV = {
-  AUTO_MS: 6 * 3600 * 1000,
+  AUTO_MS: 24 * 3600 * 1000,
   CHECK_MS: 30 * 60 * 1000,
   _timer: null, _seq: 0, _busy: false,
 
@@ -19,11 +19,11 @@ const WebDAV = {
 
   cfg() {
     const s = Store.s.settings;
-    if (!s.webdav) s.webdav = { provider: "jianguoyun", server: "", user: "", pass: "", dir: "/firecount/", keepN: 2, lastBackupAt: 0, autoAfterSave: true, autoDelaySec: 5 };
+    if (!s.webdav) s.webdav = { provider: "jianguoyun", server: "", user: "", pass: "", dir: "/firecount/", keepN: 1, lastBackupAt: 0, autoAfterSave: true, autoDelaySec: 5 };
     if (s.webdav.dir === "/kdjz-backup/") s.webdav.dir = "/firecount/"; // 旧配置迁移
     if (s.webdav.autoDelaySec === 3) s.webdav.autoDelaySec = 5; // 旧默认值迁移
     // 保留份数收敛到 1~5（旧版本默认 10/20 视为无效，重置为新默认 2）
-    if (!(s.webdav.keepN >= 1 && s.webdav.keepN <= 5)) s.webdav.keepN = 2;
+    if (!(s.webdav.keepN >= 1 && s.webdav.keepN <= 5)) s.webdav.keepN = 1;
     if (s.webdav.autoAfterSave === undefined) s.webdav.autoAfterSave = true;
     return s.webdav;
   },
@@ -124,7 +124,7 @@ const WebDAV = {
       // 清理旧备份
       try {
         const files = await this.list();
-        const keep = Math.min(5, Math.max(1, this.cfg().keepN || 2));
+        const keep = Math.min(5, Math.max(1, this.cfg().keepN || 1));
         const old = files.filter(f => f.name !== "latest.json").slice(keep);
         for (const f of old) await this.req("DELETE", this.url(f.name));
       } catch (e) { /* 清理失败不影响备份结果 */ }
@@ -235,14 +235,14 @@ const WebDAV = {
         '<input type="password" id="wdPass" autocomplete="new-password" value="' + UI.escape(c.pass) + '">' +
         '<button type="button" class="wd-eye" id="wdEye" data-on="0" aria-label="显示/隐藏密码">' + UI.svg("scan", 18) + '</button></div>' +
       '<div class="form-row"><div class="lab">目录</div><input type="text" id="wdDir" value="' + UI.escape(c.dir) + '"></div>' +
-      '<div class="form-row"><div class="lab">保留份数</div><input type="number" id="wdKeep" min="1" max="5" value="' + (c.keepN || 2) + '" placeholder="1-5"></div>' +
+      '<div class="form-row"><div class="lab">保留份数</div><input type="number" id="wdKeep" min="1" max="5" value="' + (c.keepN || 1) + '" placeholder="1-5"></div>' +
       '<div class="form-row"><div class="lab">自动备份</div><div class="sel">' +
         '<button class="chip' + (c.autoAfterSave === false ? "" : " active") + '" data-auto="on">记账后 ' + (c.autoDelaySec || 5) + ' 秒</button>' +
-        '<button class="chip' + (c.autoAfterSave === false ? " active" : "") + '" data-auto="off">仅手动/6小时</button></div></div>' +
+        '<button class="chip' + (c.autoAfterSave === false ? " active" : "") + '" data-auto="off">仅手动/24小时</button></div></div>' +
       '<div class="form-row" id="wdDelayRow"><div class="lab">延迟秒数</div><input type="number" id="wdDelay" min="1" max="3600" value="' + (+c.autoDelaySec || 5) + '"></div>' +
       '<div class="sec-title" id="wdHint">' + this.PRESETS[c.provider].hint + "</div>" +
       '<div class="sec-title">上次备份：' + (c.lastBackupAt ? new Date(c.lastBackupAt).toLocaleString("zh-CN") : "从未备份") +
-        (c.lastBackupAt ? " · 自动备份每 6 小时（应用打开时）" : "") + "</div>";
+        (c.lastBackupAt ? " · 自动备份每 24 小时（应用打开时）" : "") + "</div>";
     sh.foot.innerHTML =
       '<button class="btn btn-primary btn-block" id="wdRestore">从云端下载数据恢复</button>' +
       '<div style="display:flex;gap:10px;margin-top:10px">' +
@@ -274,7 +274,7 @@ const WebDAV = {
     const keepInput = UI.$("#wdKeep", sh.body);
     const saveKeep = () => {
       const raw = parseInt(keepInput.value, 10);
-      const v = isNaN(raw) ? 2 : Math.min(5, Math.max(1, raw));
+      const v = isNaN(raw) ? 1 : Math.min(5, Math.max(1, raw));
       if (String(v) !== keepInput.value) keepInput.value = v;
       c.keepN = v; Store.save();
     };
