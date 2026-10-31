@@ -511,40 +511,6 @@ canvas.chart { width: 100%; display: block; }
 }
 #rpNav .sep { font-size: 13px; color: var(--text-3); }
 
-/* ---------- 悬浮记账按钮（底栏上部） ---------- */
-#fabAdd {
-  position: absolute; right: 22px; bottom: 74px; z-index: 40;
-  width: 58px; height: 58px; border-radius: 50%; border: none;
-  background: linear-gradient(145deg, #FF9A4D, var(--brand) 60%, var(--brand-deep));
-  color: #fff; font-size: 30px; font-weight: 300; line-height: 1;
-  box-shadow: 0 8px 20px rgba(255, 122, 46, .5), inset 0 -2px 6px rgba(0,0,0,.08);
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; -webkit-tap-highlight-color: transparent;
-  transition: transform .12s ease;
-}
-#fabAdd:active { transform: scale(.92); }
-#phone:not(.has-tabbar) #fabAdd { display: none; }
-
-/* ---------- FAB：默认水平居中，支持长按拖动 ---------- */
-#fabAdd {
-  position: absolute; left: 50%; bottom: 74px; z-index: 40;
-  margin-left: -29px; /* 58px 宽的一半，默认居中 */
-  touch-action: none;
-}
-#fabAdd.dragging {
-  transition: none !important;
-  opacity: .92; transform: scale(1.06);
-  box-shadow: 0 10px 26px rgba(255, 122, 46, .6);
-  cursor: grabbing;
-}
-#fabAdd .drag-hint {
-  position: absolute; inset: -34px -34px; border-radius: 50%;
-  border: 2px dashed rgba(255,255,255,.55);
-  animation: fabPulse 1.2s ease infinite;
-  pointer-events: none;
-}
-@keyframes fabPulse { 0%,100% { transform: scale(1); opacity: .9; } 50% { transform: scale(1.08); opacity: .5; } }
-
 /* ---------- 底栏：账单页激活时中间变 + 记账按钮 ---------- */
 .tab-bill-add {
   color: var(--brand) !important;
@@ -589,3 +555,16 @@ canvas.chart { width: 100%; display: block; }
   padding: 10px 2px; width: 100%;
 }
 .jy-dots { display: none; }
+
+/* ---------- 快捷条：纯图标按钮 + 角标 ---------- */
+.jy-quickbar .qb { position: relative; padding: 8px 13px; }
+.jy-quickbar .qb .qb-badge {
+  position: absolute; top: -4px; right: -4px; min-width: 15px; height: 15px;
+  border-radius: 8px; background: var(--brand); color: #fff; font-size: 9.5px;
+  font-style: normal; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  padding: 0 4px; box-shadow: 0 1px 4px rgba(255,122,46,.4);
+}
+.jy-quickbar .qb .qb-dot {
+  position: absolute; top: 2px; right: 2px; width: 7px; height: 7px;
+  border-radius: 50%; background: var(--brand);
+}

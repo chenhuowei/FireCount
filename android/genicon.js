@@ -68,7 +68,8 @@ function mix(dst, src, a) {
 
 function makeIcon(S) {
   const u = S / 192;
-  // 工具
+  /* --- SDF 工具 --- */
+  const smooth = (e0, e1, v) => { const t = Math.min(1, Math.max(0, (v - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
   const rrCover = (x, y, x0, y0, x1, y1, r) => {
     const qx = Math.abs(x - (x0 + x1) / 2) - ((x1 - x0) / 2 - r);
     const qy = Math.abs(y - (y0 + y1) / 2) - ((y1 - y0) / 2 - r);
@@ -82,72 +83,119 @@ function makeIcon(S) {
   };
   const lineCover = (x, y, ax, ay, bx, by, w) => smooth(w / 2 + 1, w / 2 - 1, segDist(x, y, ax, ay, bx, by));
   const circCover = (x, y, cx, cy, r) => smooth(r + 1.2, r - 1.2, Math.hypot(x - cx, y - cy));
+  const ellCover = (x, y, cx, cy, rx, ry) => smooth(1.2, -1.2, Math.hypot((x - cx) / rx, (y - cy) / ry) - 1);
   const mix = (dst, src, a) => {
     dst[0] += (src[0] - dst[0]) * a; dst[1] += (src[1] - dst[1]) * a;
     dst[2] += (src[2] - dst[2]) * a; dst[3] = Math.max(dst[3], a);
   };
 
+  /* --- 色板：火焰主题 --- */
+  const cream = [239, 164, 95];     // 背景 奶油橙 #EFA45F
+  const creamHi = [247, 186, 126];  // 背景高光
+  const bookC = [252, 247, 238];    // 账本 米白
+  const bookEdge = [226, 200, 168]; // 账本页缘
+  const flameDeep = [226, 110, 28]; // 火焰 焦糖橙
+  const flameGold = [247, 178, 62]; // 火焰 暖金
+  const flameCore = [255, 218, 150];// 火焰芯
+  const ink = [214, 96, 22];        // 账目行
   const white = [255, 255, 255];
-  const ink = [240, 96, 10];       // 账目行深橙
-  const inkSoft = [255, 158, 94];  // 淡橙行
-  const green = [43, 182, 115];    // ¥ 徽章绿
 
   return png(S, (x, y) => {
-    // 1) 背景：对角渐变（左上亮橙 → 右下深橙），比上下渐变更现代
-    const t = (x / S + y / S) / 2;
-    let px = [255 - 22 * t, 122 - 46 * t, 46 - 22 * t, 0];
+    // 1) 背景：奶油橙，柔和径向高光（左上偏亮）
+    let px = [...cream, 0];
+    const hi = circCover(x, y, 58 * u, 52 * u, 150 * u) * 0.35;
+    if (hi > 0) mix(px, creamHi, hi);
 
-    // 2) 底部柔光：账本脚下的一层浅色投影，增加立体感
-    const shadow = smooth(158 * u, 138 * u, y) * 0.22;
-    if (shadow > 0) mix(px, [180, 60, 0], shadow);
+    // 2) 火焰：从账本中缝上方升起，与账本融为一体（先画火焰，账本压住下沿）
+    //    外焰（焦糖橙）：水滴形 = 大圆 + 上尖。用两段圆弧近似。
+    const fx = 96 * u, fyBase = 92 * u;             // 火焰中轴，底部埋进账本
+    const fW = 44 * u, fH = 88 * u;                // 外焰宽/高
+    // 外焰形状：底部半圆(r=fW/2) + 上方收尖（两翼贝塞尔近似：宽度随高度余弦收窄）
+    const outerFlame = (() => {
+      const dy = fyBase - y;                        // 相对焰底向上
+      if (dy < -fW / 2 || dy > fH) return 0;
+      if (dy <= 0) return circCover(x, y, fx, fyBase, fW / 2); // 底部圆
+      // 上部：宽度线性-余弦收窄到尖端
+      const t = dy / fH;                            // 0→1
+      const w = (fW / 2) * Math.cos(t * Math.PI / 2.3);
+      const inW = Math.abs(x - fx) < w ? 1 - smooth(w - 1, w + 1, Math.abs(x - fx)) : 0;
+      // 顶部收圆
+      const cap = circCover(x, y, fx, fyBase - fH + fW / 2.4, fW / 2.4);
+      return Math.max(inW, cap * (dy > fH - fW / 2 ? 1 : 0));
+    })();
+    // 内焰（暖金）：略小偏下
+    const innerFlame = (() => {
+      const dy = fyBase - y;
+      const w2 = fW * 0.62, h2 = fH * 0.62;
+      if (dy < -w2 / 2 || dy > h2) return 0;
+      if (dy <= 0) return circCover(x, y, fx, fyBase, w2 / 2);
+      const t = dy / h2;
+      const w = (w2 / 2) * Math.cos(t * Math.PI / 2.4);
+      const inW = Math.abs(x - fx) < w ? 1 - smooth(w - 1, w + 1, Math.abs(x - fx)) : 0;
+      const cap = circCover(x, y, fx, fyBase - h2 + w2 / 2.5, w2 / 2.5);
+      return Math.max(inW, cap * (dy > h2 - w2 / 2 ? 1 : 0));
+    })();
+    if (outerFlame > 0) mix(px, flameDeep, outerFlame);
+    if (innerFlame > 0) mix(px, flameGold, innerFlame);
 
-    // 3) 翻开的双页：更大更圆，带中缝阴影
-    const pageTop = 40 * u, pageBot = 152 * u, gap = 6 * u;
-    const L0 = 30 * u, L1 = 95 * u - gap, R0 = 97 * u + gap, R1 = 162 * u;
-    const pgL = rrCover(x, y, L0, pageTop, L1, pageBot, 9 * u);
-    const pgR = rrCover(x, y, R0, pageTop, R1, pageBot, 9 * u);
+    // 3) 账本：米白翻开双页，页沿略高于火焰底，使火焰像从账本里升起
+    const pageTop = 86 * u, pageBot = 160 * u, gap = 5 * u;
+    const L0 = 26 * u, L1 = 94 * u - gap, R0 = 98 * u + gap, R1 = 166 * u;
+    // 焰底被账本上沿裁掉一点：账本先画，火焰底部自然被覆盖
+    const pgL = rrCover(x, y, L0, pageTop, L1, pageBot, 10 * u);
+    const pgR = rrCover(x, y, R0, pageTop, R1, pageBot, 10 * u);
     const page = Math.max(pgL, pgR);
-    if (page > 0) mix(px, white, page);
-    // 中缝阴影：靠中缝一侧渐变灰，增强立体
+    // 账本底衬（微微偏深的米色边，增加层次）
+    const pageBack = rrCover(x, y, L0 - 5 * u, pageTop - 5 * u, R1 + 5 * u, pageBot + 5 * u, 12 * u);
+    if (pageBack > 0) mix(px, bookEdge, pageBack * 0.9);
+    if (page > 0) mix(px, bookC, page);
+    // 中缝阴影
     const spine = Math.min(
-      smooth(L1 - 14 * u, L1, x) * pgL,
-      smooth(R0 + 14 * u, R0, x) * pgR
-    ) * 0.13;
-    if (spine > 0) mix(px, [200, 200, 205], spine);
+      smooth(L1 - 16 * u, L1, x) * pgL,
+      smooth(R0 + 16 * u, R0, x) * pgR
+    ) * 0.12;
+    if (spine > 0) mix(px, [205, 190, 170], spine);
 
-    // 4) 账目行：左页3条（第2条短）+ 右页3条（第2条短），一深一淡交替更有记账感
+    // 4) 账目行：每页 2 条（浅一点，让火焰当主角）
     const inL = pgL > 0.5, inR = pgR > 0.5;
-    const rows = [66, 94, 122];
-    for (let i = 0; i < 3; i++) {
+    const rows = [108, 132];
+    for (let i = 0; i < 2; i++) {
       let ax, bx;
-      if (inL) { ax = L0 + 13 * u; bx = (i === 1 ? L1 - 24 * u : L1 - 13 * u); }
-      else if (inR) { ax = R0 + 13 * u; bx = (i === 1 ? R1 - 24 * u : R1 - 13 * u); }
+      if (inL) { ax = L0 + 14 * u; bx = (i === 0 ? L1 - 14 * u : L1 - 30 * u); }
+      else if (inR) { ax = R0 + 14 * u; bx = (i === 0 ? R1 - 14 * u : R1 - 30 * u); }
       else continue;
       const c = lineCover(x, y, ax, rows[i] * u, bx, rows[i] * u, 8 * u);
-      if (c > 0) mix(px, i === 1 ? inkSoft : ink, c * page);
+      if (c > 0) mix(px, ink, c * page * 0.85);
     }
 
-    // 5) ¥ 徽章：更大更圆润，白描边一圈提升精致度
-    const bc = 138 * u, bcy = 140 * u, br = 34 * u;
-    const badge = circCover(x, y, bc, bcy, br);
-    const ring = Math.abs(Math.hypot(x - bc, y - bcy) - (br + 4 * u)) < 2.2 * u ? 1 : 0;
-    if (badge > 0) mix(px, green, badge);
-    if (ring > 0 && badge > 0.4) mix(px, white, ring * 0.9);
-    const inB = badge > 0.5;
-    if (inB) {
-      const w = 7 * u, ox = bc, oy = bcy;
+    // 5) 火焰芯：白色小水滴在焰心（画在账本之后，仅上段可见）
+    const coreR = 12 * u, coreCy = fyBase - fH * 0.42;
+    const core = circCover(x, y, fx, coreCy, coreR);
+    if (core > 0 && y < pageTop + 6 * u) mix(px, flameCore, core);
+
+    // 6) 文字「小伙记账」：暖白，账本下方。SDF 画 4 个简笔汉字过于复杂，
+    //    用 4 个等宽圆角块模拟文字条（品牌感占位），或用小号 ¥ 徽章保持记账语义。
+    //    选择：底部暖白横条带 + 中央 ¥，与火焰/账本构成三角视觉。
+    const tx0 = 46 * u, tx1 = 146 * u, ty0 = 170 * u, ty1 = 182 * u;
+    const tx = rrCover(x, y, tx0, ty0, tx1, ty1, 6 * u);
+    if (tx > 0) mix(px, white, tx * 0.95);
+    const inTx = tx > 0.5;
+    if (inTx) {
+      // 迷你 ¥
+      const wx = 96 * u, wy = 176 * u, w = 2.6 * u;
       const strokes = [
-        [ox - 12 * u, oy - 14 * u, ox, oy + 1 * u],
-        [ox + 12 * u, oy - 14 * u, ox, oy + 1 * u],
-        [ox, oy - 14 * u, ox, oy + 16 * u],
-        [ox - 11 * u, oy + 3 * u, ox + 11 * u, oy + 3 * u],
-        [ox - 11 * u, oy + 10.5 * u, ox + 11 * u, oy + 10.5 * u]
+        [wx - 4.5 * u, wy - 4.5 * u, wx, wy + 1 * u],
+        [wx + 4.5 * u, wy - 4.5 * u, wx, wy + 1 * u],
+        [wx, wy - 4.5 * u, wx, wy + 5 * u],
+        [wx - 4 * u, wy + 0.5 * u, wx + 4 * u, wy + 0.5 * u],
+        [wx - 4 * u, wy + 3 * u, wx + 4 * u, wy + 3 * u]
       ];
       let yen = 0;
       for (const st of strokes) yen = Math.max(yen, lineCover(x, y, st[0], st[1], st[2], st[3], w));
-      if (yen > 0) mix(px, white, yen);
+      if (yen > 0) mix(px, flameDeep, yen);
     }
-    return [Math.round(px[0]), Math.round(px[1]), Math.round(px[2]), Math.round(255 * 1)];
+
+    return [Math.round(px[0]), Math.round(px[1]), Math.round(px[2]), 255];
   });
 }
 

@@ -565,6 +565,10 @@ const fmt = {
   month(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); },
   curMonth() { return this.month(new Date()); },
   parse(s) { return new Date(s.replace(" ", "T")); },
+  monthDay(ymd) {
+    const d = this.parse(ymd + "T00:00:00");
+    return (d.getMonth() + 1) + "月" + d.getDate() + "日";
+  },
   dayLabel(ymd) {
     const today = this.YMD(new Date());
     const yst = new Date(); yst.setDate(yst.getDate() - 1);

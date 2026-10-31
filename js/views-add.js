@@ -140,14 +140,14 @@ const ViewsAdd = {
         // 计算器上方单行快捷条：月日 / 现金 / 我 / 标签+ / 附件+ / 备注+
         const quickBar =
           '<div class="jy-quickbar">' +
-            '<button class="qb" data-qb="date">' + UI.svg("calendar", 14) + '<span id="qbDate">' + fmt.dayLabel(S.date.slice(0, 10)) + " " + fmt.timeLabel(S.date) + '</span></button>' +
+            '<button class="qb" data-qb="date">' + UI.svg("calendar", 14) + '<span id="qbDate">' + fmt.monthDay(S.date.slice(0, 10)) + '</span></button>' +
             (S.mode === "transfer" ? "" :
               '<button class="qb" data-qb="acc"><span>' + UI.escape((Store.account(S.accountId) || { name: "现金" }).name) + '</span></button>') +
             (S.mode === "transfer" ? "" :
               '<button class="qb" data-qb="member"><span>' + UI.escape(S.member || "我") + '</span></button>') +
-            '<button class="qb" data-qb="tag">#<span>' + (S.tags.length ? S.tags.length : "标签") + '</span></button>' +
-            '<button class="qb" data-qb="photo">📎<span>' + (S.photos.length ? S.photos.length : "附件") + '</span></button>' +
-            '<button class="qb" data-qb="note">✎<span>' + (S.note ? UI.escape(S.note.slice(0, 4)) : "备注") + '</span></button>' +
+            '<button class="qb" data-qb="tag" title="标签">' + UI.svg("tag", 16) + (S.tags.length ? '<i class="qb-badge">' + S.tags.length + '</i>' : '') + '</button>' +
+            '<button class="qb" data-qb="photo" title="附件">' + UI.svg("photo", 16) + (S.photos.length ? '<i class="qb-badge">' + S.photos.length + '</i>' : '') + '</button>' +
+            '<button class="qb" data-qb="note" title="备注">' + UI.svg("edit", 16) + (S.note ? '<i class="qb-dot"></i>' : '') + '</button>' +
           "</div>";
         body.innerHTML =
           '<div class="jy-amount-zone">' +
