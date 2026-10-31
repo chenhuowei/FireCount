@@ -210,9 +210,10 @@ const UI = {
     const defY = cur ? (kind === "month" ? +cur.slice(0, 4) : +cur) : nowY;
     const defM = cur && kind === "month" ? +cur.slice(5, 7) : nowM;
     let selY = defY, selM = defM;
-    const MIN_Y = nowY - 15, MAX_Y = nowY + 3;
+    const MIN_Y = 2000, MAX_Y = 2100;   // 硬边界
+    let winLo = Math.max(MIN_Y, defY - 5), winHi = Math.min(MAX_Y, defY + 5);  // 显示窗口
 
-    const sh = UI.sheet({ title: kind === "month" ? "选择年月" : "选择年份" });
+    const sh = UI.sheet({ title: kind === "month" ? "选择年月" : "选择年份", sub: true });
     sh.body.innerHTML =
       '<div class="wheel-wrap">' +
         (kind === "month" ? '<div class="wheel-col" id="wY"></div>' : '<div class="wheel-col wheel-only" id="wY"></div>') +
@@ -232,17 +233,29 @@ const UI = {
           '<div class="wheel-item' + (it.v === sel ? " on" : "") + (it.dis ? " dis" : "") + '" data-v="' + it.v + '">' + it.l + "</div>"
         ).join("");
         el.innerHTML = html;
-        // 滚到选中项居中
+        // 滚到选中项居中（外部可传 keepScroll 阻止重置，用于窗口扩展时保持视觉位置）
         const onEl = el.querySelector(".wheel-item.on");
-        if (onEl) el.scrollTop = onEl.offsetTop - el.clientHeight / 2 + onEl.offsetHeight / 2;
+        if (onEl) { try { el.scrollTop = onEl.offsetTop - el.clientHeight / 2 + onEl.offsetHeight / 2; } catch (e) {} }
       };
       _render();
       return { render: () => _render(), el, _render };
     };
 
-    const years = [];
-    for (let yy = MAX_Y; yy >= MIN_Y; yy--) years.push({ v: yy, l: yy + "年", dis: yy > nowY });
-    const colY = buildCol(wY, years, () => selY);
+    const colY = buildCol(wY, [], () => selY);
+    colY.render = () => {
+      const items = [];
+      for (let yy = winHi; yy >= winLo; yy--) items.push({ v: yy, l: yy + "年", dis: yy > nowY });
+      colY._render(items);
+    };
+    colY.render();   // 初始渲染
+    // 滑到窗口边缘自动扩展（每次 ±5），直到硬边界
+    const expandY = (dir) => {
+      let added = 0;
+      if (dir < 0 && winLo > MIN_Y) { winLo = Math.max(MIN_Y, winLo - 5); added = winLo === MIN_Y ? winLo : 5; }
+      else if (dir > 0 && winHi < MAX_Y) { winHi = Math.min(MAX_Y, winHi + 5); added = 5; }
+      else return 0;
+      return added;
+    };
 
     let colM = null;
     if (wM) {
@@ -256,6 +269,17 @@ const UI = {
       colM.render();   // 初始渲染（items 动态）
     }
 
+    // 年列滚动扩展窗口
+    wY.addEventListener("scroll", () => {
+      const atTop = wY.scrollTop <= 2, atBottom = wY.scrollTop + wY.clientHeight >= wY.scrollHeight - 2;
+      if (!atTop && !atBottom) return;
+      const prevH = wY.scrollHeight, prevTop = wY.scrollTop;
+      const added = expandY(atTop ? -1 : 1);
+      if (!added) return;
+      colY.render();
+      // 保持视觉位置：顶部扩展 → 下移新增高度；底部扩展 → 不动
+      if (atTop) wY.scrollTop = wY.scrollTop + (wY.scrollHeight - prevH);
+    });
     // 点年列项：切换年份并刷新月列禁用态
     wY.addEventListener("click", e => {
       const it = e.target.closest(".wheel-item");

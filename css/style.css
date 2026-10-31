@@ -641,3 +641,31 @@ canvas.chart { width: 100%; display: block; }
   color: #fff; background: var(--brand); border-color: var(--brand); font-weight: 700;
   box-shadow: 0 3px 8px rgba(255, 122, 46, .35);
 }
+
+/* ---------- 年月滚轮选择器（双列，上下滑动） ---------- */
+.wheel-wrap {
+  display: flex; gap: 10px; justify-content: center;
+  height: 210px; overflow: hidden; padding: 6px 0 10px;
+}
+.wheel-col {
+  width: 110px; overflow-y: auto; scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  border: 1.5px solid var(--line); border-radius: 12px; background: var(--card);
+  /* 中间选中带：上下渐隐遮罩 */
+  mask-image: linear-gradient(to bottom, transparent 0, #000 32%, #000 68%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 32%, #000 68%, transparent 100%);
+  padding: 75px 0;   /* 让首尾项也能滚到中央 */
+}
+.wheel-col.wheel-only { width: 150px; }
+.wheel-col::-webkit-scrollbar { display: none; }
+.wheel-item {
+  height: 40px; display: flex; align-items: center; justify-content: center;
+  font-size: 16px; color: var(--text-3); cursor: pointer; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.wheel-item.on {
+  font-size: 19px; font-weight: 700; color: var(--brand);
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  background: var(--brand-soft, #FFF1E8);
+}
+.wheel-item.dis { opacity: .3; pointer-events: none; }

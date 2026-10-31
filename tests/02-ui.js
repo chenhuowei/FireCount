@@ -218,7 +218,7 @@ test('datePicker 切换月份', () => {
 suite('年月滚轮选择器');
 test('月模式：年列 19 项 + 月列 12 项', () => {
   UI.periodPicker('month', '2026-03', () => {});
-  eq(doc.getElementById('wY').querySelectorAll('.wheel-item').length, 19, '年列 2026±范围');
+  eq(doc.getElementById('wY').querySelectorAll('.wheel-item').length, 11, '年列窗口 ±5 共 11 项');
   eq(doc.getElementById('wM').querySelectorAll('.wheel-item').length, 12, '月列 12 项');
   ok(doc.getElementById('wY').querySelector('.wheel-item.on[data-v="2026"]'), '选中年高亮');
   ok(doc.getElementById('wM').querySelector('.wheel-item.on[data-v="3"]'), '选中月高亮');
@@ -227,7 +227,7 @@ test('年模式：仅年列', () => {
   UI.periodPicker('year', '2024', () => {});
   ok(doc.getElementById('wY'), '有年列');
   ok(!doc.getElementById('wM'), '无月列');
-  eq(doc.getElementById('wY').querySelectorAll('.wheel-item').length, 19);
+  eq(doc.getElementById('wY').querySelectorAll('.wheel-item').length, 11);
 });
 test('选择后确定返回 YYYY-MM', () => {
   let out = null;
