@@ -99,9 +99,12 @@ const Store = {
     if (window.AndroidBridge && window.AndroidBridge.dbSave) {
       clearTimeout(this._saveTimer);
       this._saveTimer = setTimeout(() => this.saveNow(), 300);
-      return true;
+    } else {
+      this.storagePut(JSON.stringify(this.s));
     }
-    return this.storagePut(JSON.stringify(this.s));
+    /* 自动云备份钩子：记账后 N 秒自动推坚果云（内部再去抖，只推最后一次） */
+    try { if (window.WebDAV) WebDAV.onDataSetChanged(); } catch (e) {}
+    return true;
   },
   saveNow() {
     clearTimeout(this._saveTimer);
@@ -310,7 +313,7 @@ const Store = {
   addCycle(c) {
     const cy = Object.assign({
       id: this.uid("cy"), type: "expense", amount: 0, categoryId: "", accountId: "",
-      freq: "monthly", day: 1, note: "", nextDate: "", enabled: true, createdAt: Date.now()
+      freq: "monthly", day: 1, time: "09:00", note: "", nextDate: "", enabled: true, createdAt: Date.now()
     }, c);
     this.s.cycles.push(cy); this.save(); return cy;
   },
@@ -325,10 +328,10 @@ const Store = {
       if (!cy.enabled) continue;
       let guard = 0;
       while (cy.nextDate && cy.nextDate <= todayStr && guard++ < 240) {
-        const d = new Date(cy.nextDate + "T09:00:00");
+        const d = new Date(cy.nextDate + "T" + (cy.time || "09:00") + ":00");
         this.addRecord({
           type: cy.type, amount: cy.amount, categoryId: cy.categoryId, accountId: cy.accountId,
-          date: cy.nextDate + " 09:00", note: (cy.note || "周期记账") + "(自动)", member: "我"
+          date: cy.nextDate + " " + (cy.time || "09:00"), note: (cy.note || "周期记账") + "(自动)", member: "我"
         });
         created++;
         if (cy.freq === "monthly" || cy.freq === "yearly") {
@@ -347,9 +350,9 @@ const Store = {
     if (created) this.save();
     return created;
   },
-  nextCycleDate(freq, day, from) {
+  nextCycleDate(freq, day, from, time) {
     const todayD = new Date(); todayD.setHours(0, 0, 0, 0);
-    const d = from ? new Date(from + "T09:00:00") : new Date();
+    const d = from ? new Date(from + "T" + (time || "09:00") + ":00") : new Date();
     const ymd = x => x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0");
     const clamp = () => { const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); d.setDate(Math.min(day, last)); };
     if (freq === "monthly" || freq === "yearly") {

@@ -288,11 +288,12 @@ const ViewsMine = {
       (list.length ? '<div class="card">' + list.map(cy => {
         const c = Store.category(cy.categoryId), a = Store.account(cy.accountId);
         const freqName = { daily: "每天", weekly: "每周", monthly: "每月", yearly: "每年" }[cy.freq] || cy.freq;
+        const dayDesc = cy.freq === "weekly" ? "周" + "日一二三四五六"[cy.day] : (cy.freq === "monthly" || cy.freq === "yearly") ? cy.day + "日" : "";
         return '<div class="cell" data-id="' + cy.id + '">' +
           '<div class="cell-icon">' + (cy.enabled ? "✅" : "⏸️") + "</div>" +
           '<div class="cell-main"><div class="cell-title">' + UI.escape(cy.note || (c ? c.name : "")) + "</div>" +
           '<div class="cell-desc">' + (cy.type === "income" ? "收入" : "支出") + " · " + fmt.money(cy.amount) + " · " + freqName +
-          (cy.freq === "monthly" || cy.freq === "yearly" ? cy.day + "日" : "") + " · 下次 " + cy.nextDate + "</div></div>" +
+          dayDesc + " " + (cy.time || "09:00") + " · 下次 " + cy.nextDate + "</div></div>" +
           '<button class="txt-btn" data-toggle="' + cy.id + '" style="color:var(--brand);font-size:12.5px">' + (cy.enabled ? "停用" : "启用") + "</button></div>";
       }).join("") + "</div>" : '<div class="empty"><div class="big">🔁</div><div class="t1">还没有周期账单</div></div>') +
       "</div>";
@@ -320,7 +321,10 @@ const ViewsMine = {
       '<div class="form-row" data-k="acc"><div class="lab">账户</div><div class="val" id="cyAcc"></div></div>' +
       '<div class="form-row"><div class="lab">频率</div><div class="sel" id="cyFreq">' +
         ["daily", "weekly", "monthly", "yearly"].map(f => '<button class="chip' + (S.freq === f ? " active" : "") + '" data-f="' + f + '">' + { daily: "每天", weekly: "每周", monthly: "每月", yearly: "每年" }[f] + "</button>").join("") + "</div></div>" +
+      '<div class="form-row" id="cyWeekRow"><div class="lab">每周几</div><div class="sel" id="cyWeek">' +
+        ["日","一","二","三","四","五","六"].map((w, i) => '<button class="chip' + ((S.day || 0) === i ? " active" : "") + '" data-w="' + i + '">周' + w + "</button>").join("") + "</div></div>" +
       '<div class="form-row" id="cyDayRow"><div class="lab">每月几号</div><input type="number" id="cyDay" min="1" max="31" value="' + (S.day || 1) + '"></div>' +
+      '<div class="form-row"><div class="lab">记账时间</div><input type="time" id="cyTime" value="' + UI.escape(S.time || "09:00") + '"></div>' +
       '<div class="form-row"><div class="lab">备注</div><input type="text" id="cyNote" maxlength="12" value="' + UI.escape(S.note || "") + '" placeholder="如：房租"></div>';
     sh.foot.innerHTML =
       (editing ? '<button class="btn btn-danger btn-block" id="cyDel" style="margin-bottom:10px">删除</button>' : "") +
@@ -330,6 +334,7 @@ const ViewsMine = {
       UI.$("#cyCat", sh.body).innerHTML = (c ? IconUI.raw(c, 15) + " " + UI.escape(c.name) : "选择") + " " + UI.svg("arrow", 13);
       UI.$("#cyAcc", sh.body).innerHTML = (a ? UI.escape(a.name) : "选择") + " " + UI.svg("arrow", 13);
       UI.$("#cyDayRow", sh.body).style.display = (S.freq === "monthly" || S.freq === "yearly") ? "flex" : "none";
+      UI.$("#cyWeekRow", sh.body).style.display = S.freq === "weekly" ? "flex" : "none";
     };
     refresh();
     sh.body.querySelectorAll("#cyType button").forEach(b => b.onclick = () => {
@@ -340,7 +345,12 @@ const ViewsMine = {
     sh.body.querySelectorAll("#cyFreq button").forEach(b => b.onclick = () => {
       S.freq = b.dataset.f;
       sh.body.querySelectorAll("#cyFreq button").forEach(x => x.classList.toggle("active", x === b));
+      if (S.freq === "weekly" && (S.day == null || S.day > 6)) S.day = new Date().getDay();
       refresh();
+    });
+    sh.body.querySelectorAll("#cyWeek button").forEach(b => b.onclick = () => {
+      S.day = +b.dataset.w;
+      sh.body.querySelectorAll("#cyWeek button").forEach(x => x.classList.toggle("active", x === b));
     });
     sh.body.querySelector('[data-k="cat"]').onclick = () => {
       const sh2 = UI.sheet({ title: "选择分类" });
@@ -353,14 +363,17 @@ const ViewsMine = {
     UI.$("#cySave", sh.foot).onclick = () => {
       const amount = parseFloat(UI.$("#cyAmt", sh.body).value);
       if (!amount || amount <= 0) { UI.toast("请输入金额"); return; }
-      const day = Math.min(31, Math.max(1, parseInt(UI.$("#cyDay", sh.body).value) || 1));
+      const time = UI.$("#cyTime", sh.body).value || "09:00";
+      const day = S.freq === "weekly"
+        ? (S.day == null ? new Date().getDay() : S.day)
+        : Math.min(31, Math.max(1, parseInt(UI.$("#cyDay", sh.body).value) || 1));
       const note = UI.$("#cyNote", sh.body).value.trim();
-      const data = { type: S.type, amount, categoryId: S.categoryId, accountId: S.accountId, freq: S.freq, day, note };
+      const data = { type: S.type, amount, categoryId: S.categoryId, accountId: S.accountId, freq: S.freq, day, time, note };
       if (editing) {
-        data.nextDate = cy.nextDate || Store.nextCycleDate(S.freq, day);
+        data.nextDate = cy.nextDate || Store.nextCycleDate(S.freq, day, null, time);
         Store.updateCycle(cy.id, data);
       } else {
-        Store.addCycle({ ...data, nextDate: Store.nextCycleDate(S.freq, day) });
+        Store.addCycle({ ...data, nextDate: Store.nextCycleDate(S.freq, day, null, time) });
       }
       Store.save(); sh.close(); UI.toast("已保存"); cb && cb();
     };

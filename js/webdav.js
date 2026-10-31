@@ -19,7 +19,8 @@ const WebDAV = {
 
   cfg() {
     const s = Store.s.settings;
-    if (!s.webdav) s.webdav = { provider: "jianguoyun", server: "", user: "", pass: "", dir: "/kdjz-backup/", keepN: 10, lastBackupAt: 0 };
+    if (!s.webdav) s.webdav = { provider: "jianguoyun", server: "", user: "", pass: "", dir: "/kdjz-backup/", keepN: 10, lastBackupAt: 0, autoAfterSave: true, autoDelaySec: 3 };
+    if (s.webdav.autoAfterSave === undefined) s.webdav.autoAfterSave = true;
     return s.webdav;
   },
   available() {
@@ -101,9 +102,10 @@ const WebDAV = {
 
   async backupNow(manual) {
     if (this._busy) { if (manual) UI.toast("正在备份中…"); return; }
-    if (!this.available()) { UI.toast("仅 APK 版支持 WebDAV"); return; }
+    if (!this.available()) { if (manual) UI.toast("仅 APK 版支持 WebDAV"); return; }
     if (!this.configured()) { if (manual) { UI.toast("请先配置 WebDAV"); } return; }
     this._busy = true;
+    Store.saveNow(); // 确保待备份内容已落盘
     try {
       await this.ensureDir();
       const name = "kdjz_" + fmt.YMD(new Date()).replace(/-/g, "") + "_" +
@@ -203,6 +205,14 @@ const WebDAV = {
     if (!this.configured() || this._busy) return;
     if (Date.now() - (this.cfg().lastBackupAt || 0) >= this.AUTO_MS) this.backupNow(false);
   },
+  /* 需求：记账后 N 秒自动备份 —— 去抖：连续记账只备份最后一次 */
+  onDataSetChanged() {
+    const c = this.cfg();
+    if (c.autoAfterSave === false || !this.available() || !this.configured()) return;
+    clearTimeout(this._saveBackupTimer);
+    const delay = Math.max(1, +c.autoDelaySec || 3) * 1000;
+    this._saveBackupTimer = setTimeout(() => this.backupNow(false), delay);
+  },
 
   /* ---------- 设置页 ---------- */
   settingsSheet() {
@@ -222,6 +232,9 @@ const WebDAV = {
       '<div class="form-row"><div class="lab">目录</div><input type="text" id="wdDir" value="' + UI.escape(c.dir) + '"></div>' +
       '<div class="form-row"><div class="lab">保留份数</div><div class="sel">' +
         [5, 10, 20].map(n => '<button class="chip' + (c.keepN === n ? " active" : "") + '" data-n="' + n + '">' + n + " 份</button>").join("") + "</div></div>" +
+      '<div class="form-row"><div class="lab">自动备份</div><div class="sel">' +
+        '<button class="chip' + (c.autoAfterSave === false ? "" : " active") + '" data-auto="on">记账后" + (c.autoDelaySec || 3) + "秒</button>' +
+        '<button class="chip' + (c.autoAfterSave === false ? " active" : "") + '" data-auto="off">仅手动/6小时</button></div></div>' +
       '<div class="sec-title" id="wdHint">' + this.PRESETS[c.provider].hint + "</div>" +
       '<div class="sec-title">上次备份：' + (c.lastBackupAt ? new Date(c.lastBackupAt).toLocaleString("zh-CN") : "从未备份") +
         (c.lastBackupAt ? " · 自动备份每 6 小时（应用打开时）" : "") + "</div>";
@@ -254,6 +267,11 @@ const WebDAV = {
     });
     sh.body.querySelectorAll("[data-n]").forEach(b => b.onclick = () => {
       c.keepN = +b.dataset.n; Store.save(); b.parentElement.querySelectorAll(".chip").forEach(x => x.classList.toggle("active", x === b));
+    });
+    sh.body.querySelectorAll("[data-auto]").forEach(b => b.onclick = () => {
+      c.autoAfterSave = b.dataset.auto !== "off";
+      Store.save(); b.parentElement.querySelectorAll(".chip").forEach(x => x.classList.toggle("active", x === b));
+      UI.toast(c.autoAfterSave ? "已开启：记账后 " + (c.autoDelaySec || 3) + " 秒自动备份" : "已关闭自动备份");
     });
     const t = UI.$("#wdTest", sh.foot);
     if (t) t.onclick = async () => {
@@ -302,3 +320,6 @@ const WebDAV = {
     });
   }
 };
+
+/* const 声明不挂 window，供 store.js 的 save() 钩子调用 */
+window.WebDAV = WebDAV;

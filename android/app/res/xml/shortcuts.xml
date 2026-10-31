@@ -10,9 +10,9 @@
         android:shortcutShortLabel="@string/shortcut_add"
         android:shortcutLongLabel="@string/shortcut_add_long">
         <intent
-            android:action="com.kdjz.clone.ACTION_QUICK_ADD"
-            android:targetPackage="com.kdjz.clone"
-            android:targetClass="com.kdjz.clone.MainActivity" />
+            android:action="com.fircount.ACTION_QUICK_ADD"
+            android:targetPackage="com.fircount"
+            android:targetClass="com.fircount.MainActivity" />
     </shortcut>
     <shortcut
         android:shortcutId="sync_now"
@@ -21,8 +21,8 @@
         android:shortcutShortLabel="@string/shortcut_sync"
         android:shortcutLongLabel="@string/shortcut_sync_long">
         <intent
-            android:action="com.kdjz.clone.ACTION_SYNC_NOW"
-            android:targetPackage="com.kdjz.clone"
-            android:targetClass="com.kdjz.clone.MainActivity" />
+            android:action="com.fircount.ACTION_SYNC_NOW"
+            android:targetPackage="com.fircount"
+            android:targetClass="com.fircount.MainActivity" />
     </shortcut>
 </shortcuts>
