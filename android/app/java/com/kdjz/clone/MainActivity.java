@@ -446,8 +446,8 @@ public class MainActivity extends Activity {
                 }
                 final int fCode = code;
                 final String fResp = resp;
-                evalJs("(window.__webdavCbMap && window.__webdavCbMap['" + id + "]"
-                        + " ? window.__webdavCbMap['" + id + "](" + fCode + ", "
+                evalJs("(window.__webdavCbMap && window.__webdavCbMap['" + id + "']"
+                        + " ? window.__webdavCbMap['" + id + "'](" + fCode + ", "
                         + jqStr(fResp) + ") : 0)");
             }).start();
         }

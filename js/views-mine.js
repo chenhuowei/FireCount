@@ -459,17 +459,26 @@ const ViewsMine = {
         rd.readAsText(f, "utf-8");
         return;
       }
-      // XLSX / CSV 表格导入
+      // XLSX / CSV 表格导入：统一读 ArrayBuffer，按 ZIP 魔数（PK）判断格式
+      // （安卓文件选择器返回的文件名常不带扩展名，不能靠 name 判断）
       rd.onload = () => {
         let rows;
         try {
-          if (/\.xlsx$/.test(name) || (rd.result instanceof ArrayBuffer && name.endsWith(".xlsx"))) {
+          const buf = rd.result instanceof ArrayBuffer ? rd.result : null;
+          const u8 = buf ? new Uint8Array(buf) : null;
+          const isZip = u8 && u8.length > 4 && u8[0] === 0x50 && u8[1] === 0x4B; // PK\x03\x04 = xlsx
+          if (isZip) {
             if (typeof XLSX === "undefined") { UI.toast("XLSX 解析库未加载"); return; }
-            const wb = XLSX.read(rd.result, { type: "array", cellDates: false });
-            const ws = wb.Sheets[wb.SheetNames[0]];
-            rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: "" });
+            const wb = XLSX.read(u8, { type: "array", cellDates: false });
+            // 多表时选行数最多的工作表（口袋导出含收支记录/借入借出/固收理财等多表）
+            let bestName = wb.SheetNames[0], bestLen = -1;
+            for (const sn of wb.SheetNames) {
+              const r = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: "" });
+              if (r.length > bestLen) { bestLen = r.length; bestName = sn; }
+            }
+            rows = XLSX.utils.sheet_to_json(wb.Sheets[bestName], { header: 1, raw: true, defval: "" });
           } else {
-            const text = typeof rd.result === "string" ? rd.result : new TextDecoder("utf-8").decode(rd.result);
+            const text = new TextDecoder("utf-8").decode(u8 || rd.result);
             rows = Store.csvToRows(text);
           }
         } catch (err) { UI.toast("文件解析失败：" + (err.message || err)); return; }
@@ -499,8 +508,7 @@ const ViewsMine = {
           });
         };
       };
-      if (/\.xlsx$/.test(name)) rd.readAsArrayBuffer(f);
-      else rd.readAsText(f, "utf-8");
+      rd.readAsArrayBuffer(f);
     };
   },
 
