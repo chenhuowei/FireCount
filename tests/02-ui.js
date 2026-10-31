@@ -252,7 +252,7 @@ test('头像使用 App 图标', () => {
 test('关于入口显示版本号', () => {
   const cell = [...doc.querySelectorAll('.cell[data-go="about"]')][0];
   ok(cell, '应有关于入口');
-  ok(/1\.0\.5/.test(cell.textContent), '应显示版本 1.0.5');
+  ok(/1\.0\.5/.test(cell.textContent), '应显示版本 1.0.6');
 });
 test('钱包/账单入口存在', () => {
   ok(doc.querySelector('.cell[data-go="wallet"]'), '应有钱包入口');

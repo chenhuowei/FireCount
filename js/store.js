@@ -84,6 +84,8 @@ const Store = {
     s.settings = s.settings || { theme: "light", currency: "¥", members: ["我"], createdAt: Date.now() };
     s.budgets = s.budgets || {};
     s.cycles = s.cycles || [];
+    /* 分类与最新默认集合同步（v1.0.6）：补齐缺失的默认分类，清理无引用的旧内置分类 */
+    this.syncCategories();
     /* 旧版 reimburse 布尔 → 标签数组 */
     if (!s.settings.tags) {
       s.settings.tags = ["报销"];
@@ -93,6 +95,35 @@ const Store = {
       }
     }
   },
+  /* 分类同步：确保 DATA 中的默认分类都存在；删除既非默认、无账单引用、且非用户自定义的旧内置分类 */
+  syncCategories() {
+    const s = this.s;
+    let changed = false;
+    const defaults = [
+      ...DATA.expenseCategories.map((c, i) => ({ ...c, type: "expense", order: i })),
+      ...DATA.incomeCategories.map((c, i) => ({ ...c, type: "income", order: i }))
+    ];
+    const defaultIds = new Set(defaults.map(d => (d.type === "expense" ? "ce_" : "ci_") + d.key));
+    // 1) 补齐缺失默认分类；已存在的内置分类同步名称/图标/颜色/顺序（自定义分类不动）
+    for (const d of defaults) {
+      const id = (d.type === "expense" ? "ce_" : "ci_") + d.key;
+      const cur = s.categories.find(c => c.id === id);
+      if (!cur) {
+        s.categories.push({ id, type: d.type, name: d.name, icon: d.icon, color: d.color, order: d.order, custom: false });
+        changed = true;
+      } else if (!cur.custom && (cur.name !== d.name || cur.icon !== d.icon || cur.color !== d.color || cur.order !== d.order)) {
+        cur.name = d.name; cur.icon = d.icon; cur.color = d.color; cur.order = d.order;
+        changed = true;
+      }
+    }
+    // 2) 清理：非默认 + 非自定义 + 无账单引用的旧内置分类
+    const used = new Set(s.records.map(r => r.categoryId));
+    const before = s.categories.length;
+    s.categories = s.categories.filter(c => defaultIds.has(c.id) || c.custom || used.has(c.id));
+    if (s.categories.length !== before) changed = true;
+    if (changed) this.save();
+  },
+
   save() {
     /* APK（原生桥）：去抖合并——批量写入（如演示数据 100 笔）只落一次盘，
        避免同步桥逐笔阻塞 UI；浏览器（localStorage）保持同步直写 */
@@ -394,11 +425,15 @@ const Store = {
     if (cTime < 0 || cAmt < 0) throw new Error("表头缺少 时间/金额 列");
 
     // 导入分类名 → 图标键/分类名映射（覆盖口袋记账导出高频分类）
-    const kdjzMap = { "淘宝": "taobao", "衣服鞋包": "fushi", "水果": "shuiguolingshi", "零食": "shuiguolingshi",
-      "话费": "shoujitongxun", "一般": "yiban", "报销": "baoxiaozhang", "生活用品": "jujia", "房租": "jujia",
-      "买菜": "maicai", "药品": "yaopin", "护肤彩妆": "hufu", "数码产品": "shuma", "理发": "lifa",
-      "聚会": "juhui", "旅游": "lvyou", "礼物": "liwu", "家装": "jiazhuang", "股票": "gupiao",
-      "酒水饮料": "yanjiuyinliao", "美容健身": "meirongjianshen", "人情送礼": "renqingsongli" };
+    const kdjzMap = {
+      // 精确同名（默认分类已覆盖），仅保留跨名称的历史别名
+      "零食": "cake", "水果": "shuiguolingshi", "衣服鞋包": "fushi", "房租": "jujia",
+      "生活用品": "gouwu", "医疗": "medical", "话费": "shoujitongxun", "学习": "study",
+      "红包": "hongbao", "电影": "movie", "娱乐": "yule", "酒水饮料": "yanjiuyinliao",
+      // 旧版/第三方常见别名
+      "烟酒饮料": "yanjiuyinliao", "水果零食": "shuiguolingshi", "手机通讯": "shoujitongxun",
+      "医疗教育": "medical", "居家": "jujia", "服饰": "fushi", "购物": "gouwu",
+      "淘宝": "gouwu", "一般": "yiban", "报销": "baoxiaozhang" };
     const matchCat = (name, type) => {
       if (!name) return "";
       const key = kdjzMap[name];

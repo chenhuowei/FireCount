@@ -12,7 +12,7 @@ test('boot 生成默认账本/账户/分类', () => {
   S.boot();
   ok(S.s.books.length >= 1, '应有默认账本');
   ok(S.s.accounts.length >= 1, '应有默认账户');
-  eq(S.categories('expense').length, 17, '支出分类 17 项');
+  eq(S.categories('expense').length, 24, '支出分类 24 项（与用户 Excel 数据一致）');
   eq(S.categories('income').length, 9, '收入分类 9 项');
 });
 test('分类按 order 排序', () => {
@@ -260,6 +260,46 @@ test('fmt.dayLabel 今天/昨天', () => {
 test('fmt.money 两位小数', () => {
   eq(fmt.money(1234.5), '1,234.50');
   eq(fmt.money(0), '0.00');
+});
+
+
+suite('分类 · 与用户数据一致');
+test('支出分类与 Excel 完全一致（24 项同名同序）', () => {
+  const expect = ['餐饮','买菜','生活用品','交通','药品','零食','酒水饮料','水果','衣服鞋包','房租','护肤彩妆','数码产品','理发','医疗','话费','聚会','旅游','礼物','学习','红包','家装','娱乐','股票','电影'];
+  eq(S.categories('expense').map(c => c.name).join(','), expect.join(','));
+});
+test('每个分类都有可渲染图标', () => {
+  for (const c of S.categories()) ok(/^svg:/.test(c.icon), c.name + ' 应为 svg 图标');
+});
+test('syncCategories 补齐缺失 + 清理无引用旧内置 + 保留自定义', () => {
+  S.reset();
+  S.s = S.freshState();
+  S.s.categories = [
+    { id: 'ce_canyin', type: 'expense', name: '餐饮', icon: 'svg:canyin', color: '#FF8A3C', order: 0, custom: false },
+    { id: 'ce_gouwu', type: 'expense', name: '购物', icon: 'svg:gouwu', color: '#F5588A', order: 1, custom: false },
+    { id: 'ce_chongwu', type: 'expense', name: '宠物', icon: 'svg:chongwu', color: '#F97316', order: 2, custom: false },
+    { id: 'ce_taobao', type: 'expense', name: '淘宝', icon: 'svg:taobao', color: '#FF6A00', order: 3, custom: false },
+    { id: 'ce_mine', type: 'expense', name: '我的自定义', icon: 'svg:canyin', color: '#000', order: 99, custom: true }
+  ];
+  S.s.records = [{ id: 'r1', type: 'expense', amount: 10, categoryId: 'ce_taobao', accountId: 'a', date: '2026-10-01 10:00', tags: [], photos: [] }];
+  S.syncCategories();
+  const names = S.categories('expense').map(c => c.name);
+  ok(names.includes('买菜'), '应补齐新默认分类');
+  eq(S.category('ce_gouwu').name, '生活用品', 'ce_gouwu 应同步为生活用品');
+  ok(!names.includes('宠物'), '无引用的旧内置应清理');
+  ok(names.includes('淘宝'), '有账单引用的旧内置应保留');
+  ok(names.includes('我的自定义'), '自定义分类应保留');
+  ok(S.category('ce_taobao'), '账单引用仍有效');
+});
+test('Excel 24 分类导入零新建、零未映射', () => {
+  S.reset(); S.boot();
+  const names = S.categories('expense').map(c => c.name);
+  const before = names.length;
+  const rows = [['时间', '账目分类', '金额'], ...names.map((n, i) => ['2026-09-' + String(i + 1).padStart(2, '0') + ' 10:00', n, -10])];
+  S.importRows(rows, 'append');
+  eq(S.categories('expense').length, before, '不应新建分类');
+  eq(S.s.records.filter(r => !r.categoryId).length, 0, '不应有未映射账单');
+  eq(new Set(S.s.records.map(r => S.category(r.categoryId).name)).size, 24, '24 类应各自映射');
 });
 
 const okAll = summary();
