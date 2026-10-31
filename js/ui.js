@@ -202,48 +202,81 @@ const UI = {
 
   /* 年月选择器（月网格，风格同日历）：pick('month'|'year', cur, cb)
      cur: month 模式 'YYYY-MM' / year 模式 'YYYY' */
+  /* 年月滚轮选择器：年/月两列上下滑动（iOS 风格），一次选好
+     kind: "month"（年+月两列）| "year"（仅年列）；cur: "YYYY-MM" | "YYYY" */
   periodPicker(kind, cur, cb) {
-    const sh = UI.sheet({ title: kind === "month" ? "选择月份" : "选择年份" });
-    let y = cur ? (kind === "month" ? +cur.slice(0, 4) : +cur) : new Date().getFullYear();
-    const body = sh.body;
-    const render = () => {
-      if (kind === "month") {
-        const months = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
-        const nowY = new Date().getFullYear(), nowM = new Date().getMonth() + 1;
-        body.innerHTML =
-          '<div class="cal-head"><button id="ppPrev">' + UI.svg("left", 15) + '</button><div class="m">' + y + '年</div><button id="ppNext">' + UI.svg("right", 15) + "</button></div>" +
-          '<div class="pp-grid">' + months.map((m, i) => {
-            const mm = i + 1;
-            const disabled = y > nowY || (y === nowY && mm > nowM);
-            const on = cur && +cur.slice(0, 4) === y && +cur.slice(5, 7) === mm;
-            return '<div class="pp-cell' + (on ? " on" : "") + (disabled ? " dis" : "") + '" data-m="' + mm + '">' + m + "</div>";
-          }).join("") + "</div>";
-        body.querySelectorAll(".pp-cell:not(.dis)").forEach(el => el.onclick = () => {
-          sh.close();
-          cb(y + "-" + String(+el.dataset.m).padStart(2, "0"));
-        });
-        UI.$("#ppPrev", body).onclick = () => { y--; render(); };
-        UI.$("#ppNext", body).onclick = () => { y++; render(); };
-      } else {
-        const nowY = new Date().getFullYear();
-        const start = nowY - 9;
-        body.innerHTML =
-          '<div class="cal-head"><button id="ppPrev">' + UI.svg("left", 15) + '</button><div class="m">' + y + '</div><button id="ppNext">' + UI.svg("right", 15) + "</button></div>" +
-          '<div class="pp-grid">' + [0,1,2,3,4,5,6,7,8,9,10,11].map(i => {
-            const yy = y - 6 + i;
-            const disabled = yy > nowY;
-            const on = +cur === yy;
-            return '<div class="pp-cell' + (on ? " on" : "") + (disabled ? " dis" : "") + (yy === nowY ? " now" : "") + '" data-y="' + yy + '">' + yy + "</div>";
-          }).join("") + "</div>";
-        body.querySelectorAll(".pp-cell:not(.dis)").forEach(el => el.onclick = () => {
-          sh.close();
-          cb(String(+el.dataset.y));
-        });
-        UI.$("#ppPrev", body).onclick = () => { y -= 12; render(); };
-        UI.$("#ppNext", body).onclick = () => { y += 12; render(); };
-      }
+    const now = new Date();
+    const nowY = now.getFullYear(), nowM = now.getMonth() + 1;
+    const defY = cur ? (kind === "month" ? +cur.slice(0, 4) : +cur) : nowY;
+    const defM = cur && kind === "month" ? +cur.slice(5, 7) : nowM;
+    let selY = defY, selM = defM;
+    const MIN_Y = nowY - 15, MAX_Y = nowY + 3;
+
+    const sh = UI.sheet({ title: kind === "month" ? "选择年月" : "选择年份" });
+    sh.body.innerHTML =
+      '<div class="wheel-wrap">' +
+        (kind === "month" ? '<div class="wheel-col" id="wY"></div>' : '<div class="wheel-col wheel-only" id="wY"></div>') +
+        (kind === "month" ? '<div class="wheel-col" id="wM"></div>' : "") +
+      "</div>" +
+      '<div class="sec-title">上下滑动选择，点击中间行确定</div>';
+    sh.foot.innerHTML = '<button class="btn btn-primary btn-block" id="ppOk">确定</button>';
+
+    const wY = UI.$("#wY", sh.body);
+    const wM = kind === "month" ? UI.$("#wM", sh.body) : null;
+
+    const buildCol = (el, items, getSel) => {
+      const _render = (list) => {
+        const use = list || items;
+        const sel = getSel();
+        const html = use.map(it =>
+          '<div class="wheel-item' + (it.v === sel ? " on" : "") + (it.dis ? " dis" : "") + '" data-v="' + it.v + '">' + it.l + "</div>"
+        ).join("");
+        el.innerHTML = html;
+        // 滚到选中项居中
+        const onEl = el.querySelector(".wheel-item.on");
+        if (onEl) el.scrollTop = onEl.offsetTop - el.clientHeight / 2 + onEl.offsetHeight / 2;
+      };
+      _render();
+      return { render: () => _render(), el, _render };
     };
-    render();
+
+    const years = [];
+    for (let yy = MAX_Y; yy >= MIN_Y; yy--) years.push({ v: yy, l: yy + "年", dis: yy > nowY });
+    const colY = buildCol(wY, years, () => selY);
+
+    let colM = null;
+    if (wM) {
+      // 月列项动态生成：dis 依据当前 selY 实时计算（年份切换后禁用态要跟着变）
+      colM = buildCol(wM, [], () => selM);
+      colM.render = () => {
+        const items = [];
+        for (let mm = 1; mm <= 12; mm++) items.push({ v: mm, l: mm + "月", dis: selY === nowY && mm > nowM });
+        colM._render(items);
+      };
+      colM.render();   // 初始渲染（items 动态）
+    }
+
+    // 点年列项：切换年份并刷新月列禁用态
+    wY.addEventListener("click", e => {
+      const it = e.target.closest(".wheel-item");
+      if (!it || it.classList.contains("dis")) return;
+      selY = +it.dataset.v;
+      colY.render();
+      if (colM) {
+        colM.render();
+      }
+    });
+    if (wM) wM.addEventListener("click", e => {
+      const it = e.target.closest(".wheel-item");
+      if (!it || it.classList.contains("dis")) return;
+      selM = +it.dataset.v;
+      colM.render();
+    });
+
+    UI.$("#ppOk", sh.foot).onclick = () => {
+      sh.close();
+      cb(kind === "month" ? selY + "-" + String(selM).padStart(2, "0") : String(selY));
+    };
   },
 
   escape(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); },
