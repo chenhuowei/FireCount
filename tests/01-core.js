@@ -4,7 +4,7 @@
 const { createEnv, suite, test, assert, eq, ok, throws, summary } = require('./harness');
 
 const { window, T } = createEnv();
-const S = T.Store, fmt = T.fmt;
+const S = T.Store, fmt = T.fmt, WebDAV = T.WebDAV, Lock = T.Lock;
 
 /* ============ 数据层 ============ */
 suite('数据层 · 初始化');
@@ -300,6 +300,75 @@ test('Excel 24 分类导入零新建、零未映射', () => {
   eq(S.categories('expense').length, before, '不应新建分类');
   eq(S.s.records.filter(r => !r.categoryId).length, 0, '不应有未映射账单');
   eq(new Set(S.s.records.map(r => S.category(r.categoryId).name)).size, 24, '24 类应各自映射');
+});
+
+
+suite('备份内容 · 完整性 vs 安全性');
+test('备份包含全部配置数据（不只账单）', () => {
+  S.reset(); S.boot();
+  S.s.settings.theme = 'deep';
+  S.s.settings.currency = String.fromCharCode(36); // $
+  S.s.settings.members = ['我', '老婆'];
+  S.addTag('报销');
+  S.setBudget('2026-10', { total: 5000, perCategory: { ce_canyin: 1500 } });
+  S.addCategory('expense', '自定义类', 'svg:canyin', '#123456');
+  const acc = S.s.accounts[0];
+  acc.creditLimit = 50000; acc.billDay = 5; acc.repayDay = 20;
+  S.addRecord({ type: 'expense', amount: 100, categoryId: 'ce_canyin', accountId: acc.id, date: '2026-10-01 10:00' });
+
+  const j = JSON.parse(S.exportJSON());
+  eq(j.books.length >= 1, true, '账本');
+  eq(j.accounts.length >= 1, true, '账户');
+  eq(j.accounts[0].creditLimit, 50000, '账户配置（信用卡额度）');
+  eq(j.accounts[0].billDay, 5, '账户配置（账单日）');
+  eq(j.categories.filter(c => c.custom).length, 1, '自定义分类');
+  eq(j.records.length, 1, '账单');
+  eq(j.budgets['2026-10'].total, 5000, '预算');
+  eq(j.settings.theme, 'deep', '主题');
+  eq(j.settings.currency, String.fromCharCode(36), '币种');
+  eq(j.settings.members.length, 2, '成员');
+  ok(j.settings.tags.includes('报销'), '标签');
+});
+test('备份不携带 WebDAV 账号密码（安全）', () => {
+  const c = WebDAV.cfg();
+  c.user = 'me@x.com'; c.pass = 'SECRET_PASSWORD'; c.dir = '/firecount/';
+  const raw = S.exportJSON();
+  ok(!raw.includes('SECRET_PASSWORD'), '备份不得包含应用密码');
+  ok(!raw.includes('me@x.com'), '备份不得包含 WebDAV 账号');
+  const j = JSON.parse(raw);
+  eq(j.settings.webdav.pass, undefined, 'pass 应被剥离');
+  eq(j.settings.webdav.user, undefined, 'user 应被剥离');
+});
+test('备份不携带应用锁 PIN/答案哈希（安全）', () => {
+  const lk = Lock.cfg();
+  lk.enabled = true; lk.pinSalt = 'aa'; lk.pinHash = 'deadbeef'; lk.answerSalt = 'bb'; lk.answerHash = 'cafebabe';
+  const j = JSON.parse(S.exportJSON());
+  eq(j.settings.lock.enabled, false, '恢复后不应自动上锁');
+  eq(j.settings.lock.pinHash, '', 'PIN 哈希应清空');
+  eq(j.settings.lock.answerHash, '', '答案哈希应清空');
+});
+test('恢复备份保留本机 WebDAV 凭证', () => {
+  S.reset(); S.boot();
+  const w = WebDAV.cfg(); w.user = 'local@x.com'; w.pass = 'LOCAL_PASS';
+  const backup = JSON.parse(S.exportJSON());
+  S.reset(); S.boot();
+  const w2 = WebDAV.cfg(); w2.user = 'local@x.com'; w2.pass = 'LOCAL_PASS';
+  S.replaceState(backup);
+  eq(WebDAV.cfg().pass, 'LOCAL_PASS', '本机凭证应保留');
+});
+test('恢复备份后配置数据完整回填', () => {
+  S.reset(); S.boot();
+  S.setBudget('2026-10', { total: 5000, perCategory: { ce_canyin: 1500 } });
+  S.addCategory('expense', '自定义类', 'svg:canyin', '#123456');
+  S.s.settings.members = ['我', '老婆'];
+  S.addRecord({ type: 'expense', amount: 100, categoryId: 'ce_canyin', accountId: S.s.accounts[0].id, date: '2026-10-01 10:00' });
+  const backup = JSON.parse(S.exportJSON());
+  S.reset(); S.boot();
+  S.replaceState(backup);
+  eq(S.s.records.length, 1, '账单恢复');
+  eq(S.s.budgets['2026-10'].total, 5000, '预算恢复');
+  eq(S.s.categories.filter(c => c.custom).length, 1, '自定义分类恢复');
+  eq(S.s.settings.members.length, 2, '成员恢复');
 });
 
 const okAll = summary();

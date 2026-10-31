@@ -146,7 +146,18 @@ const Store = {
     try { if (window.AndroidBridge && window.AndroidBridge.dbClear) window.AndroidBridge.dbClear(); } catch (e) {}
     this.s = this.freshState(); this.saveNow();
   },
-  replaceState(next) { this.s = next; this.migrate(); this.saveNow(); },
+  /* 恢复备份：保留本机设备配置（WebDAV 凭证、应用锁），避免恢复后云端失联或被旧锁挡住 */
+  replaceState(next) {
+    const keepWebdav = this.s && this.s.settings && this.s.settings.webdav;
+    const keepLock = this.s && this.s.settings && this.s.settings.lock;
+    this.s = next;
+    this.migrate();
+    if (this.s.settings) {
+      if (keepWebdav && (!this.s.settings.webdav || !this.s.settings.webdav.pass)) this.s.settings.webdav = keepWebdav;
+      if (keepLock && keepLock.enabled && (!this.s.settings.lock || !this.s.settings.lock.enabled)) this.s.settings.lock = keepLock;
+    }
+    this.saveNow();
+  },
 
   uid(prefix) { return prefix + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); },
 
@@ -370,7 +381,25 @@ const Store = {
   /* 周期记账功能已移除（cycles 数据字段保留以兼容旧备份文件的导入导出） */
 
   /* ---------- 导入 / 导出 ---------- */
-  exportJSON() { return JSON.stringify(this.s, null, 2); },
+  /* 导出完整状态用于备份。安全处理：不携带设备本地凭证
+     · WebDAV 账号/应用密码：备份文件会传到云端，绝不能带密码
+     · 应用锁 PIN 哈希与安全问题答案：换机恢复时避免被旧锁挡住，也防暴力破解 */
+  exportJSON() {
+    const copy = JSON.parse(JSON.stringify(this.s));
+    if (copy.settings) {
+      if (copy.settings.webdav) {
+        delete copy.settings.webdav.pass;
+        delete copy.settings.webdav.user;
+      }
+      if (copy.settings.lock) {
+        copy.settings.lock = {
+          enabled: false, pinHash: "", pinSalt: "", pinLen: 4,
+          question: copy.settings.lock.question || "", answerHash: "", answerSalt: "", autoLockSec: 0
+        };
+      }
+    }
+    return JSON.stringify(copy, null, 2);
+  },
   exportCSV() {
     const head = ["日期", "类型", "分类", "金额", "账户", "转入账户", "备注", "成员", "标签", "账本"];
     const rows = this.bookRecords().slice().sort((a, b) => b.date.localeCompare(a.date)).map(r => {
