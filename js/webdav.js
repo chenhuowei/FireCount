@@ -19,9 +19,11 @@ const WebDAV = {
 
   cfg() {
     const s = Store.s.settings;
-    if (!s.webdav) s.webdav = { provider: "jianguoyun", server: "", user: "", pass: "", dir: "/firecount/", keepN: 10, lastBackupAt: 0, autoAfterSave: true, autoDelaySec: 5 };
+    if (!s.webdav) s.webdav = { provider: "jianguoyun", server: "", user: "", pass: "", dir: "/firecount/", keepN: 2, lastBackupAt: 0, autoAfterSave: true, autoDelaySec: 5 };
     if (s.webdav.dir === "/kdjz-backup/") s.webdav.dir = "/firecount/"; // 旧配置迁移
     if (s.webdav.autoDelaySec === 3) s.webdav.autoDelaySec = 5; // 旧默认值迁移
+    // 保留份数收敛到 1~5（旧版本默认 10/20 视为无效，重置为新默认 2）
+    if (!(s.webdav.keepN >= 1 && s.webdav.keepN <= 5)) s.webdav.keepN = 2;
     if (s.webdav.autoAfterSave === undefined) s.webdav.autoAfterSave = true;
     return s.webdav;
   },
@@ -110,22 +112,23 @@ const WebDAV = {
     Store.saveNow(); // 确保待备份内容已落盘
     try {
       await this.ensureDir();
-      const name = "kdjz_" + fmt.YMD(new Date()).replace(/-/g, "") + "_" +
+      const name = "firecount_" + fmt.YMD(new Date()).replace(/-/g, "") + "_" +
         new Date().toTimeString().slice(0, 8).replace(/:/g, "") + ".json";
       const content = Store.exportJSON();
       const r = await this.req("PUT", this.url(name), { "Content-Type": "application/json" }, content);
       if (r.code < 200 || r.code >= 300) throw new Error("上传失败 (" + r.code + ")");
       await this.req("PUT", this.url("latest.json"), { "Content-Type": "application/json" }, content);
       this.cfg().lastBackupAt = Date.now();
-      Store.save();
+      // 用 saveNow 而非 save：save() 会触发 onDataSetChanged → 再次排定自动备份 → 无限循环上传
+      Store.saveNow();
       // 清理旧备份
       try {
         const files = await this.list();
-        const keep = this.cfg().keepN || 10;
+        const keep = Math.min(5, Math.max(1, this.cfg().keepN || 2));
         const old = files.filter(f => f.name !== "latest.json").slice(keep);
         for (const f of old) await this.req("DELETE", this.url(f.name));
       } catch (e) { /* 清理失败不影响备份结果 */ }
-      UI.toast(manual ? "备份成功：" + name : "已自动备份（6 小时定时）");
+      UI.toast(manual ? "备份成功：" + name : "已自动备份");
     } catch (e) {
       UI.toast("备份失败：" + (e.message || e));
     } finally {
@@ -210,7 +213,7 @@ const WebDAV = {
   /* 需求：记账后 N 秒自动备份 —— 去抖：连续记账只备份最后一次 */
   onDataSetChanged() {
     const c = this.cfg();
-    if (c.autoAfterSave === false || !this.available() || !this.configured()) return;
+    if (c.autoAfterSave === false || this._busy || !this.available() || !this.configured()) return;
     clearTimeout(this._saveBackupTimer);
     const delay = Math.max(1, +c.autoDelaySec || 5) * 1000;
     this._saveBackupTimer = setTimeout(() => this.backupNow(false), delay);
@@ -232,8 +235,7 @@ const WebDAV = {
         '<input type="password" id="wdPass" autocomplete="new-password" value="' + UI.escape(c.pass) + '">' +
         '<button type="button" class="wd-eye" id="wdEye" data-on="0" aria-label="显示/隐藏密码">' + UI.svg("scan", 18) + '</button></div>' +
       '<div class="form-row"><div class="lab">目录</div><input type="text" id="wdDir" value="' + UI.escape(c.dir) + '"></div>' +
-      '<div class="form-row"><div class="lab">保留份数</div><div class="sel">' +
-        [5, 10, 20].map(n => '<button class="chip' + (c.keepN === n ? " active" : "") + '" data-n="' + n + '">' + n + " 份</button>").join("") + "</div></div>" +
+      '<div class="form-row"><div class="lab">保留份数</div><input type="number" id="wdKeep" min="1" max="5" value="' + (c.keepN || 2) + '" placeholder="1-5"></div>' +
       '<div class="form-row"><div class="lab">自动备份</div><div class="sel">' +
         '<button class="chip' + (c.autoAfterSave === false ? "" : " active") + '" data-auto="on">记账后 ' + (c.autoDelaySec || 5) + ' 秒</button>' +
         '<button class="chip' + (c.autoAfterSave === false ? " active" : "") + '" data-auto="off">仅手动/6小时</button></div></div>' +
@@ -268,9 +270,16 @@ const WebDAV = {
     sh.body.querySelectorAll("[data-p]").forEach(b => b.onclick = () => {
       c.provider = b.dataset.p; Store.save(); sh.close(); this.settingsSheet();
     });
-    sh.body.querySelectorAll("[data-n]").forEach(b => b.onclick = () => {
-      c.keepN = +b.dataset.n; Store.save(); b.parentElement.querySelectorAll(".chip").forEach(x => x.classList.toggle("active", x === b));
-    });
+    // 保留份数（1~5 手动输入，失焦/回车保存）
+    const keepInput = UI.$("#wdKeep", sh.body);
+    const saveKeep = () => {
+      const raw = parseInt(keepInput.value, 10);
+      const v = isNaN(raw) ? 2 : Math.min(5, Math.max(1, raw));
+      if (String(v) !== keepInput.value) keepInput.value = v;
+      c.keepN = v; Store.save();
+    };
+    keepInput.onchange = saveKeep;
+    keepInput.onblur = saveKeep;
     sh.body.querySelectorAll("[data-auto]").forEach(b => b.onclick = () => {
       c.autoAfterSave = b.dataset.auto !== "off";
       saveCfg();

@@ -231,6 +231,7 @@ suite('WebDAV · 坚果云同步');
     await new Promise(r => setTimeout(r, 60));
     await p;
     ok(puts.some(u => u.includes('latest.json')), '应上传 latest.json，实际 ' + puts.join(' | '));
+    ok(!puts.some(u => u.includes('kdjz_')), '不应再有 kdjz_ 前缀');
     ok(puts.some(u => /kdjz_\d{8}_\d{6}\.json/.test(u)), '应上传时间戳文件');
   });
   test('记账后触发自动备份（去抖）', async () => {
@@ -263,6 +264,62 @@ suite('WebDAV · 坚果云同步');
     eq(backups, 0, '不应备份');
   });
 
+
+  test('保留份数默认 2，可手动输入 1~5', () => {
+    S.reset(); S.boot();
+    eq(WebDAV.cfg().keepN, 2, '默认保留 2 份');
+    // 旧值越界自动收敛
+    WebDAV.cfg().keepN = 10; eq(WebDAV.cfg().keepN, 2, '旧值 10 应收敛为 2');
+    WebDAV.cfg().keepN = 20; eq(WebDAV.cfg().keepN, 2, '旧值 20 应收敛为 2');
+    WebDAV.cfg().keepN = 4;  eq(WebDAV.cfg().keepN, 4, '合法值 4 保留');
+    // 设置页输入框
+    const c = WebDAV.cfg(); c.user = 'u'; c.pass = 'p'; c.provider = 'jianguoyun';
+    WebDAV.settingsSheet();
+    const inp = doc.getElementById('wdKeep');
+    ok(inp, '应有保留份数输入框');
+    eq(inp.type, 'number'); eq(inp.min, '1'); eq(inp.max, '5');
+    inp.value = '3'; inp.onchange();
+    eq(WebDAV.cfg().keepN, 3, '输入 3 应保存');
+    inp.value = '9'; inp.onchange();
+    eq(WebDAV.cfg().keepN, 5, '超上限应钳到 5');
+    inp.value = '0'; inp.onchange();
+    eq(WebDAV.cfg().keepN, 1, '超下限应钳到 1');
+    inp.value = 'abc'; inp.onchange();
+    eq(WebDAV.cfg().keepN, 2, '非数字回退默认 2');
+  });
+  test('备份文件名前缀为 firecount_', async () => {
+    const { T: t2, window: w2 } = createEnv({ android: true });
+    const urls = [];
+    t2.Store.reset(); t2.Store.boot();
+    const c = t2.WebDAV.cfg(); c.user = 'u'; c.pass = 'p'; c.provider = 'jianguoyun';
+    w2.AndroidBridge.webdavRequest = (id, method, url) => {
+      urls.push(url);
+      setTimeout(() => w2.__webdavCbMap && w2.__webdavCbMap[id] && w2.__webdavCbMap[id](method === 'PUT' ? 201 : 200, ''), 0);
+    };
+    const p = t2.WebDAV.backupNow(true);
+    await new Promise(r => setTimeout(r, 80));
+    await p;
+    ok(urls.some(u => /firecount_d{8}_d{6}.json/.test(u)), '文件名应为 firecount_YYYYMMDD_HHMMSS.json');
+    ok(!urls.some(u => u.includes('kdjz_')), '不应再有 kdjz_ 前缀');
+  });
+  test('备份内部落盘不触发新的自动备份（无限循环 Bug 回归）', async () => {
+    const { T: t2, window: w2 } = createEnv({ android: true });
+    t2.Store.reset(); t2.Store.boot();
+    const c = t2.WebDAV.cfg();
+    c.user = 'u'; c.pass = 'p'; c.provider = 'jianguoyun';
+    c.autoAfterSave = true; c.autoDelaySec = 1;
+    let puts = 0;
+    w2.AndroidBridge.webdavRequest = (id, method, url) => {
+      if (method === 'PUT' && url.includes('latest.json')) puts++;
+      setTimeout(() => w2.__webdavCbMap && w2.__webdavCbMap[id] && w2.__webdavCbMap[id](method === 'PUT' ? 201 : 200, ''), 0);
+    };
+    t2.UI.toast = () => {};
+    await t2.WebDAV.backupNow(true);
+    eq(!!t2.WebDAV._saveBackupTimer, false, '备份内部不应重排自动备份定时器');
+    await new Promise(r => setTimeout(r, 1400));
+    eq(puts, 1, '1.4 秒后仍只上传 1 次（不得循环）');
+  });
+
   test('设置弹层不抛错且所有按钮均绑定事件（Bug 回归）', () => {
     S.reset(); S.boot();
     const c = WebDAV.cfg();
@@ -280,7 +337,7 @@ suite('WebDAV · 坚果云同步');
     for (const id of ['wdServer', 'wdUser', 'wdPass', 'wdDir', 'wdDelay']) ok(doc.getElementById(id), '缺少字段 #' + id);
     const providers = doc.querySelectorAll('[data-p]');
     eq(providers.length, 3, '应有 3 个服务商选项');
-    eq(doc.querySelectorAll('[data-n]').length, 3, '应有 3 个保留份数选项');
+    ok(doc.getElementById('wdKeep'), '应有保留份数输入框');
     eq(doc.querySelectorAll('[data-auto]').length, 2, '应有 2 个自动备份选项');
   });
   test('密码可见切换生效', () => {
