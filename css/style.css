@@ -611,3 +611,13 @@ canvas.chart { width: 100%; display: block; }
   background: var(--card);
   padding: 8px 2px;
 }
+
+/* ---------- 记一笔布局调整：每行 6 个分类 + 金额与选中分类同行 ---------- */
+.jy-sheet-body .jy-grid-page.jy-grid-full { grid-template-columns: repeat(6, 1fr); }
+/* 选中分类与金额同行：左图标+名称，右金额 */
+.jy-amount-row { flex-wrap: nowrap; align-items: center; gap: 10px; }
+.jy-amount-row > .ci { width: 44px; height: 44px; border-radius: 13px; flex: none; }
+.jy-amount-row > .cn { font-size: 15.5px; font-weight: 600; max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: none; }
+.jy-amount-row .jy-currency { font-size: 20px; padding-bottom: 8px; }
+.jy-amount-row .jy-amount { font-size: 34px; min-height: 44px; }
+.jy-amount-row .jy-formula { margin-top: 2px; }

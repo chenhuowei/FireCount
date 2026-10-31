@@ -119,7 +119,7 @@ const ViewsAdd = {
           '<div class="jy-transfer-box">' +
             '<div class="row row-chips"><div class="lab">转出账户</div>' + ViewsAdd.accountChipsHTML("accountId", S.accountId) + "</div>" +
             '<div class="row row-chips"><div class="lab">转入账户</div>' + ViewsAdd.accountChipsHTML("toAccountId", S.toAccountId) + "</div>" +
-          "</div>" + amountZoneHTML() + ViewsAdd.quickBarHTML(S);
+          "</div>" + amountZoneHTML().inline + ViewsAdd.quickBarHTML(S);
       } else {
         const cats = Store.categories(S.mode);
         const chosen = Store.category(S.categoryId) || cats[0];
@@ -137,10 +137,12 @@ const ViewsAdd = {
         const quickBar = ViewsAdd.quickBarHTML(S);
         body.innerHTML =
           '<div class="jy-amount-zone">' +
-            '<div class="jy-cat-chosen">' +
+            '<div class="jy-amount-row">' +
               '<div class="ci" style="background:' + (chosen ? chosen.color : "#ccc") + '22;color:' + (chosen ? chosen.color : "#999") + '">' + (chosen ? IconUI.raw(chosen, 26) : "?") + "</div>" +
               '<div class="cn">' + (chosen ? UI.escape(chosen.name) : "请选择分类") + "</div>" +
-            "</div>" + amountZoneHTML() +
+              amountZoneHTML().inline +
+            "</div>" +
+            amountZoneHTML().formula +
           "</div>" +
           '<div class="jy-grid-wrap"><div class="jy-grid-pages" id="jyPages">' + catHTML + "</div></div>" +
           quickBar;
@@ -225,19 +227,18 @@ const ViewsAdd = {
       ViewsAdd.centerChips(body);
       renderKeys();
     };
-
     function amountZoneHTML() {
       const v = ViewsAdd.evalExpr(S.expr);
-      const hasOp = /[+\-]/.test(S.expr.slice(1));
-      return (
-        '<div class="jy-amount-row">' +
+      const hasOp = /[+-]/.test(S.expr.slice(1));
+      // inline：金额行内容（与分类同行）；formula：公式提示行
+      return {
+        inline:
         '<button class="jy-currency" id="curBtn">' + Store.s.settings.currency + "</button>" +
-        '<div class="jy-amount' + (hasOp ? " has-op" : "") + '" id="amtShow">' + (v == null ? "0.00" : fmt.money(v)) + "</div></div>" +
+        '<div class="jy-amount' + (hasOp ? " has-op" : "") + '" id="amtShow">' + (v == null ? "0.00" : fmt.money(v)) + "</div>",
+        formula:
         '<div class="jy-formula" id="amtFormula">' + (hasOp ? S.expr + " = " + fmt.money(v) : "") + "</div>"
-      );
+      };
     }
-
-    /* 键盘输入只刷新金额区（不重建面板，避免手机端打字卡顿） */
     const patchAmount = () => {
       const amtEl = sh.sheet.querySelector(".jy-amount");
       const fxEl = sh.sheet.querySelector("#amtFormula");
