@@ -371,5 +371,26 @@ test('恢复备份后配置数据完整回填', () => {
   eq(S.s.settings.members.length, 2, '成员恢复');
 });
 
+
+test('导出/备份不修改活状态中的凭证（关键回归）', () => {
+  S.reset(); S.boot();
+  const w = WebDAV.cfg();
+  w.user = 'me@x.com'; w.pass = 'PW_KEEP_ME'; w.dir = '/firecount/';
+  const lk = Lock.cfg();
+  lk.enabled = true; lk.pinSalt = 's1'; lk.pinHash = 'h1';
+
+  const snap = JSON.stringify({ w: WebDAV.cfg(), l: Lock.cfg() });
+  S.exportJSON();          // 导出（深拷贝脱敏）
+  S.exportJSON();
+  S.exportCSV();
+
+  eq(WebDAV.cfg().pass, 'PW_KEEP_ME', '导出后应用密码不得被清空');
+  eq(WebDAV.cfg().user, 'me@x.com', '导出后账号不得被清空');
+  eq(Lock.cfg().enabled, true, '导出后应用锁不得被关闭');
+  eq(Lock.cfg().pinHash, 'h1', '导出后 PIN 哈希不得被清空');
+  eq(WebDAV.configured(), true, '导出后仍应可正常备份');
+  eq(JSON.stringify({ w: WebDAV.cfg(), l: Lock.cfg() }), snap, '活状态应完全未变');
+});
+
 const okAll = summary();
 process.exit(okAll ? 0 : 1);
