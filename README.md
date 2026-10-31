@@ -137,6 +137,10 @@ firecount/
 │           · SQLite 桥（异步单线程写入队列）  · 指纹认证桥
 │           · WebDAV HTTP 代理（反射支持 WebDAV 方法，标准 UA）
 │           · 快捷方式分发                     · 边缘滑动/返回键逐级返回
+├── tests/                     # 自动化测试（jsdom）
+│   ├── run-all.js             # 一键全量入口（npm test）
+│   ├── harness.js             # 测试环境 + 断言框架
+│   └── 01~04 + static-audit   # 五套测试
 └── ANALYSIS.md                # 口袋记账逆向分析报告
 ```
 
@@ -145,6 +149,23 @@ firecount/
 - 无框架：`App` 对象做路由（PAGES 表 + 页面栈），页面手写 HTML 字符串渲染
 - 数据层双通道：浏览器用 localStorage；APK 经 JS 桥写原生 SQLite（去抖合并写入，UI 永不阻塞）
 - 原生壳仅 4 件事：SQLite、指纹、WebDAV 代理、系统选择器；其余全在 Web 层
+
+## 自动化测试
+
+```bash
+npm install     # 首次：安装 jsdom（仅测试用）
+npm test        # 全量 132 项（静态审查 + 核心/UI/APK/资源四套）
+```
+
+| 套件 | 项数 | 覆盖 |
+|---|---|---|
+| 静态审查 | — | 缺失方法/图标、死代码 CSS、调试残留 |
+| 核心逻辑 | 35 | 数据层、记账 CRUD、统计口径、导入导出、账本/标签/分类、搜索 |
+| UI 交互 | 47 | 路由 Tab、页面渲染、报表三模式、记一笔、选择器、清空确认码、XSS 边界 |
+| APK 环境 | 30 | PIN+指纹、SQLite 持久化、WebDAV 全链路、自动备份去抖、浏览器降级 |
+| 资源与样式 | 20 | 文件完整性、图标体系、CSS 完整性、主题切换 |
+
+详见 [tests/README.md](tests/README.md)（含历史 Bug 回归清单）。
 
 ## 数据安全
 
