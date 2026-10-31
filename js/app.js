@@ -92,13 +92,19 @@ const App = {
     UI.$("#fabAdd").style.display = "flex";
     const tabs = [
       { id: "report", icon: "pie", label: "报表" },
-      { id: "bills", icon: "list", label: "明细" },
+      { id: "bills", icon: "list", label: "账单" },
       { id: "mine", icon: "user", label: "我的" }
     ];
-    bar.innerHTML = tabs.map(t =>
-      '<button class="tab' + (activeTab === t.id ? " active" : "") + '" data-t="' + t.id + '">' + UI.svg(t.icon) + "<span>" + t.label + "</span></button>"
-    ).join("");
+    bar.innerHTML = tabs.map(t => {
+      // 需求：当前激活账单页时，中间按钮变为「+ 记一笔」；其他页面显示「账单」
+      if (t.id === "bills" && activeTab === "bills") {
+        return '<button class="tab tab-bill-add" id="tabQuickAdd">' + UI.svg("plus", 26) + '<span>记一笔</span></button>';
+      }
+      return '<button class="tab' + (activeTab === t.id ? " active" : "") + '" data-t="' + t.id + '">' + UI.svg(t.icon) + "<span>" + t.label + "</span></button>";
+    }).join("");
     bar.querySelectorAll("[data-t]").forEach(b => b.onclick = () => this.go(b.dataset.t));
+    const qa = UI.$("#tabQuickAdd");
+    if (qa) qa.onclick = () => this.openQuickAdd();
     UI.$("#fabAdd").onclick = () => this.openQuickAdd();
     this.initFabDrag();
   },

@@ -148,8 +148,17 @@ const ViewsAdd = {
           "</div>" +
           '<div class="jy-grid-wrap"><div class="jy-grid-pages" id="jyPages">' + catHTML + "</div>" +
           '<div class="jy-dots" id="jyDots">' + pages.map((_, i) => "<i class='" + (i === 0 ? "on" : "") + "'></i>").join("") + "</div></div>";
-        body.querySelectorAll(".jy-cat[data-cid]").forEach(el => el.onclick = () => {
-          S.categoryId = el.dataset.cid; renderBody();
+        body.querySelectorAll(".jy-cat[data-cid]").forEach(el => {
+          el.onclick = () => { S.categoryId = el.dataset.cid; renderBody(); };
+          // 长按：排序模式（拖动换位）或弹出操作（编辑/移除）
+          let lpTimer = null, lpFired = false;
+          const startLP = () => { lpFired = false; lpTimer = setTimeout(() => { lpFired = true; ViewsAdd.catLongPress(el.dataset.cid, () => renderBody()); }, 450); };
+          el.addEventListener("touchstart", startLP, { passive: true });
+          el.addEventListener("touchend", () => clearTimeout(lpTimer), { passive: true });
+          el.addEventListener("touchmove", () => clearTimeout(lpTimer), { passive: true });
+          el.addEventListener("touchcancel", () => clearTimeout(lpTimer));
+          // 桌面预览：右键等同长按
+          el.addEventListener("contextmenu", e => { e.preventDefault(); ViewsAdd.catLongPress(el.dataset.cid, () => renderBody()); });
         });
         const addBtn = body.querySelector("[data-addcat]");
         if (addBtn) addBtn.onclick = () => ViewsAdd.categoryEditor(null, c => { S.categoryId = c.id; renderBody(); });
@@ -396,6 +405,92 @@ const ViewsAdd = {
   },
 
   /* 分类编辑器（新建 / 编辑自定义分类） */
+  /* 分类长按菜单：编辑 / 移除（仅自定义分类可移除） */
+  catLongPress(cid, refresh) {
+    const c = Store.category(cid);
+    if (!c) return;
+    const sh = UI.sheet({ title: c.name });
+    sh.body.innerHTML =
+      '<div class="cell" id="lpEdit"><div class="cell-icon">✏️</div><div class="cell-main"><div class="cell-title">编辑分类</div></div>' + UI.svg("arrow", 15) + '</div>' +
+      '<div class="cell" id="lpSort"><div class="cell-icon">↕️</div><div class="cell-main"><div class="cell-title">拖动排序</div><div class="cell-desc">进入排序模式，长按图标上下拖动换位</div></div></div>' +
+      (c.custom
+        ? '<div class="cell" id="lpDel"><div class="cell-icon">🗑️</div><div class="cell-main"><div class="cell-title" style="color:var(--danger)">移除分类</div><div class="cell-desc">仅可移除自定义分类，不影响已记账单</div></div></div>'
+        : '<div class="sec-title">内置分类不可移除</div>');
+    UI.$("#lpEdit", sh.body).onclick = () => { sh.close(); ViewsAdd.categoryEditor(c, refresh); };
+    UI.$("#lpSort", sh.body).onclick = () => { sh.close(); ViewsAdd.catSortMode(c.type, refresh); };
+    const del = UI.$("#lpDel", sh.body);
+    if (del) del.onclick = () => {
+      sh.close();
+      UI.confirm({ title: "移除分类", body: "移除「" + UI.escape(c.name) + "」？已记账单会保留并归入未分类。", ok: "移除", danger: true }).then(ok => {
+        if (!ok) return;
+        if (Store.deleteCategory(c.id)) { UI.toast("已移除"); refresh && refresh(); }
+        else UI.toast("该分类下仍有账单，无法移除");
+      });
+    };
+  },
+
+  /* 分类排序模式：长按图标拖动换位，实时保存 order */
+  catSortMode(type, refresh) {
+    const sh = UI.sheet({ title: "拖动排序 · " + (type === "expense" ? "支出" : "收入") + "分类" });
+    const cats = Store.categories(type);
+    sh.body.innerHTML =
+      '<div class="sec-title">长按任意分类图标拖动到目标位置，松手即保存</div>' +
+      '<div id="sortList" style="display:flex;flex-direction:column;gap:6px;padding:4px 0 10px">' +
+        cats.map((c, i) =>
+          '<div class="sort-item" draggable="true" data-cid="' + c.id + '">' +
+          '<span class="si-idx">' + (i + 1) + '</span>' +
+          '<span class="si-ico" style="background:' + c.color + '22;color:' + c.color + '">' + IconUI.raw(c, 20) + '</span>' +
+          '<span class="si-nm">' + UI.escape(c.name) + '</span>' +
+          '<span class="si-grip">☰</span></div>').join("") +
+      '</div>';
+    // 拖拽排序（HTML5 DnD，桌面可靠；移动端用长按+touch 模拟由 CSS touch-action 支持）
+    const list = UI.$("#sortList", sh.body);
+    let dragEl = null;
+    list.querySelectorAll(".sort-item").forEach(el => {
+      el.addEventListener("dragstart", () => { dragEl = el; el.classList.add("dragging"); });
+      el.addEventListener("dragend", () => {
+        el.classList.remove("dragging");
+        // 保存新顺序
+        const ids = [...list.querySelectorAll(".sort-item")].map(x => x.dataset.cid);
+        ids.forEach((id, i) => Store.updateCategory(id, { order: i }));
+        UI.toast("排序已保存");
+        refresh && refresh();
+      });
+      el.addEventListener("dragover", e => {
+        e.preventDefault();
+        const rect = el.getBoundingClientRect();
+        if (!dragEl || dragEl === el) return;
+        const after = (e.clientY - rect.top) > rect.height / 2;
+        if (after) el.after(dragEl); else el.before(dragEl);
+      });
+      // 移动端触摸拖拽
+      let ty = 0, dragging = false;
+      el.addEventListener("touchstart", e => { ty = e.touches[0].clientY; dragging = false; }, { passive: true });
+      el.addEventListener("touchmove", e => {
+        const dy = e.touches[0].clientY - ty;
+        if (!dragging && Math.abs(dy) > 14) { dragging = true; dragEl = el; el.classList.add("dragging"); e.preventDefault(); }
+        if (dragging) {
+          e.preventDefault();
+          const over = [...list.querySelectorAll(".sort-item")].find(x => {
+            if (x === el) return false;
+            const r = x.getBoundingClientRect();
+            return e.touches[0].clientY >= r.top && e.touches[0].clientY <= r.bottom;
+          });
+          if (over) { const r = over.getBoundingClientRect(); (e.touches[0].clientY > r.top + r.height / 2) ? over.after(el) : over.before(el); }
+        }
+      }, { passive: false });
+      el.addEventListener("touchend", () => {
+        if (dragging) {
+          dragging = false; el.classList.remove("dragging");
+          const ids = [...list.querySelectorAll(".sort-item")].map(x => x.dataset.cid);
+          ids.forEach((id, i) => Store.updateCategory(id, { order: i }));
+          UI.toast("排序已保存");
+          refresh && refresh();
+        }
+      });
+    });
+  },
+
   categoryEditor(cat, cb) {
     const isNew = !cat;
     const sh = UI.sheet({ title: isNew ? "添加分类" : "编辑分类" });

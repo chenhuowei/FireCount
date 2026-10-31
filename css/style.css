@@ -544,3 +544,24 @@ canvas.chart { width: 100%; display: block; }
   pointer-events: none;
 }
 @keyframes fabPulse { 0%,100% { transform: scale(1); opacity: .9; } 50% { transform: scale(1.08); opacity: .5; } }
+
+/* ---------- 底栏：账单页激活时中间变 + 记账按钮 ---------- */
+.tab-bill-add {
+  color: var(--brand) !important;
+}
+.tab-bill-add svg { width: 30px !important; height: 30px !important; }
+.tab-bill-add span { font-weight: 700; }
+.tab-bill-add:active { transform: scale(.94); }
+
+/* ---------- 分类排序模式 ---------- */
+.sort-item {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  background: var(--card); border-radius: 10px; border: 1px solid var(--line);
+  touch-action: none; user-select: none;
+}
+.sort-item .si-idx { width: 22px; font-size: 12px; color: var(--text-3); font-weight: 700; text-align: center; flex: none; }
+.sort-item .si-ico { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex: none; }
+.sort-item .si-nm { flex: 1; font-size: 14.5px; }
+.sort-item .si-grip { color: var(--text-3); font-size: 16px; }
+.sort-item.dragging { opacity: .55; border-style: dashed; border-color: var(--brand); }
+.jy-cat.sort-ready .ci { outline: 2px dashed var(--brand); outline-offset: 2px; }
