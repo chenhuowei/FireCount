@@ -511,3 +511,15 @@ canvas.chart { width: 100%; display: block; }
 }
 .wd-eye:active { background: var(--chip); color: var(--brand); }
 .wd-eye svg { width: 19px; height: 19px; }
+
+/* ---------- 报表模式栏与自定义日期 ---------- */
+.rp-modebar { display: flex; justify-content: center; padding: 2px 0 8px; }
+.rp-modebar .sel { display: flex; background: var(--card); border-radius: 10px; padding: 3px; box-shadow: var(--shadow); }
+.rp-modebar .chip { padding: 6px 16px; border-radius: 8px; font-size: 13px; color: var(--text-2); border: none; background: none; }
+.rp-modebar .chip.active { background: var(--brand); color: #fff; font-weight: 700; }
+#rpNav input[type=date] {
+  border: none; background: var(--card); border-radius: 10px; box-shadow: var(--shadow);
+  padding: 7px 10px; font-size: 14px; color: var(--text-1); outline: none;
+  font-family: inherit; min-width: 0; flex: 1; max-width: 150px;
+}
+#rpNav .sep { font-size: 13px; color: var(--text-3); }

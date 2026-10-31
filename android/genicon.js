@@ -67,55 +67,87 @@ function mix(dst, src, a) {
 }
 
 function makeIcon(S) {
-  // 画布坐标（以 192 为基准等比缩放）
   const u = S / 192;
-  const corner = 42 * u; // （保留：如需圆角源图可用）
-  const pageTop = 46 * u, pageBot = 150 * u, gap = 5 * u;
-  const L0 = 34 * u, L1 = 94 * u - gap, R0 = 98 * u + gap, R1 = 158 * u;
-  const lineC = [240, 96, 10];      // 账目行：深橙
-  const badgeC = [43, 182, 115];    // 徽章：绿
+  // 工具
+  const rrCover = (x, y, x0, y0, x1, y1, r) => {
+    const qx = Math.abs(x - (x0 + x1) / 2) - ((x1 - x0) / 2 - r);
+    const qy = Math.abs(y - (y0 + y1) / 2) - ((y1 - y0) / 2 - r);
+    const d = Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - r;
+    return 1 - smooth(-1.2, 1.2, d);
+  };
+  const segDist = (px, py, ax, ay, bx, by) => {
+    const abx = bx - ax, aby = by - ay;
+    const t = Math.max(0, Math.min(1, ((px - ax) * abx + (py - ay) * aby) / (abx * abx + aby * aby || 1)));
+    return Math.hypot(px - ax - abx * t, py - ay - aby * t);
+  };
+  const lineCover = (x, y, ax, ay, bx, by, w) => smooth(w / 2 + 1, w / 2 - 1, segDist(x, y, ax, ay, bx, by));
+  const circCover = (x, y, cx, cy, r) => smooth(r + 1.2, r - 1.2, Math.hypot(x - cx, y - cy));
+  const mix = (dst, src, a) => {
+    dst[0] += (src[0] - dst[0]) * a; dst[1] += (src[1] - dst[1]) * a;
+    dst[2] += (src[2] - dst[2]) * a; dst[3] = Math.max(dst[3], a);
+  };
+
   const white = [255, 255, 255];
+  const ink = [240, 96, 10];       // 账目行深橙
+  const inkSoft = [255, 158, 94];  // 淡橙行
+  const green = [43, 182, 115];    // ¥ 徽章绿
+
   return png(S, (x, y) => {
-    // 1) 背景：满幅橙色渐变（全出血方形，圆角交给系统遮罩）
-    const bgA = rrCover(x, y, 0, 0, S, S, 0);
-    if (bgA <= 0) return [0, 0, 0, 0];
-    const t = y / S;
-    let px = [255 - 12 * t, 122 - 42 * t, 46 - 26 * t, 0];
-    // 2) 翻开的两页（白）
-    const pgL = rrCover(x, y, L0, pageTop, L1, pageBot, 7 * u);
-    const pgR = rrCover(x, y, R0, pageTop, R1, pageBot, 7 * u);
+    // 1) 背景：对角渐变（左上亮橙 → 右下深橙），比上下渐变更现代
+    const t = (x / S + y / S) / 2;
+    let px = [255 - 22 * t, 122 - 46 * t, 46 - 22 * t, 0];
+
+    // 2) 底部柔光：账本脚下的一层浅色投影，增加立体感
+    const shadow = smooth(158 * u, 138 * u, y) * 0.22;
+    if (shadow > 0) mix(px, [180, 60, 0], shadow);
+
+    // 3) 翻开的双页：更大更圆，带中缝阴影
+    const pageTop = 40 * u, pageBot = 152 * u, gap = 6 * u;
+    const L0 = 30 * u, L1 = 95 * u - gap, R0 = 97 * u + gap, R1 = 162 * u;
+    const pgL = rrCover(x, y, L0, pageTop, L1, pageBot, 9 * u);
+    const pgR = rrCover(x, y, R0, pageTop, R1, pageBot, 9 * u);
     const page = Math.max(pgL, pgR);
     if (page > 0) mix(px, white, page);
-    // 3) 每页 3 条账目行（左页第2条短，形成节奏）
+    // 中缝阴影：靠中缝一侧渐变灰，增强立体
+    const spine = Math.min(
+      smooth(L1 - 14 * u, L1, x) * pgL,
+      smooth(R0 + 14 * u, R0, x) * pgR
+    ) * 0.13;
+    if (spine > 0) mix(px, [200, 200, 205], spine);
+
+    // 4) 账目行：左页3条（第2条短）+ 右页3条（第2条短），一深一淡交替更有记账感
     const inL = pgL > 0.5, inR = pgR > 0.5;
-    const ly = [72, 98, 124];
+    const rows = [66, 94, 122];
     for (let i = 0; i < 3; i++) {
       let ax, bx;
-      if (inL) { ax = L0 + 11 * u; bx = (i === 1 ? L1 - 20 * u : L1 - 11 * u); }
-      else if (inR) { ax = R0 + 11 * u; bx = (i === 1 ? R1 - 20 * u : R1 - 11 * u); }
+      if (inL) { ax = L0 + 13 * u; bx = (i === 1 ? L1 - 24 * u : L1 - 13 * u); }
+      else if (inR) { ax = R0 + 13 * u; bx = (i === 1 ? R1 - 24 * u : R1 - 13 * u); }
       else continue;
-      const c = lineCover(x, y, ax, ly[i] * u, bx, ly[i] * u, 7.5 * u);
-      if (c > 0) mix(px, lineC, c * page);
+      const c = lineCover(x, y, ax, rows[i] * u, bx, rows[i] * u, 8 * u);
+      if (c > 0) mix(px, i === 1 ? inkSoft : ink, c * page);
     }
-    // 4) 右下角 ¥ 徽章（绿圆 + 白色笔画）
-    const bc = 132 * u, bcy = 136 * u, br = 30 * u;
+
+    // 5) ¥ 徽章：更大更圆润，白描边一圈提升精致度
+    const bc = 138 * u, bcy = 140 * u, br = 34 * u;
     const badge = circCover(x, y, bc, bcy, br);
-    if (badge > 0) mix(px, badgeC, badge);
+    const ring = Math.abs(Math.hypot(x - bc, y - bcy) - (br + 4 * u)) < 2.2 * u ? 1 : 0;
+    if (badge > 0) mix(px, green, badge);
+    if (ring > 0 && badge > 0.4) mix(px, white, ring * 0.9);
     const inB = badge > 0.5;
     if (inB) {
-      const w = 6.5 * u, ox = bc, oy = bcy;
+      const w = 7 * u, ox = bc, oy = bcy;
       const strokes = [
-        [ox - 11 * u, oy - 13 * u, ox, oy + 1 * u],           // ¥ 左斜
-        [ox + 11 * u, oy - 13 * u, ox, oy + 1 * u],           // ¥ 右斜
-        [ox, oy - 13 * u, ox, oy + 15 * u],                   // 竖
-        [ox - 10 * u, oy + 3 * u, ox + 10 * u, oy + 3 * u],   // 上横
-        [ox - 10 * u, oy + 10 * u, ox + 10 * u, oy + 10 * u]  // 下横
+        [ox - 12 * u, oy - 14 * u, ox, oy + 1 * u],
+        [ox + 12 * u, oy - 14 * u, ox, oy + 1 * u],
+        [ox, oy - 14 * u, ox, oy + 16 * u],
+        [ox - 11 * u, oy + 3 * u, ox + 11 * u, oy + 3 * u],
+        [ox - 11 * u, oy + 10.5 * u, ox + 11 * u, oy + 10.5 * u]
       ];
       let yen = 0;
-      for (const s of strokes) yen = Math.max(yen, lineCover(x, y, s[0], s[1], s[2], s[3], w));
+      for (const st of strokes) yen = Math.max(yen, lineCover(x, y, st[0], st[1], st[2], st[3], w));
       if (yen > 0) mix(px, white, yen);
     }
-    return [Math.round(px[0]), Math.round(px[1]), Math.round(px[2]), Math.round(255 * bgA)];
+    return [Math.round(px[0]), Math.round(px[1]), Math.round(px[2]), Math.round(255 * 1)];
   });
 }
 

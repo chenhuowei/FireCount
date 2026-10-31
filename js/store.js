@@ -227,6 +227,33 @@ const Store = {
     const bid = this.book().id;
     return this.s.records.filter(r => r.bookId === bid && r.date.slice(0, 7) === month);
   },
+  /* 报表区间查询：任意 [start, end] 日期区间（含端点），start/end 为 "YYYY-MM-DD" */
+  rangeRecords(start, end) {
+    const bid = this.book().id;
+    return this.s.records.filter(r => {
+      if (r.bookId !== bid) return false;
+      const d = r.date.slice(0, 10);
+      return d >= start && d <= end;
+    });
+  },
+  rangeSummary(start, end) {
+    let in_ = 0, out = 0;
+    for (const r of this.rangeRecords(start, end)) {
+      if (r.type === "income") in_ += r.amount;
+      else if (r.type === "expense") out += r.amount;
+    }
+    return { in: Math.round(in_ * 100) / 100, out: Math.round(out * 100) / 100, balance: Math.round((in_ - out) * 100) / 100 };
+  },
+  rangeByCategory(start, end, type) {
+    const map = new Map();
+    for (const r of this.rangeRecords(start, end)) {
+      if (r.type !== type) continue;
+      const c = this.category(r.categoryId) || { name: "未分类", icon: "❓", color: "#94A3B8" };
+      if (!map.has(c.id)) map.set(c.id, { cat: c, amount: 0, count: 0 });
+      const e = map.get(c.id); e.amount += r.amount; e.count++;
+    }
+    return [...map.values()].map(e => ({ ...e, amount: Math.round(e.amount * 100) / 100 })).sort((a, b) => b.amount - a.amount);
+  },
   monthSummary(month) {
     let in_ = 0, out = 0;
     for (const r of this.monthRecords(month)) {
@@ -524,7 +551,9 @@ const Store = {
     const cur = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
     const b = this.budget(cur);
     b.total = 4500; b.perCategory = { "ce_canyin": 1200, "ce_gouwu": 800, "ce_jiaotong": 400 };
-    this.setBudget(cur, b);
+    this.setBudget(cur, b);
+
+
     this.save();
   }
 };
