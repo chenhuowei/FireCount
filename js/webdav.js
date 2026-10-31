@@ -76,6 +76,7 @@ const WebDAV = {
       '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"/>');
     if (r.code === -1) throw new Error("网络不通：" + r.body + "（检查手机网络/系统时间是否正确）");
     if (r.code === 401) throw new Error("认证失败（401）：坚果云必须用「应用密码」而非登录密码（网页版→账户信息→安全选项→添加应用密码）");
+    if (r.code === 403) throw new Error("被拒绝（403）：坚果云免费版同一应用密码最多 2 台设备同时连接、每月流量超限也会 403；请到坚果云网页版确认应用密码状态与流量，或重新生成一个应用密码");
     if (r.code === 404) {
       // 目录不存在 → 尝试创建
       const mk = await this.req("MKCOL", this.dirUrl(), null, null);

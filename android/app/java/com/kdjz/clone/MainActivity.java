@@ -408,14 +408,15 @@ public class MainActivity extends Activity {
             try {
                 conn.setRequestMethod(method);
             } catch (java.net.ProtocolException e) {
-                // 白名单拒收 → 反射改内部字段：method + 断言-status 相关的异常缓存
-                Class<?> c = javax.net.ssl.HttpsURLConnection.class.getSuperclass(); // HttpURLConnection
-                java.lang.reflect.Field f = c.getDeclaredField("method");
+                // 白名单拒收 → 反射注入真实 method（Android HttpURLConnection 内部字段名固定为 method）
+                java.lang.reflect.Field f = java.net.HttpURLConnection.class.getDeclaredField("method");
                 f.setAccessible(true);
                 f.set(conn, method);
+                // 同时重置内部状态缓存，避免连接复用池请求行错乱
                 try {
-                    java.lang.reflect.Field fi = c.getDeclaredField("fixedContentLengthLong");
-                    fi.setAccessible(true);
+                    java.lang.reflect.Field fc = java.net.HttpURLConnection.class.getDeclaredField("connected");
+                    fc.setAccessible(true);
+                    fc.set(conn, false);
                 } catch (NoSuchFieldException ignore) {}
             }
         }
@@ -438,9 +439,12 @@ public class MainActivity extends Activity {
                             if (i > 0) conn.setRequestProperty(line.substring(0, i), line.substring(i + 2));
                         }
                     }
-                    if (body != null && !body.isEmpty()
-                            && !"GET".equals(method) && !"HEAD".equals(method)
-                            && !"PROPFIND".equals(method)) {
+                    // 部分服务器 WAF 对无 UA 的请求直接 403，补标准 UA
+                    if (conn.getRequestProperty("User-Agent") == null) {
+                        conn.setRequestProperty("User-Agent", "XiaoHuBookkeeping/1.3 (Android)");
+                    }
+                    // PROPFIND/MKCOL 也可能带 body（propfind 请求体），需要 doOutput 支援
+                    if (body != null && !body.isEmpty() && !"GET".equals(method) && !"HEAD".equals(method)) {
                         conn.setDoOutput(true);
                         try (java.io.OutputStream os = conn.getOutputStream()) {
                             os.write(body.getBytes(StandardCharsets.UTF_8));
