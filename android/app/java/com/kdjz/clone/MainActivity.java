@@ -401,7 +401,24 @@ public class MainActivity extends Activity {
             });
         }
 
-        /* ---------- 需求②：WebDAV HTTP 代理（HttpsURLConnection 零依赖） ---------- */
+        /* ---------- 需求②：WebDAV HTTP 代理 ----------
+         * HttpURLConnection 只允许标准方法，WebDAV 的 PROPFIND/MKCOL 需反射注入 method 字段
+         * （业界通用做法，零依赖；Android 9+ 无限制，因为绕过的是客户端自身的白名单检查） */
+        private void setDavMethod(java.net.HttpURLConnection conn, String method) throws Exception {
+            try {
+                conn.setRequestMethod(method);
+            } catch (java.net.ProtocolException e) {
+                // 白名单拒收 → 反射改内部字段：method + 断言-status 相关的异常缓存
+                Class<?> c = javax.net.ssl.HttpsURLConnection.class.getSuperclass(); // HttpURLConnection
+                java.lang.reflect.Field f = c.getDeclaredField("method");
+                f.setAccessible(true);
+                f.set(conn, method);
+                try {
+                    java.lang.reflect.Field fi = c.getDeclaredField("fixedContentLengthLong");
+                    fi.setAccessible(true);
+                } catch (NoSuchFieldException ignore) {}
+            }
+        }
 
         @JavascriptInterface
         public void webdavRequest(final int id, final String method, final String url,
@@ -411,7 +428,7 @@ public class MainActivity extends Activity {
                 try {
                     javax.net.ssl.HttpsURLConnection conn =
                         (javax.net.ssl.HttpsURLConnection) new java.net.URL(url).openConnection();
-                    conn.setRequestMethod(method);
+                    setDavMethod(conn, method);
                     conn.setConnectTimeout(15000);
                     conn.setReadTimeout(45000);
                     conn.setInstanceFollowRedirects(true);
