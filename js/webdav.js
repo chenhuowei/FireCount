@@ -65,33 +65,38 @@ const WebDAV = {
     const r = await this.req("MKCOL", this.dirUrl(), null, null);
     if (r.code >= 200 && r.code < 300) return true;         // 201 创建
     if (r.code === 405 || r.code === 301 || r.code === 403) return true; // 已存在
+    if (r.code === 501) return true; // 部分环境 MKCOL 发不出（反射限制），坚果云 PUT 会自动创建父目录
     throw new Error("创建目录失败 (" + r.code + ")");
   },
 
   async testConn() {
     if (!this.configured()) throw new Error("请先填写服务器与账号");
-    // 分步诊断：逐步报告卡在哪一环，便于定位坚果云常见问题
-    // ① 基础连通性（不带证书校验失败的干扰，直接请求目录）
-    let r = await this.req("PROPFIND", this.dirUrl(), { "Depth": "0", "Content-Type": "application/xml" },
-      '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"/>');
+    // 用 HEAD（标准方法，所有 HttpURLConnection 可靠支持）验证连通+凭证。
+    // 不用 PROPFIND：部分 Android 环境反射注入 method 后请求行错乱，服务器回 501。
+    let r = await this.req("HEAD", this.dirUrl(), null, null);
     if (r.code === -1) throw new Error("网络不通：" + r.body + "（检查手机网络/系统时间是否正确）");
     if (r.code === 401) throw new Error("认证失败（401）：坚果云必须用「应用密码」而非登录密码（网页版→账户信息→安全选项→添加应用密码）");
     if (r.code === 403) throw new Error("被拒绝（403）：坚果云免费版同一应用密码最多 2 台设备同时连接、每月流量超限也会 403；请到坚果云网页版确认应用密码状态与流量，或重新生成一个应用密码");
     if (r.code === 404) {
-      // 目录不存在 → 尝试创建
+      // 目录不存在：先试 MKCOL，501（服务器不认）时忽略——坚果云 PUT 会自动创建父目录
       const mk = await this.req("MKCOL", this.dirUrl(), null, null);
-      if (mk.code !== 201 && mk.code !== 405) throw new Error("备份目录不存在且创建失败 (" + mk.code + ")");
-      r = await this.req("PROPFIND", this.dirUrl(), { "Depth": "1", "Content-Type": "application/xml" },
-        '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/><d:getlastmodified/></d:prop></d:propfind>');
-    } else if (r.code !== 207 && r.code !== 200) {
-      throw new Error("连接失败 (" + r.code + ")：" + (r.body || "").slice(0, 80));
-    } else {
-      r = await this.req("PROPFIND", this.dirUrl(), { "Depth": "1", "Content-Type": "application/xml" },
-        '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/><d:getlastmodified/></d:prop></d:propfind>');
+      if (mk.code !== 201 && mk.code !== 405 && mk.code !== 501) {
+        // 再验证一次（可能只是目录尚未创建，PUT 能自动建）
+        const probe = await this.req("HEAD", this.dirUrl(), null, null);
+        if (probe.code === 404) throw new Error("备份目录不存在且创建失败 (" + mk.code + ")，可手动在坚果云网页版创建目录后再试");
+      }
+      r = await this.req("HEAD", this.dirUrl(), null, null);
     }
-    if (r.code !== 207 && r.code !== 200) throw new Error("列目录失败 (" + r.code + ")");
-    const n = this.parseList(r.body).length;
-    return n;
+    if (r.code >= 200 && r.code < 400) {
+      // 通过。文件数用 PROPFIND 试一下（501 则降级返回 -1 不阻塞）
+      try {
+        const pf = await this.req("PROPFIND", this.dirUrl(), { "Depth": "1", "Content-Type": "application/xml" },
+          '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/><d:getlastmodified/></d:prop></d:propfind>');
+        if (pf.code === 207 || pf.code === 200) return this.parseList(pf.body).length;
+      } catch (e) {}
+      return -1; // 连接本身验证通过，文件数未知
+    }
+    throw new Error("连接失败 (" + r.code + ")：" + (r.body || "").slice(0, 80));
   },
 
   async backupNow(manual) {
@@ -126,10 +131,24 @@ const WebDAV = {
   },
 
   async list() {
+    // PROPFIND 列目录；部分 Android 环境反射注入 method 后服务器回 501，
+    // 降级方案：坚果云 GET 目录会返回 200+HTML（含文件链接），或提示改用 latest.json 恢复
     const r = await this.req("PROPFIND", this.dirUrl(), { "Depth": "1", "Content-Type": "application/xml" },
       '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/><d:getlastmodified/></d:prop></d:propfind>');
-    if (r.code !== 207 && r.code !== 200) throw new Error("读取备份列表失败 (" + r.code + ")");
-    return this.parseList(r.body).filter(f => f.name.endsWith(".json"));
+    if (r.code === 207 || r.code === 200) return this.parseList(r.body).filter(f => f.name.endsWith(".json"));
+    if (r.code === 501) {
+      // 降级：GET 目录 URL（坚果云返回 HTML 列表，从 href 里抽 .json 文件名）
+      const g = await this.req("GET", this.dirUrl(), null, null);
+      if (g.code >= 200 && g.code < 300) {
+        const names = [];
+        const re = /([\w\-]+\.json)/g; let m;
+        while ((m = re.exec(g.body)) !== null) if (!names.includes(m[1])) names.push(m[1]);
+        if (names.length) return names.map(n => ({ name: n, mtime: "" }));
+        throw new Error("目录可访问但无法解析文件列表，可用「恢复 latest」恢复最近备份");
+      }
+      throw new Error("读取备份列表失败 (" + g.code + ")");
+    }
+    throw new Error("读取备份列表失败 (" + r.code + ")");
   },
 
   parseList(xml) {
@@ -241,7 +260,7 @@ const WebDAV = {
       saveCfg();
       if (!avail) { UI.toast("仅 APK 版可测试连接"); return; }
       UI.toast("正在连接…");
-      try { const n = await this.testConn(); UI.toast("✅ 连接成功，目录内 " + n + " 个文件"); }
+      try { const n = await this.testConn(); UI.toast(n >= 0 ? "✅ 连接成功，目录内 " + n + " 个文件" : "✅ 连接成功"); }
       catch (e) { UI.toast((e.message || "连接失败"), 4000); }
     };
     const bk = UI.$("#wdBackup", sh.foot);
