@@ -19,7 +19,8 @@ const WebDAV = {
 
   cfg() {
     const s = Store.s.settings;
-    if (!s.webdav) s.webdav = { provider: "jianguoyun", server: "", user: "", pass: "", dir: "/kdjz-backup/", keepN: 10, lastBackupAt: 0, autoAfterSave: true, autoDelaySec: 3 };
+    if (!s.webdav) s.webdav = { provider: "jianguoyun", server: "", user: "", pass: "", dir: "/firecount/", keepN: 10, lastBackupAt: 0, autoAfterSave: true, autoDelaySec: 3 };
+    if (s.webdav.dir === "/kdjz-backup/") s.webdav.dir = "/firecount/"; // 旧配置迁移
     if (s.webdav.autoAfterSave === undefined) s.webdav.autoAfterSave = true;
     return s.webdav;
   },
@@ -29,7 +30,7 @@ const WebDAV = {
   },
   configured() { const c = this.cfg(); return !!(c.user && c.pass && (c.server || this.PRESETS[c.provider])); },
   serverBase() { const c = this.cfg(); return (c.server || this.PRESETS[c.provider].server).replace(/\/+$/, "") + "/"; },
-  dirPath() { const d = this.cfg().dir || "/kdjz-backup/"; return "/" + d.replace(/^\/+|\/+$/g, "") + "/"; },
+  dirPath() { const d = this.cfg().dir || "/firecount/"; return "/" + d.replace(/^\/+|\/+$/g, "") + "/"; },
   url(name) { return this.serverBase() + this.dirPath().replace(/^\//, "") + encodeURIComponent(name); },
   dirUrl() { return this.serverBase() + this.dirPath().replace(/^\//, ""); },
 
@@ -233,23 +234,23 @@ const WebDAV = {
       '<div class="form-row"><div class="lab">保留份数</div><div class="sel">' +
         [5, 10, 20].map(n => '<button class="chip' + (c.keepN === n ? " active" : "") + '" data-n="' + n + '">' + n + " 份</button>").join("") + "</div></div>" +
       '<div class="form-row"><div class="lab">自动备份</div><div class="sel">' +
-        '<button class="chip' + (c.autoAfterSave === false ? "" : " active") + '" data-auto="on">记账后" + (c.autoDelaySec || 3) + "秒</button>' +
+        '<button class="chip' + (c.autoAfterSave === false ? "" : " active") + '" data-auto="on">记账后 ' + (c.autoDelaySec || 3) + ' 秒</button>' +
         '<button class="chip' + (c.autoAfterSave === false ? " active" : "") + '" data-auto="off">仅手动/6小时</button></div></div>' +
       '<div class="sec-title" id="wdHint">' + this.PRESETS[c.provider].hint + "</div>" +
       '<div class="sec-title">上次备份：' + (c.lastBackupAt ? new Date(c.lastBackupAt).toLocaleString("zh-CN") : "从未备份") +
         (c.lastBackupAt ? " · 自动备份每 6 小时（应用打开时）" : "") + "</div>";
     sh.foot.innerHTML =
-      '<div style="display:flex;gap:10px">' +
+      '<button class="btn btn-primary btn-block" id="wdRestore">从云端下载数据恢复</button>' +
+      '<div style="display:flex;gap:10px;margin-top:10px">' +
       '<button class="btn btn-ghost" style="flex:1" id="wdTest">测试连接</button>' +
       '<button class="btn btn-primary" style="flex:1" id="wdBackup">立即备份</button>' +
-      '<button class="btn btn-ghost" style="flex:1" id="wdList">恢复</button>' +
       "</div>" + (avail ? '<button class="btn btn-ghost btn-block" style="margin-top:10px" id="wdSaveOnly">保存配置</button>' : "");
 
     const saveCfg = () => {
       c.server = UI.$("#wdServer", sh.body).value.trim();
       c.user = UI.$("#wdUser", sh.body).value.trim();
       c.pass = UI.$("#wdPass", sh.body).value.trim();
-      c.dir = UI.$("#wdDir", sh.body).value.trim() || "/kdjz-backup/";
+      c.dir = UI.$("#wdDir", sh.body).value.trim() || "/firecount/";
       Store.save();
     };
     // 密码显示/隐藏切换
@@ -295,10 +296,11 @@ const WebDAV = {
     };
     const bk = UI.$("#wdBackup", sh.foot);
     if (bk) bk.onclick = () => { saveCfg(); sh.close(); this.backupNow(true); };
-    const ls = UI.$("#wdList", sh.foot);
+    const ls = UI.$("#wdRestore", sh.foot);
     if (ls) ls.onclick = async () => {
       saveCfg();
       if (!avail) { UI.toast("仅 APK 版可恢复"); return; }
+      UI.toast("正在读取云端备份…");
       try { await this.listSheet(); } catch (e) { UI.toast(e.message || "读取失败"); }
     };
     const so = UI.$("#wdSaveOnly", sh.foot);
