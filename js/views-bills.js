@@ -161,15 +161,8 @@ const ViewsBills = {
         '<div class="cell-desc">' + Store.recordsOf(b.id).length + ' 笔账单</div></div>' +
         (b.id === Store.s.currentBookId ? '<span style="color:var(--brand)">✓</span>' : "") + "</div>"
       ).join("") +
-      '<div class="cell" data-add><div class="cell-icon" style="color:var(--brand)">＋</div><div class="cell-main"><div class="cell-title" style="color:var(--brand)">新建账本</div></div></div>' +
-      '<div class="cell" data-manage><div class="cell-icon">⚙️</div><div class="cell-main"><div class="cell-title">管理账本</div></div></div>';
+      '<div class="sec-title">新建 / 管理账本请到「我的 → 多账本管理」</div>';
     UI.$$(".cell", sh.body).forEach(c => c.onclick = () => {
-      if (c.dataset.add) {
-        sh.close();
-        ViewsMine.bookEditDialog(null, () => App.refresh());
-        return;
-      }
-      if (c.dataset.manage) { sh.close(); App.go("books"); return; }
       Store.s.currentBookId = c.dataset.id; Store.save();
       sh.close(); App.refresh();
     });

@@ -545,5 +545,37 @@ test('全部子弹层清单核对（防遗漏）', () => {
   }
 });
 
+
+suite('账本切换弹层');
+test('只保留切换功能，无新建/管理入口', () => {
+  resetState();
+  S.addBook('第二账本');
+  ViewsBills.bookSheet();
+  const cells = [...doc.querySelectorAll('#sheetHost .cell[data-id]')];
+  eq(cells.length, 2, '仅列出账本');
+  const text = doc.getElementById('sheetHost').textContent;
+  ok(!text.includes('新建账本'), '不应有新建入口');
+  ok(!doc.querySelector('#sheetHost [data-manage]'), '不应有管理入口按钮');
+  ok(text.includes('多账本管理'), '应有指引到我的页');
+});
+test('点击账本即切换', () => {
+  resetState();
+  S.addBook('第二账本');
+  const prev = S.s.currentBookId;
+  ViewsBills.bookSheet();
+  const other = [...doc.querySelectorAll('#sheetHost .cell[data-id]')].find(c => c.dataset.id !== prev);
+  other.onclick();
+  eq(S.s.currentBookId, other.dataset.id, '应切换到所点账本');
+});
+test('多账本管理页仍保留新建/管理功能', () => {
+  resetState();
+  ViewsMine.render(header(), main());
+  doc.querySelector('.cell[data-go="books"]').onclick();
+  eq(App.page, 'books', '应进入多账本管理页');
+  App.render();
+  ok(doc.getElementById('bkAdd'), '页头应有＋新建按钮');
+  ok(doc.getElementById('bkAdd').textContent.includes('新建'), '应显示新建');
+});
+
 const okAll = summary();
 process.exit(okAll ? 0 : 1);
