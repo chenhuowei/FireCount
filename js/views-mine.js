@@ -24,7 +24,6 @@ const ViewsMine = {
       "</div>" +
       '<div class="card">' +
         cell("wallet", "钱包资产管理", walletDesc(), "wallet") +
-        cell("list", "账单明细", "按天分组 · 左滑编辑 · 筛选搜索", "bills") +
         cell("book", "多账本管理", "当前：" + UI.escape(Store.book().name), "books") +
         cell("budget", "预算设置", budgetDesc(), "budget") +
         cell("tag", "分类管理", "支出 " + Store.categories("expense").length + " · 收入 " + Store.categories("income").length, "categories") +

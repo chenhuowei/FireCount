@@ -254,9 +254,9 @@ test('关于入口显示版本号', () => {
   ok(cell, '应有关于入口');
   ok(/1.0.6/.test(cell.textContent), '应显示版本 1.0.6');
 });
-test('钱包/账单入口存在', () => {
+test('钱包入口存在，明细入口已移除（明细是底部Tab）', () => {
   ok(doc.querySelector('.cell[data-go="wallet"]'), '应有钱包入口');
-  ok(doc.querySelector('.cell[data-go="bills"]'), '应有账单入口');
+  ok(!doc.querySelector('.cell[data-go="bills"]'), '不应有账单明细入口（冗余）');
 });
 test('无周期记账入口（已移除）', () => {
   ok(!doc.querySelector('.cell[data-go="cycles"]'), '不应有周期记账');
@@ -575,6 +575,25 @@ test('多账本管理页仍保留新建/管理功能', () => {
   App.render();
   ok(doc.getElementById('bkAdd'), '页头应有＋新建按钮');
   ok(doc.getElementById('bkAdd').textContent.includes('新建'), '应显示新建');
+});
+
+
+suite('钱包页 · 返回导航');
+test('钱包页显示标准返回头', () => {
+  resetState(); S.seedDemo();
+  App.page = 'wallet';
+  ViewsWallet.render(header(), main());
+  ok(!header().classList.contains('hidden'), '页头应显示');
+  const back = header().querySelector('[data-back]');
+  ok(back, '应有返回按钮');
+  ok(header().textContent.includes('钱包资产管理'), '标题应为钱包资产管理');
+});
+test('点击返回回到我的页', () => {
+  resetState(); S.seedDemo();
+  App.page = 'wallet'; App.stack = [{ page: 'mine', params: null }];
+  ViewsWallet.render(header(), main());
+  header().querySelector('[data-back]').onclick();
+  eq(App.page, 'mine', '应返回我的页');
 });
 
 const okAll = summary();

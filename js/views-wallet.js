@@ -9,7 +9,11 @@
 
 const ViewsWallet = {
   render(header, main) {
-    header.classList.add("hidden");
+    header.classList.remove("hidden");
+    header.innerHTML =
+      '<div class="hd"><button class="hd-btn" data-back>' + UI.svg("back") + '</button><div class="hd-title">钱包资产管理</div>' +
+      '<div class="hd-sub"></div></div>';
+    UI.$("[data-back]", header).onclick = () => App.back();
     const wl = Store.walletSummary();
     const cur = Store.s.settings.currency;
     const groups = DATA.accountTypes
