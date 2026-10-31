@@ -92,16 +92,102 @@ const App = {
     UI.$("#fabAdd").style.display = "flex";
     const tabs = [
       { id: "report", icon: "pie", label: "报表" },
-      { id: "bills", icon: "list", label: "明细", center: true },
+      { id: "bills", icon: "list", label: "明细" },
       { id: "mine", icon: "user", label: "我的" }
     ];
     bar.innerHTML = tabs.map(t =>
-      t.center
-        ? '<div class="tab-center"><button class="tab' + (activeTab === t.id ? " active" : "") + '" data-t="' + t.id + '">' + UI.svg(t.icon) + "<span>" + t.label + "</span></button></div>"
-        : '<button class="tab' + (activeTab === t.id ? " active" : "") + '" data-t="' + t.id + '">' + UI.svg(t.icon) + "<span>" + t.label + "</span></button>"
+      '<button class="tab' + (activeTab === t.id ? " active" : "") + '" data-t="' + t.id + '">' + UI.svg(t.icon) + "<span>" + t.label + "</span></button>"
     ).join("");
     bar.querySelectorAll("[data-t]").forEach(b => b.onclick = () => this.go(b.dataset.t));
     UI.$("#fabAdd").onclick = () => this.openQuickAdd();
+    this.initFabDrag();
+  },
+
+  /* FAB 长按拖动自定义水平位置（持久化到 localStorage，双击复位居中） */
+  initFabDrag() {
+    const fab = UI.$('#fabAdd');
+    if (!fab || fab._dragInit) return;
+    fab._dragInit = true;
+    const KEY = 'fab_x_pct';
+    const phone = UI.$('#phone');
+    // 恢复保存的位置（0~100，表示圆心相对 phone 宽度的百分比）
+    const restore = () => {
+      const pct = parseFloat(localStorage.getItem(KEY));
+      if (!isNaN(pct) && pct >= 0 && pct <= 100) this.setFabX(fab, phone, pct);
+    };
+    restore();
+
+    let pressed = false, dragging = false, sx = 0, startLeft = 0, longTimer = null, moved = false;
+    const beginDrag = (x) => {
+      dragging = true; moved = true;
+      fab.classList.add('dragging');
+      const rect = fab.getBoundingClientRect(), ph = phone.getBoundingClientRect();
+      // 拖动开始时把 margin-left 布局换成 left 像素定位
+      fab.style.marginLeft = '0';
+      fab.style.left = (rect.left - ph.left) + 'px';
+      sx = x; startLeft = rect.left - ph.left;
+      // 拖动提示圈
+      if (!fab.querySelector('.drag-hint')) {
+        const hint = document.createElement('i');
+        hint.className = 'drag-hint';
+        fab.appendChild(hint);
+      }
+    };
+    const moveDrag = (x) => {
+      if (!dragging) return;
+      const ph = phone.getBoundingClientRect();
+      let left = startLeft + (x - sx);
+      const half = fab.offsetWidth / 2;
+      left = Math.max(6, Math.min(ph.width - fab.offsetWidth - 6, left));
+      fab.style.left = left + 'px';
+      const pct = Math.round(((left + half) / ph.width) * 1000) / 10;
+      fab.dataset.pct = pct;
+    };
+    const endDrag = () => {
+      clearTimeout(longTimer);
+      pressed = false;
+      if (dragging) {
+        dragging = false;
+        fab.classList.remove('dragging');
+        const hint = fab.querySelector('.drag-hint');
+        if (hint) hint.remove();
+        const pct = parseFloat(fab.dataset.pct);
+        if (!isNaN(pct)) { try { localStorage.setItem(KEY, String(pct)); } catch (e) {} }
+      }
+    };
+    fab.addEventListener('touchstart', e => {
+      pressed = true; moved = false;
+      longTimer = setTimeout(() => { if (pressed) beginDrag(e.touches[0].clientX); }, 350);
+    }, { passive: true });
+    fab.addEventListener('touchmove', e => {
+      if (dragging) { e.preventDefault(); moveDrag(e.touches[0].clientX); }
+      else if (pressed && Math.abs(e.touches[0].clientX - (sx || e.touches[0].clientX)) > 12) { clearTimeout(longTimer); pressed = false; }
+    }, { passive: false });
+    fab.addEventListener('touchend', e => {
+      const wasDragging = dragging;
+      endDrag();
+      if (wasDragging) { e.preventDefault(); e.stopImmediatePropagation(); }
+    }, { passive: false });
+    fab.addEventListener('touchcancel', endDrag);
+    // 桌面预览：鼠标长按拖动
+    fab.addEventListener('mousedown', e => {
+      pressed = true; moved = false; sx = e.clientX;
+      longTimer = setTimeout(() => { if (pressed) beginDrag(e.clientX); }, 350);
+      const mv = ev => { if (dragging) { ev.preventDefault(); moveDrag(ev.clientX); } };
+      const up = () => { document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); endDrag(); };
+      document.addEventListener('mousemove', mv);
+      document.addEventListener('mouseup', up);
+    });
+    // 双击复位居中
+    fab.addEventListener('dblclick', () => {
+      try { localStorage.removeItem(KEY); } catch (e) {}
+      fab.style.left = '50%'; fab.style.marginLeft = '-29px';
+      UI.toast('已复位到中间');
+    });
+  },
+  setFabX(fab, phone, pct) {
+    fab.style.marginLeft = '0';
+    fab.style.left = (phone.clientWidth * pct / 100 - fab.offsetWidth / 2) + 'px';
   },
 
   shiftMonth(delta) {

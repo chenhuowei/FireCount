@@ -524,3 +524,23 @@ canvas.chart { width: 100%; display: block; }
 }
 #fabAdd:active { transform: scale(.92); }
 #phone:not(.has-tabbar) #fabAdd { display: none; }
+
+/* ---------- FAB：默认水平居中，支持长按拖动 ---------- */
+#fabAdd {
+  position: absolute; left: 50%; bottom: 74px; z-index: 40;
+  margin-left: -29px; /* 58px 宽的一半，默认居中 */
+  touch-action: none;
+}
+#fabAdd.dragging {
+  transition: none !important;
+  opacity: .92; transform: scale(1.06);
+  box-shadow: 0 10px 26px rgba(255, 122, 46, .6);
+  cursor: grabbing;
+}
+#fabAdd .drag-hint {
+  position: absolute; inset: -34px -34px; border-radius: 50%;
+  border: 2px dashed rgba(255,255,255,.55);
+  animation: fabPulse 1.2s ease infinite;
+  pointer-events: none;
+}
+@keyframes fabPulse { 0%,100% { transform: scale(1); opacity: .9; } 50% { transform: scale(1.08); opacity: .5; } }
