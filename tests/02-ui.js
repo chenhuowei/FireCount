@@ -519,5 +519,31 @@ test('关闭主层时子层一并关闭', async () => {
   eq(UI._sheets.length, 0, '栈应清空');
 });
 
+
+test('日期选择器为子弹层：确定后不退出记一笔（Bug 回归）', () => {
+  openAdd();
+  doc.querySelector('.jy-quickbar [data-qb="date"]').onclick({ stopPropagation() {} });
+  eq(UI._sheets.length, 2, '日期选择器应叠在记一笔上');
+  ok(doc.getElementById('dpOk'), '应有确定按钮');
+  doc.getElementById('dpOk').onclick();
+  ok(doc.getElementById('jyKeys'), '确定后记一笔应仍在');
+  ok(doc.getElementById('qbDate'), '日期按钮应已刷新');
+});
+test('全部子弹层清单核对（防遗漏）', () => {
+  // 这些弹层都从记一笔/其他主层打开，必须标记 sub
+  resetState();
+  const checks = [
+    ['备注', () => ViewsAdd.noteSheet({ note: '' }, () => {})],
+    ['附件', () => ViewsAdd.photoSheet({ photos: [] }, () => {})],
+    ['账户', () => ViewsAdd.pickAccount('accountId', { accountId: '' }, () => {})],
+    ['分类', () => ViewsAdd.categoryEditor(null, () => {})]
+  ];
+  for (const [name, open] of checks) {
+    open();
+    ok(UI._sheets.length && UI._sheets[UI._sheets.length - 1].sub, name + ' 应为子弹层');
+    for (const old of UI._sheets.splice(0)) { try { old.node.remove(); } catch (e) {} }
+  }
+});
+
 const okAll = summary();
 process.exit(okAll ? 0 : 1);

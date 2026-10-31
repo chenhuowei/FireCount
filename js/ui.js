@@ -156,7 +156,7 @@ const UI = {
   datePicker(current, cb) {
     const date = (current || fmt.YMD(new Date()) + " 12:00");
     let selD = date.slice(0, 10), selT = date.slice(11, 16) || "12:00";
-    const sh = UI.sheet({ title: "选择时间" });
+    const sh = UI.sheet({ title: "选择时间", sub: true });
     let viewY = +selD.slice(0, 4), viewM = +selD.slice(5, 7);
     const todayStr = fmt.YMD(new Date());
     sh.body.innerHTML =
