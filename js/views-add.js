@@ -108,6 +108,7 @@ const ViewsAdd = {
       "</div>" +
       '<div id="jyBody"></div>';
     sh.body.style.padding = "0 10px 6px";
+    sh.body.classList.add("jy-sheet-body"); // flex 布局：快捷条常驻键盘上方
     /* 计算器键盘固定在弹层底部（不随内容滚动，与原 App 一致） */
     const kb = document.createElement("div");
     kb.className = "jy-keyboard";
@@ -122,7 +123,7 @@ const ViewsAdd = {
           '<div class="jy-transfer-box">' +
             '<div class="row row-chips"><div class="lab">转出账户</div>' + ViewsAdd.accountChipsHTML("accountId", S.accountId) + "</div>" +
             '<div class="row row-chips"><div class="lab">转入账户</div>' + ViewsAdd.accountChipsHTML("toAccountId", S.toAccountId) + "</div>" +
-          "</div>" + amountZoneHTML();
+          "</div>" + amountZoneHTML() + ViewsAdd.quickBarHTML(S);
       } else {
         const cats = Store.categories(S.mode);
         const chosen = Store.category(S.categoryId) || cats[0];
@@ -137,18 +138,7 @@ const ViewsAdd = {
           '<div class="jy-cat" data-addcat><div class="ci" style="background:var(--chip);color:var(--brand)">＋</div><div class="cn">添加</div></div>' +
           "</div>";
         const acc = Store.account(S.accountId);
-        // 计算器上方单行快捷条：月日 / 现金 / 我 / 标签+ / 附件+ / 备注+
-        const quickBar =
-          '<div class="jy-quickbar">' +
-            '<button class="qb" data-qb="date">' + UI.svg("calendar", 14) + '<span id="qbDate">' + fmt.monthDay(S.date.slice(0, 10)) + '</span></button>' +
-            (S.mode === "transfer" ? "" :
-              '<button class="qb" data-qb="acc"><span>' + UI.escape((Store.account(S.accountId) || { name: "现金" }).name) + '</span></button>') +
-            (S.mode === "transfer" ? "" :
-              '<button class="qb" data-qb="member"><span>' + UI.escape(S.member || "我") + '</span></button>') +
-            '<button class="qb" data-qb="tag" title="标签">' + UI.svg("tag", 16) + (S.tags.length ? '<i class="qb-badge">' + S.tags.length + '</i>' : '') + '</button>' +
-            '<button class="qb" data-qb="photo" title="附件">' + UI.svg("photo", 16) + (S.photos.length ? '<i class="qb-badge">' + S.photos.length + '</i>' : '') + '</button>' +
-            '<button class="qb" data-qb="note" title="备注">' + UI.svg("edit", 16) + (S.note ? '<i class="qb-dot"></i>' : '') + '</button>' +
-          "</div>";
+        const quickBar = ViewsAdd.quickBarHTML(S);
         body.innerHTML =
           '<div class="jy-amount-zone">' +
             '<div class="jy-cat-chosen">' +
@@ -172,25 +162,26 @@ const ViewsAdd = {
         });
         const addBtn = body.querySelector("[data-addcat]");
         if (addBtn) addBtn.onclick = () => ViewsAdd.categoryEditor(null, c => { S.categoryId = c.id; renderBody(); });
-        // 快捷条：月日/现金/我/标签+/附件+/备注+
-        body.querySelectorAll(".qb[data-qb]").forEach(b => b.onclick = e => {
-          e.stopPropagation();
-          const k = b.dataset.qb;
-          if (k === "date") UI.datePicker(S.date, v => { S.date = v; renderBody(); });
-          else if (k === "acc") ViewsAdd.pickAccount("accountId", S, () => renderBody());
-          else if (k === "member") {
-            // 成员轮换选择（单选，点一下换下一位）
-            const members = (Store.s.settings.members || []).filter(Boolean);
-            if (!members.length) { UI.toast("请先在「我的 → 成员管理」添加成员"); return; }
-            const idx = members.indexOf(S.member || "我");
-            S.member = members[(idx + 1) % members.length];
-            renderBody();
-          }
-          else if (k === "tag") ViewsAdd.tagManagerSheet(S, () => renderBody());
-          else if (k === "photo") ViewsAdd.photoSheet(S, () => renderBody());
-          else if (k === "note") ViewsAdd.noteSheet(S, () => renderBody());
-        });
       }
+      // 快捷条（支出/收入/转账三种模式通用）
+      body.querySelectorAll(".qb[data-qb]").forEach(b => b.onclick = e => {
+        e.stopPropagation();
+        const k = b.dataset.qb;
+        if (k === "date") UI.datePicker(S.date, v => { S.date = v; renderBody(); });
+        else if (k === "acc") ViewsAdd.pickAccount("accountId", S, () => renderBody());
+        else if (k === "member") {
+          // 成员轮换选择（单选，点一下换下一位）
+          const members = (Store.s.settings.members || []).filter(Boolean);
+          if (!members.length) { UI.toast("请先在「我的 → 成员管理」添加成员"); return; }
+          const idx = members.indexOf(S.member || "我");
+          S.member = members[(idx + 1) % members.length];
+          renderBody();
+        }
+        else if (k === "tag") ViewsAdd.tagManagerSheet(S, () => renderBody());
+        else if (k === "photo") ViewsAdd.photoSheet(S, () => renderBody());
+        else if (k === "note") ViewsAdd.noteSheet(S, () => renderBody());
+      });
+
       /* 隐藏附件 input（快捷条触发） */
       const attrs = document.createElement("div");
       attrs.style.display = "none";
@@ -397,6 +388,19 @@ const ViewsAdd = {
   },
 
   /* 分类编辑器（新建 / 编辑自定义分类） */
+  /* 计算器上方单行快捷条：月日 / 账户 / 成员 / 标签 / 附件 / 备注 */
+  quickBarHTML(S) {
+    const transfer = S.mode === "transfer";
+    return '<div class="jy-quickbar">' +
+      '<button class="qb" data-qb="date">' + UI.svg("calendar", 14) + '<span id="qbDate">' + fmt.monthDay(S.date.slice(0, 10)) + '</span></button>' +
+      (transfer ? "" : '<button class="qb" data-qb="acc"><span>' + UI.escape((Store.account(S.accountId) || { name: "现金" }).name) + '</span></button>') +
+      (transfer ? "" : '<button class="qb" data-qb="member"><span>' + UI.escape(S.member || "我") + '</span></button>') +
+      '<button class="qb" data-qb="tag" title="标签">' + UI.svg("tag", 16) + (S.tags.length ? '<i class="qb-badge">' + S.tags.length + '</i>' : '') + '</button>' +
+      '<button class="qb" data-qb="photo" title="附件">' + UI.svg("photo", 16) + (S.photos.length ? '<i class="qb-badge">' + S.photos.length + '</i>' : '') + '</button>' +
+      '<button class="qb" data-qb="note" title="备注">' + UI.svg("edit", 16) + (S.note ? '<i class="qb-dot"></i>' : '') + '</button>' +
+      '</div>';
+  },
+
   /* 备注编辑弹层 */
   /* 附件管理：缩略图预览 / 删除 / 新增（最多 3 张） */
   photoSheet(S, onChange) {

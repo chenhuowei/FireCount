@@ -583,3 +583,31 @@ canvas.chart { width: 100%; display: block; }
   border: none; background: rgba(0,0,0,.55); color: #fff; font-size: 12px; line-height: 1;
   display: flex; align-items: center; justify-content: center;
 }
+
+/* ---------- 记一笔：布局固定（分类区独立滚动，快捷条常驻键盘上方） ---------- */
+.sheet-body.jy-sheet-body {
+  display: flex; flex-direction: column;
+  overflow: hidden;              /* 整页不滚动，只有分类区内部滚动 */
+  padding-bottom: 4px;
+}
+.jy-sheet-body #modeRow { flex: none; }
+.jy-sheet-body #jyBody {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column;
+}
+.jy-sheet-body .jy-amount-zone { flex: none; }
+.jy-sheet-body .jy-transfer-box { flex: none; }
+/* 分类宫格：占据剩余空间，内部滚动 */
+.jy-sheet-body .jy-grid-wrap {
+  flex: 1; min-height: 0;
+  max-height: none !important;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+/* 快捷条：永远贴在键盘上方，不被分类挤出屏幕 */
+.jy-sheet-body .jy-quickbar {
+  flex: none;
+  border-top: 1px solid var(--line);
+  background: var(--card);
+  padding: 8px 2px;
+}

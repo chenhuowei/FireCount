@@ -383,5 +383,55 @@ test('成员列表为空时点击成员按钮不崩溃', () => {
   ok(true, '不应抛异常');
 });
 
+
+suite('记一笔 · 布局固定（快捷条常驻）');
+function openAdd(mode) {
+  doc.getElementById('sheetHost').innerHTML = ''; if (UI._sheets) UI._sheets = [];
+  resetState(); ViewsAdd.open();
+  if (mode) {
+    const b = [...doc.querySelectorAll('#modeRow .jy-mode')].find(x => x.dataset.mode === mode);
+    if (b) b.onclick();
+  }
+}
+test('sheet-body 使用 flex 固定布局', () => {
+  openAdd();
+  const body = doc.querySelector('#sheetHost .sheet-body');
+  ok(body.classList.contains('jy-sheet-body'), '应加 jy-sheet-body 类');
+  ok(doc.getElementById('jyKeys'), '键盘应存在');
+  eq(doc.getElementById('jyKeys').parentElement.classList.contains('sheet'), true, '键盘应在 sheet 下（不随内容滚动）');
+});
+test('快捷条位于分类宫格之后、键盘之前', () => {
+  openAdd();
+  const jyBody = doc.getElementById('jyBody');
+  const kids = [...jyBody.children];
+  const iGrid = kids.findIndex(k => k.classList.contains('jy-grid-wrap'));
+  const iQB = kids.findIndex(k => k.classList.contains('jy-quickbar'));
+  ok(iGrid >= 0 && iQB >= 0, '宫格与快捷条都应存在');
+  ok(iQB > iGrid, '快捷条应在宫格之后');
+});
+test('三种模式都有快捷条且事件已绑定', () => {
+  for (const mode of ['expense', 'income', 'transfer']) {
+    openAdd(mode);
+    const qb = doc.querySelector('.jy-quickbar');
+    ok(qb, mode + ' 模式应有快捷条');
+    const btns = [...qb.querySelectorAll('[data-qb]')];
+    ok(btns.length >= 4, mode + ' 快捷条按钮不足');
+    ok(btns.every(b => !!b.onclick), mode + ' 快捷条按钮事件未绑定');
+    ok(btns.some(b => b.dataset.qb === 'date'), mode + ' 缺少日期按钮');
+  }
+});
+test('转账模式快捷条隐藏账户/成员', () => {
+  openAdd('transfer');
+  const qbs = [...doc.querySelectorAll('.jy-quickbar [data-qb]')].map(b => b.dataset.qb);
+  eq(qbs.join(','), 'date,tag,photo,note', '转账模式应只保留日期/标签/附件/备注');
+});
+test('切换模式后快捷条不重复', () => {
+  openAdd('expense');
+  const b = [...doc.querySelectorAll('#modeRow .jy-mode')].find(x => x.dataset.mode === 'income');
+  b.onclick();
+  eq(doc.querySelectorAll('.jy-quickbar').length, 1, '应只有一个快捷条');
+  eq(doc.querySelectorAll('.jy-quickbar [data-qb]').length, 6, '按钮不应重复');
+});
+
 const okAll = summary();
 process.exit(okAll ? 0 : 1);
