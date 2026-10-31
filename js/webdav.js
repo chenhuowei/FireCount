@@ -237,6 +237,7 @@ const WebDAV = {
       '<div class="form-row"><div class="lab">自动备份</div><div class="sel">' +
         '<button class="chip' + (c.autoAfterSave === false ? "" : " active") + '" data-auto="on">记账后 ' + (c.autoDelaySec || 5) + ' 秒</button>' +
         '<button class="chip' + (c.autoAfterSave === false ? " active" : "") + '" data-auto="off">仅手动/6小时</button></div></div>' +
+      '<div class="form-row" id="wdDelayRow"><div class="lab">延迟秒数</div><input type="number" id="wdDelay" min="1" max="3600" value="' + (+c.autoDelaySec || 5) + '"></div>' +
       '<div class="sec-title" id="wdHint">' + this.PRESETS[c.provider].hint + "</div>" +
       '<div class="sec-title">上次备份：' + (c.lastBackupAt ? new Date(c.lastBackupAt).toLocaleString("zh-CN") : "从未备份") +
         (c.lastBackupAt ? " · 自动备份每 6 小时（应用打开时）" : "") + "</div>";
@@ -280,7 +281,9 @@ const WebDAV = {
     // 延迟秒数可配置（1~3600 秒），失焦/回车保存
     const delayInput = UI.$("#wdDelay", sh.body);
     const saveDelay = () => {
-      const v = Math.min(3600, Math.max(1, parseInt(delayInput.value) || 5));
+      const raw = parseInt(delayInput.value, 10);
+      // 空/非数字回退默认 5；数字则钳制到 1~3600（输入 0 应钳到 1）
+      const v = isNaN(raw) ? 5 : Math.min(3600, Math.max(1, raw));
       if (String(v) !== delayInput.value) delayInput.value = v;
       c.autoDelaySec = v; Store.save();
     };

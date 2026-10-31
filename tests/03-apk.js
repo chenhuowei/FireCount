@@ -262,6 +262,58 @@ suite('WebDAV · 坚果云同步');
     await new Promise(r => setTimeout(r, 1300));
     eq(backups, 0, '不应备份');
   });
+
+  test('设置弹层不抛错且所有按钮均绑定事件（Bug 回归）', () => {
+    S.reset(); S.boot();
+    const c = WebDAV.cfg();
+    c.user = 'u'; c.pass = 'p'; c.provider = 'jianguoyun';
+    WebDAV.settingsSheet();   // 中途抛错会导致后续 onclick 全部失联
+    for (const id of ['wdRestore', 'wdTest', 'wdBackup', 'wdSaveOnly', 'wdEye', 'wdDelay']) {
+      const el = doc.getElementById(id);
+      ok(el, '缺少元素 #' + id);
+      const bound = el.onclick || el.onchange || el.onblur || el.oninput;
+      ok(bound, '#' + id + ' 未绑定任何事件处理器（说明初始化中途抛错）');
+    }
+  });
+  test('设置弹层字段完整', () => {
+    WebDAV.settingsSheet();
+    for (const id of ['wdServer', 'wdUser', 'wdPass', 'wdDir', 'wdDelay']) ok(doc.getElementById(id), '缺少字段 #' + id);
+    const providers = doc.querySelectorAll('[data-p]');
+    eq(providers.length, 3, '应有 3 个服务商选项');
+    eq(doc.querySelectorAll('[data-n]').length, 3, '应有 3 个保留份数选项');
+    eq(doc.querySelectorAll('[data-auto]').length, 2, '应有 2 个自动备份选项');
+  });
+  test('密码可见切换生效', () => {
+    WebDAV.settingsSheet();
+    const pass = doc.getElementById('wdPass'), eye = doc.getElementById('wdEye');
+    eq(pass.type, 'password');
+    eye.onclick();
+    eq(pass.type, 'text', '点击后应显示明文');
+    eye.onclick();
+    eq(pass.type, 'password', '再点应恢复密文');
+  });
+  test('自动备份开关切换并保存延迟', () => {
+    const c = WebDAV.cfg();
+    c.autoAfterSave = true; c.autoDelaySec = 7;
+    WebDAV.settingsSheet();
+    const offBtn = doc.querySelector('[data-auto="off"]');
+    offBtn.onclick();
+    eq(WebDAV.cfg().autoAfterSave, false, '应关闭');
+    const onBtn = doc.querySelector('[data-auto="on"]');
+    onBtn.onclick();
+    eq(WebDAV.cfg().autoAfterSave, true, '应开启');
+    const delay = doc.getElementById('wdDelay');
+    delay.value = '12';
+    delay.onchange();
+    eq(WebDAV.cfg().autoDelaySec, 12, '延迟应保存为 12');
+    delay.value = '9999';
+    delay.onchange();
+    eq(WebDAV.cfg().autoDelaySec, 3600, '应钳制到上限 3600');
+    delay.value = '0';
+    delay.onchange();
+    eq(WebDAV.cfg().autoDelaySec, 1, '应钳制到下限 1');
+  });
+
 }
 
 /* ============ 浏览器环境降级 ============ */
