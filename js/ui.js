@@ -21,6 +21,7 @@ const UI = {
       plus: '<path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>',
       scan: '<path d="M4 8V6a2 2 0 012-2h2M16 4h2a2 2 0 012 2v2M20 16v2a2 2 0 01-2 2h-2M8 20H6a2 2 0 01-2-2v-2" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M4 12h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
       del: '<path d="M9 3h6M6 6V5a2 2 0 012-2h8a2 2 0 012 2v1M5 6h14M8 6l1 14h6l1-14" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+      photo: '<rect x="3" y="5" width="18" height="14" rx="2.5" stroke="currentColor" stroke-width="1.8" fill="none"/><circle cx="9" cy="10.5" r="1.8" fill="currentColor"/><path d="M6 17l4.5-4.5 3 3 3.5-3.5L21 16.5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
       edit: '<path d="M4 20h4l10-10-4-4L4 16v4z" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linejoin="round"/><path d="M13.5 6.5l4 4" stroke="currentColor" stroke-width="1.8"/>',
       arrow: '<path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
       down: '<path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
@@ -132,27 +133,53 @@ const UI = {
   },
 
   /* 通用日期选择弹层（今天/昨天/自定义） */
+  /* 日期+时间选择（App 风格：快捷日 chips + 日期/时间行） */
   datePicker(current, cb) {
     const sh = UI.sheet({ title: "选择时间" });
-    const items = [
+    const date = (current || fmt.YMD(new Date()) + " 12:00");
+    const curD = date.slice(0, 10), curT = date.slice(11, 16) || "12:00";
+    const days = [
       { lab: "今天", d: new Date() },
-      { lab: "昨天", d: new Date(Date.now() - 86400000) }
+      { lab: "昨天", d: new Date(Date.now() - 86400000) },
+      { lab: "前天", d: new Date(Date.now() - 2 * 86400000) }
     ];
+    const weekOf = d => "周" + DATA.weeks[d.getDay()];
     sh.body.innerHTML =
-      items.map((it, i) =>
-        '<div class="cell" data-i="' + i + '"><div class="cell-main"><div class="cell-title">' + it.lab +
-        "</div></div>" + UI.svg("arrow", 16) + "</div>").join("") +
-      '<div class="form-row" style="border:none"><div class="lab">选择日期</div>' +
-      '<input type="date" id="dpInput" value="' + (current || fmt.YMD(new Date())) + '"></div>';
-    UI.$$(".cell", sh.body).forEach(c => c.onclick = () => {
-      const it = items[+c.dataset.i];
-      sh.close();
-      cb(fmt.YMD(it.d) + " " + (current ? current.slice(11, 16) : "12:00"));
+      '<div class="dp-days">' +
+        days.map((it, i) => {
+          const on = curD === fmt.YMD(it.d);
+          return '<div class="dp-day' + (on ? " on" : "") + '" data-d="' + i + '"><div class="dd-lab">' + it.lab + '</div><div class="dd-sub">' + weekOf(it.d) + "</div></div>";
+        }).join("") +
+        '<div class="dp-day' + (days.every(it => curD !== fmt.YMD(it.d)) ? " on" : "") + '" data-d="other"><div class="dd-lab">其他</div><div class="dd-sub">自选</div></div>' +
+      "</div>" +
+      '<div class="dp-inputs' + (days.every(it => curD !== fmt.YMD(it.d)) ? "" : " hide") + '">' +
+        '<div class="dp-field"><div class="dp-lab">日期</div><input type="date" id="dpDate" value="' + curD + '"></div>' +
+        '<div class="dp-field"><div class="dp-lab">时间</div><input type="time" id="dpTime" value="' + curT + '"></div>' +
+      "</div>";
+    const foot = sh.foot;
+    foot.innerHTML = '<button class="btn btn-primary btn-block" id="dpOk">确定</button>';
+    let sel = { d: curD, t: curT };
+    const isOther = () => days.every(it => sel.d !== fmt.YMD(it.d));
+    // 快捷日
+    sh.body.querySelectorAll(".dp-day[data-d]").forEach(el => el.onclick = () => {
+      sh.body.querySelectorAll(".dp-day").forEach(x => x.classList.remove("on"));
+      el.classList.add("on");
+      const k = el.dataset.d;
+      if (k === "other") {
+        sel.d = UI.$("#dpDate", sh.body).value || curD;
+        sh.body.querySelector(".dp-inputs").classList.remove("hide");
+      } else {
+        sel.d = fmt.YMD(days[+k].d);
+        sh.body.querySelector(".dp-inputs").classList.add("hide");
+      }
     });
-    UI.$("#dpInput", sh.body).onchange = e => {
-      if (!e.target.value) return;
+    UI.$("#dpDate", sh.body).onchange = e => { sel.d = e.target.value; };
+    UI.$("#dpTime", sh.body).onchange = e => { sel.t = e.target.value; };
+    UI.$("#dpOk", foot).onclick = () => {
+      if (isOther()) { sel.d = UI.$("#dpDate", sh.body).value || sel.d; sel.t = UI.$("#dpTime", sh.body).value || sel.t; }
+      if (!sel.d) { UI.toast("请选择日期"); return; }
       sh.close();
-      cb(e.target.value + " " + (current ? current.slice(11, 16) : "12:00"));
+      cb(sel.d + " " + (sel.t || "12:00"));
     };
   },
 
