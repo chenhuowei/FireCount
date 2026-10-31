@@ -44,7 +44,7 @@ const UI = {
 
   catIcon(cat, cls) {
     if (!cat) return '<div class="bi-icon" style="background:#94A3B822">❓</div>';
-    return '<div class="' + (cls || "bi-icon") + '" style="background:' + cat.color + "22;color:" + cat.color + '">' + cat.icon + "</div>";
+    return IconUI.catIcon(cat, cls);
   },
   accIcon(acc, cls) {
     if (!acc) return "";

@@ -327,7 +327,7 @@ const ViewsMine = {
       '<button class="btn btn-primary btn-block" id="cySave">保存</button>';
     const refresh = () => {
       const c = Store.category(S.categoryId), a = Store.account(S.accountId);
-      UI.$("#cyCat", sh.body).innerHTML = (c ? c.icon + " " + UI.escape(c.name) : "选择") + " " + UI.svg("arrow", 13);
+      UI.$("#cyCat", sh.body).innerHTML = (c ? IconUI.raw(c, 15) + " " + UI.escape(c.name) : "选择") + " " + UI.svg("arrow", 13);
       UI.$("#cyAcc", sh.body).innerHTML = (a ? UI.escape(a.name) : "选择") + " " + UI.svg("arrow", 13);
       UI.$("#cyDayRow", sh.body).style.display = (S.freq === "monthly" || S.freq === "yearly") ? "flex" : "none";
     };
@@ -346,7 +346,7 @@ const ViewsMine = {
       const sh2 = UI.sheet({ title: "选择分类" });
       sh2.body.innerHTML = Store.categories(S.type).map(c =>
         '<div class="cell" data-id="' + c.id + '">' + UI.catIcon(c, "cell-icon") +
-        '<div class="cell-main"><div class="cell-title">' + c.icon + " " + UI.escape(c.name) + "</div></div></div>").join("");
+        '<div class="cell-main"><div class="cell-title">' + IconUI.raw(c, 15) + " " + UI.escape(c.name) + "</div></div></div>").join("");
       UI.$$(".cell", sh2.body).forEach(el => el.onclick = () => { S.categoryId = el.dataset.id; sh2.close(); refresh(); });
     };
     sh.body.querySelector('[data-k="acc"]').onclick = () => ViewsAdd.pickAccount("accountId", S, refresh);
