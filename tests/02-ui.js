@@ -482,12 +482,10 @@ test('切换打开不同弹层，旧的立即移除', () => {
 
 
 suite('记一笔 · 子弹层机制');
-test('记一笔主层无扫码按钮（已移除）', () => {
+test('记一笔主层无扫码按钮（已移除，headless）', () => {
   openAdd();
-  const head = doc.querySelector('#sheetHost .sheet-head');
-  ok(head, '应有弹层头');
-  ok(!head.querySelector('.hd-btn[data-close2] svg'), '不应有右上角扫码图标');
-  ok(doc.querySelector('#sheetHost .sheet-head').textContent.includes('记一笔'), '标题应为记一笔');
+  ok(!doc.querySelector('#sheetHost .sheet-head'), 'headless 弹层无标题栏');
+  ok(!doc.querySelector('#sheetHost [data-close2]'), '不应有右上角扫码按钮');
 });
 test('从记一笔打开子层，关闭子层后记一笔仍在', () => {
   openAdd();
@@ -594,6 +592,25 @@ test('点击返回回到我的页', () => {
   ViewsWallet.render(header(), main());
   header().querySelector('[data-back]').onclick();
   eq(App.page, 'mine', '应返回我的页');
+});
+
+
+test('模式切换激活态同步（Bug 回归）', () => {
+  openAdd();
+  eq(doc.querySelector('.jy-mode.active').dataset.mode, 'expense', '默认激活支出');
+  doc.querySelector('[data-mode=income]').onclick();
+  eq(doc.querySelector('.jy-mode.active').dataset.mode, 'income', '切收入后激活态更新');
+  doc.querySelector('[data-mode=transfer]').onclick();
+  eq(doc.querySelector('.jy-mode.active').dataset.mode, 'transfer', '切转账后激活态更新');
+});
+test('多次重绘后返回按钮仍有效', () => {
+  openAdd();
+  for (let i = 0; i < 3; i++) doc.querySelector('[data-mode=expense]').onclick();
+  eq(doc.querySelectorAll('#sheetHost .sheet').length, 1, '重绘不影响弹层');
+  doc.getElementById('modeRow').querySelector('.jy-back[data-close]').onclick();
+  setTimeout(() => {
+    eq(doc.querySelectorAll('#sheetHost .sheet').length, 0, '多次重绘后返回仍可关闭（240ms 动画后）');
+  }, 300);
 });
 
 const okAll = summary();

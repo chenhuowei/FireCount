@@ -119,13 +119,15 @@ const UI = {
     }
     const host = UI.$("#sheetHost");
     const node = document.createElement("div");
-    node.innerHTML =
-      '<div class="sheet-mask"></div><div class="sheet-wrap"><div class="sheet">' +
+    const headHtml = opts.headless ? "" :
       '<div class="sheet-head">' +
       '<button class="hd-btn" data-close>' + (opts.closeIcon === false ? "" : UI.svg("back")) + "</button>" +
       '<div class="sheet-title">' + UI.escape(opts.title || "") + "</div>" +
       '<button class="hd-btn" data-close2>' + (opts.right || "") + "</button>" +
-      "</div>" +
+      "</div>";
+    node.innerHTML =
+      '<div class="sheet-mask"></div><div class="sheet-wrap"><div class="sheet">' +
+      headHtml +
       '<div class="sheet-body"></div>' +
       '<div class="sheet-foot"></div>' +
       "</div></div>";
@@ -141,8 +143,11 @@ const UI = {
     };
     entry.close = close;
     UI._sheets.push(entry);
-    node.querySelector("[data-close]").onclick = close;
-    node.querySelector("[data-close2]").onclick = e => { e.stopPropagation(); if (opts.onRight) opts.onRight(close); else close(); };
+    // headless 弹层无自带关闭钮，由内容内自带的 [data-close]（如记一笔的返回键）接管
+    const dc = node.querySelector("[data-close]");
+    if (dc) dc.onclick = close;
+    const dc2 = node.querySelector("[data-close2]");
+    if (dc2) dc2.onclick = e => { e.stopPropagation(); if (opts.onRight) opts.onRight(close); else close(); };
     mask.onclick = close;
     return { host: node, sheet, body: node.querySelector(".sheet-body"), close, foot: node.querySelector(".sheet-foot") };
   },

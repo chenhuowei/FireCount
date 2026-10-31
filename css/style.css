@@ -622,3 +622,22 @@ canvas.chart { width: 100%; display: block; }
 .jy-amount-row .jy-currency { font-size: 20px; padding-bottom: 8px; }
 .jy-amount-row .jy-amount { font-size: 34px; min-height: 44px; }
 .jy-amount-row .jy-formula { margin-top: 2px; }
+
+/* ---------- 记一笔：返回按钮与模式切换同行 ---------- */
+.jy-mode-row .jy-back {
+  flex: none; width: 36px; height: 36px; padding: 0; margin-right: 4px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-2); border-radius: 50%;
+}
+.jy-mode-row .jy-back svg { width: 20px; height: 20px; }
+/* 激活模式：橙色胶囊 */
+.jy-sheet-body .jy-mode {
+  flex: 1; text-align: center; padding: 8px 0; font-size: 14.5px;
+  color: var(--text-3); font-weight: 500;
+  background: var(--card); border-radius: 18px; border: 1.5px solid var(--line);
+  margin: 0 2px;
+}
+.jy-sheet-body .jy-mode.active {
+  color: #fff; background: var(--brand); border-color: var(--brand); font-weight: 700;
+  box-shadow: 0 3px 8px rgba(255, 122, 46, .35);
+}

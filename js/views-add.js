@@ -91,16 +91,20 @@ const ViewsAdd = {
       photos: editing ? (record.photos || []).slice() : [],
       editing
     };
-    const sh = UI.sheet({ title: editing ? "编辑账单" : "记一笔" });
+    const sh = UI.sheet({
+      title: editing ? "编辑账单" : "记一笔",
+      headless: true  // 移除弹层自带标题栏，返回按钮与 支出/收入/转账 同行
+    });
     sh.sheet.style.maxHeight = "100%";
     sh.sheet.style.height = "100%";
     sh.sheet.style.borderRadius = "0";
 
     sh.body.innerHTML =
       '<div class="jy-mode-row" id="modeRow">' +
-        '<button class="jy-mode" data-mode="expense">支出</button>' +
-        '<button class="jy-mode" data-mode="income">收入</button>' +
-        '<button class="jy-mode" data-mode="transfer">转账</button>' +
+        '<button class="hd-btn jy-back" data-close>' + UI.svg("back") + "</button>" +
+        '<button class="jy-mode' + (S.mode === "expense" ? " active" : "") + '" data-mode="expense">支出</button>' +
+        '<button class="jy-mode' + (S.mode === "income" ? " active" : "") + '" data-mode="income">收入</button>' +
+        '<button class="jy-mode' + (S.mode === "transfer" ? " active" : "") + '" data-mode="transfer">转账</button>' +
       "</div>" +
       '<div id="jyBody"></div>';
     sh.body.style.padding = "0 10px 6px";
@@ -111,6 +115,8 @@ const ViewsAdd = {
     kb.id = "jyKeys";
     kb.style.margin = "0 10px calc(10px + env(safe-area-inset-bottom))";
     sh.sheet.appendChild(kb);
+
+    UI.$('[data-close]', sh.body).onclick = () => sh.close();
 
     const body = UI.$("#jyBody", sh.body);
     const renderBody = () => {
@@ -278,6 +284,8 @@ const ViewsAdd = {
         const ok = Store.categories(S.mode).some(c => c.id === S.categoryId);
         if (!ok) S.categoryId = Store.categories(S.mode)[0]?.id || "";
       }
+      // 同步 Tab 激活态（renderBody 不重绘 modeRow）
+      UI.$$("#modeRow .jy-mode", sh.body).forEach(x => x.classList.toggle("active", x === b));
       renderBody();
     });
 
