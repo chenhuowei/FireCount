@@ -270,9 +270,21 @@ const WebDAV = {
     });
     sh.body.querySelectorAll("[data-auto]").forEach(b => b.onclick = () => {
       c.autoAfterSave = b.dataset.auto !== "off";
-      Store.save(); b.parentElement.querySelectorAll(".chip").forEach(x => x.classList.toggle("active", x === b));
+      saveCfg();
+      b.parentElement.querySelectorAll(".chip").forEach(x => x.classList.toggle("active", x === b));
+      UI.$("#wdDelayRow", sh.body).style.display = c.autoAfterSave ? "flex" : "none";
       UI.toast(c.autoAfterSave ? "已开启：记账后 " + (c.autoDelaySec || 3) + " 秒自动备份" : "已关闭自动备份");
     });
+    // 延迟秒数可配置（1~3600 秒），失焦/回车保存
+    const delayInput = UI.$("#wdDelay", sh.body);
+    const saveDelay = () => {
+      const v = Math.min(3600, Math.max(1, parseInt(delayInput.value) || 3));
+      if (String(v) !== delayInput.value) delayInput.value = v;
+      c.autoDelaySec = v; Store.save();
+    };
+    delayInput.onchange = saveDelay;
+    delayInput.onblur = saveDelay;
+    UI.$("#wdDelayRow", sh.body).style.display = c.autoAfterSave ? "flex" : "none";
     const t = UI.$("#wdTest", sh.foot);
     if (t) t.onclick = async () => {
       saveCfg();
