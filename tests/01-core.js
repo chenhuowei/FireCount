@@ -392,5 +392,65 @@ test('导出/备份不修改活状态中的凭证（关键回归）', () => {
   eq(JSON.stringify({ w: WebDAV.cfg(), l: Lock.cfg() }), snap, '活状态应完全未变');
 });
 
+
+suite('配置丢失防护（根因修复）');
+function cfgSetup() {
+  S.reset(); S.boot();
+  const w = WebDAV.cfg(); w.user = 'me@x.com'; w.pass = 'KEEP_PW'; w.dir = '/firecount/';
+  const lk = Lock.cfg(); lk.enabled = true; lk.pinSalt = 's'; lk.pinHash = 'h';
+  S.addRecord({ type: 'expense', amount: 9, categoryId: 'ce_canyin', accountId: S.s.accounts[0].id, date: '2026-10-01 10:00' });
+}
+function cfgIntact() { const w = WebDAV.cfg(); return w.user === 'me@x.com' && w.pass === 'KEEP_PW'; }
+
+test('清空数据保留 WebDAV 配置与应用锁', () => {
+  cfgSetup();
+  S.reset();
+  ok(cfgIntact(), 'reset 后 WebDAV 配置应保留');
+  eq(Lock.cfg().enabled, true, '应用锁应保留');
+  eq(S.s.records.length, 0, '记账数据应被清空');
+});
+test('清空数据后可传 keepDeviceConfig:false 做彻底重置', () => {
+  cfgSetup();
+  S.reset({ keepDeviceConfig: false });
+  eq(WebDAV.cfg().pass, '', '彻底重置时凭证应清空');
+});
+test('导入不含 webdav 的旧备份不清空本机配置', () => {
+  cfgSetup();
+  const bak = JSON.parse(S.exportJSON());
+  delete bak.settings.webdav;
+  S.replaceState(bak);
+  ok(cfgIntact(), '旧备份导入后 WebDAV 配置应保留');
+});
+test('导入无 settings 的备份不清空本机配置', () => {
+  cfgSetup();
+  const bak = JSON.parse(S.exportJSON());
+  delete bak.settings;
+  S.replaceState(bak);
+  ok(cfgIntact(), '无 settings 备份导入后配置应保留');
+});
+test('导入空密码的 webdav 不清空本机密码', () => {
+  cfgSetup();
+  const bak = JSON.parse(S.exportJSON());
+  bak.settings.webdav = { provider: 'jianguoyun', user: '', pass: '', dir: '/firecount/' };
+  S.replaceState(bak);
+  ok(cfgIntact(), '空密码备份不应覆盖本机密码');
+});
+test('重启后配置持久化', () => {
+  cfgSetup();
+  S.saveNow();
+  S.s = null;
+  S.boot();
+  ok(cfgIntact(), '重启后配置应仍在');
+});
+test('本地备份槽可兜底恢复（浏览器路径）', () => {
+  S.reset(); S.boot();
+  S.s.settings.members = ['我', '兜底'];
+  S.saveNow();                      // 写入主槽 + 备份槽
+  window.localStorage.removeItem(S.KEY);  // 主槽丢失
+  S.s = null;
+  S.boot();
+  ok(S.s.settings.members.includes('兜底'), '应从备份槽恢复');
+});
+
 const okAll = summary();
 process.exit(okAll ? 0 : 1);

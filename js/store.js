@@ -34,7 +34,14 @@ const Store = {
       }
     } catch (e) { console.warn("dbSave failed", e); }
     if (dbOk) return true; // SQLite 已持久化，不再镜像 localStorage（避免配额溢出）
-    try { localStorage.setItem(this.KEY, json); return true; }
+    try {
+      localStorage.setItem(this.KEY, json);
+      // 备份槽：仅在体积可控时写入（带照片时可能触配额，跳过）
+      if (json.length < 500 * 1024) {
+        try { localStorage.setItem(this.KEY + ":bak", json); } catch (e2) {}
+      }
+      return true;
+    }
     catch (e) {
       console.error("localStorage save failed:", e);
       if (typeof UI !== "undefined" && UI.toast) UI.toast("本地存储空间不足，最新数据可能未保存");
@@ -49,6 +56,17 @@ const Store = {
       try { this.s = JSON.parse(raw); this.migrate(); } catch (e) { console.warn("state parse fail", e); }
     }
     if (!this.s) this.s = this.freshState();
+    // 兜底：主存储为空但备份槽有数据 → 从备份槽恢复（防存储异常导致配置全丢）
+    if (!raw) {
+      try {
+        const bak = localStorage.getItem(this.KEY + ":bak");
+        if (bak) {
+          this.s = JSON.parse(bak);
+          this.migrate();
+          if (typeof UI !== "undefined" && UI.toast) UI.toast("已从本地备份恢复数据");
+        }
+      } catch (e) {}
+    }
     this.save();
   },
   freshState() {
@@ -141,10 +159,18 @@ const Store = {
     clearTimeout(this._saveTimer);
     return this.storagePut(JSON.stringify(this.s));
   },
-  reset() {
+  /* 清空记账数据。设备级凭证（WebDAV 配置、应用锁）默认保留，
+     避免用户清数据后还要重新去坚果云生成应用密码 */
+  reset(opts) {
+    const keepDevice = !opts || opts.keepDeviceConfig !== false;
+    const keepWebdav = keepDevice && this.s && this.s.settings && this.s.settings.webdav;
+    const keepLock = keepDevice && this.s && this.s.settings && this.s.settings.lock;
     try { localStorage.removeItem(this.KEY); } catch (e) {}
     try { if (window.AndroidBridge && window.AndroidBridge.dbClear) window.AndroidBridge.dbClear(); } catch (e) {}
-    this.s = this.freshState(); this.saveNow();
+    this.s = this.freshState();
+    if (keepWebdav) this.s.settings.webdav = keepWebdav;
+    if (keepLock) this.s.settings.lock = keepLock;
+    this.saveNow();
   },
   /* 恢复备份：保留本机设备配置（WebDAV 凭证、应用锁），避免恢复后云端失联或被旧锁挡住 */
   replaceState(next) {

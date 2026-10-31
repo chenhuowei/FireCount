@@ -74,7 +74,16 @@ public class MainActivity extends Activity {
             Cursor c = db().rawQuery("SELECT v FROM meta WHERE k='head'", null);
             if (c.moveToFirst()) head = c.getString(0);
             c.close();
-            if (head == null) return "";
+            // 主数据缺失时回退到备份槽
+            boolean fromBak = false;
+            if (head == null || head.length() == 0) {
+                Cursor b = db().rawQuery("SELECT v FROM meta WHERE k='head_bak'", null);
+                if (b.moveToFirst()) head = b.getString(0);
+                b.close();
+                fromBak = head != null && head.length() > 0;
+            }
+            if (head == null || head.length() == 0) return "";
+            if (fromBak) log("dbLoad: 主数据为空，已从备份槽恢复");
             JSONObject state = new JSONObject(head);
             JSONArray recs = new JSONArray();
             Cursor r = db().rawQuery(
@@ -120,6 +129,17 @@ public class MainActivity extends Activity {
             SQLiteDatabase d = db();
             d.beginTransaction();
             try {
+                // 写入前先把旧 head 备份到 head_bak（防主数据异常时全丢）
+                try {
+                    Cursor pc = d.rawQuery("SELECT v FROM meta WHERE k='head'", null);
+                    if (pc.moveToFirst() && pc.getString(0) != null && pc.getString(0).length() > 0) {
+                        ContentValues bak = new ContentValues();
+                        bak.put("k", "head_bak");
+                        bak.put("v", pc.getString(0));
+                        d.insertWithOnConflict("meta", null, bak, SQLiteDatabase.CONFLICT_REPLACE);
+                    }
+                    pc.close();
+                } catch (Exception ignore) {}
                 ContentValues meta = new ContentValues();
                 meta.put("k", "head");
                 meta.put("v", s.toString());

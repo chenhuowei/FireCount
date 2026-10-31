@@ -320,8 +320,9 @@ const ViewsMine = {
     const confirmCode = code.join("");
     const recCount = Store.s.records.length;
     sh.body.innerHTML =
-      '<div style="font-size:13.5px;color:var(--text-2);line-height:1.7;padding:4px 2px 10px">将删除<b style="color:var(--danger)">仅本地存储</b>的全部数据：' +
-      recCount + " 笔账单、" + Store.s.books.length + " 本账本、" + Store.s.accounts.length + " 个账户、预算与设置。<br>云端备份不受影响；建议先导出备份。" +
+      '<div style="font-size:13.5px;color:var(--text-2);line-height:1.7;padding:4px 2px 10px">将删除<b style="color:var(--danger)">仅本地存储</b>的记账数据：' +
+      recCount + " 笔账单、" + Store.s.books.length + " 本账本、" + Store.s.accounts.length + " 个账户、分类、预算与标签。<br>" +
+      '<b style="color:var(--income)">保留</b>：WebDAV 云同步配置、应用锁、主题与币种。<br>云端备份不受影响；建议先导出备份。' +
       '</div>' +
       '<div style="text-align:center;margin:6px 0 14px"><span id="wipeCode" style="font-family:monospace;font-size:24px;letter-spacing:4px;font-weight:700;color:var(--danger);background:var(--chip);padding:8px 18px;border-radius:10px;user-select:none">' + confirmCode + "</span></div>" +
       '<div class="form-row" style="border-bottom:none"><input type="text" id="wipeInput" maxlength="6" placeholder="输入上方 6 位确认码" style="text-align:center;letter-spacing:2px;font-family:monospace;font-size:16px"></div>';
