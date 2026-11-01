@@ -150,7 +150,11 @@ const WebDAV = {
         const names = [];
         const re = /([\w\-]+\.json)/g; let m;
         while ((m = re.exec(g.body)) !== null) if (!names.includes(m[1])) names.push(m[1]);
-        if (names.length) return names.map(n => ({ name: n, mtime: "" }));
+        if (names.length) return names.map(n => {
+          const m = /firecount_(d{8})_(d{6})/.exec(n);
+          const mt = m ? m[1].slice(0,4)+"-"+m[1].slice(4,6)+"-"+m[1].slice(6)+" "+m[2].slice(0,2)+":"+m[2].slice(2,4) : "";
+          return { name: n, mtime: mt };
+        });
         throw new Error("目录可访问但无法解析文件列表，可用「恢复 latest」恢复最近备份");
       }
       throw new Error("读取备份列表失败 (" + g.code + ")");

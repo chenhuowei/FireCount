@@ -453,6 +453,7 @@ public class MainActivity extends Activity {
                     conn.setConnectTimeout(15000);
                     conn.setReadTimeout(45000);
                     conn.setInstanceFollowRedirects(true);
+                    conn.setUseCaches(false);   // 禁用响应缓存，确保 WebDAV GET/PROPFIND 每次都拉最新
                     if (headers != null && !headers.isEmpty()) {
                         for (String line : headers.split("\n")) {
                             int i = line.indexOf(": ");
