@@ -16,7 +16,7 @@ const ViewsMine = {
       '<div class="page page-anim">' +
       '<div class="me-hero me-hero-center">' +
         '<div class="me-name">' + DATA.appName + ' · 我的账本</div>' +
-          '<div class="me-sub">已坚持记账 ' + days + ' 天 · 累计 ' + total + " 笔账单</div>" +
+          '<div class="me-sub" id="meDays" style="cursor:pointer;text-decoration:underline dotted">已坚持记账 ' + days + ' 天 · 累计 ' + total + " 笔账单</div>" +
           '<div class="me-stats">' +
             stat(Store.recordsOf().length, "本账单笔") + stat(s.books.length, "账本") + stat(s.accounts.length, "账户") +
           "</div></div>" +
@@ -42,6 +42,19 @@ const ViewsMine = {
         cell("trash", "清空数据", "删除全部账单与设置", "wipe") +
       "</div>" +
       '<div style="text-align:center;color:var(--text-3);font-size:11px;padding:6px 0 20px">小伙记账 · 纯本地记账（数据仅存于本机）</div></div>';
+    // 我的页记账天数点击：显示起止时间
+    const daysEl = UI.$("#meDays");
+    if (daysEl) daysEl.onclick = () => {
+      const dates = Store.s.records.map(r => r.date.slice(0, 10)).sort();
+      const first = dates[0] || fmt.YMD(new Date());
+      const today = fmt.YMD(new Date());
+      UI.sheet({ title: "已坚持记账说明", subLevel: 1 }).body.innerHTML =
+        '<div class="days-note">' +
+        '<div class="dn-row"><span class="dn-k">从</span><span class="dn-v">' + first + '</span></div>' +
+        '<div class="dn-row"><span class="dn-k">到</span><span class="dn-v">' + today + '</span></div>' +
+        '<div class="dn-tip">从第一笔账单日到今天的天数跨度（中间未记账也计入）</div>' +
+        '</div>';
+    };
 
     UI.$$(".cell[data-go]", main).forEach(el => el.onclick = () => {
       const go = el.dataset.go;

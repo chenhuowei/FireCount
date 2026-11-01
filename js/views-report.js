@@ -16,7 +16,12 @@ const ViewsReport = {
     const ym = m => m.getFullYear() + "-" + String(m.getMonth() + 1).padStart(2, "0");
     const ymd = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
     if (r.mode === "all") {
-      return { start: "0000-01-01", end: "9999-12-31", title: "全部账单" };
+      // 分母口径：第一笔账单日 ~ 今天
+      const all = Store.rangeRecords("0000-01-01", "9999-12-31");
+      const ds = all.map(x => x.date.slice(0, 10)).sort();
+      const first = ds[0] || ymd(now);
+      return { start: "0000-01-01", end: "9999-12-31", title: "全部账单",
+               spanStart: first, spanEnd: ymd(now) };
     }
     if (r.mode === "month") {
       if (!r.month) r.month = ym(now);
@@ -135,8 +140,9 @@ const ViewsReport = {
     const maxOne = recs.length ? Math.max(...recs.map(r => r.amount)) : 0;
     const daySet = new Set(Store.rangeRecords(R.start, R.end).map(r => r.date.slice(0, 10)));
     const dayCount = daySet.size;
-    // 区间天数
-    const ds = new Date(R.start + "T00:00:00"), de = new Date(R.end + "T00:00:00");
+    // 区间天数（全部模式：第一笔到今天，而非哨兵 0000~9999）
+    const spanS = R.spanStart || R.start, spanE = R.spanEnd || R.end;
+    const ds = new Date(spanS + "T00:00:00"), de = new Date(spanE + "T23:59:59");
     const spanDays = Math.max(1, Math.round((de - ds) / 86400000) + 1);
     const avgDay = t === "expense" && dayCount ? sum.out / dayCount : 0;
     const avgAllDay = sum.out / spanDays;
@@ -146,7 +152,7 @@ const ViewsReport = {
         kpi("总" + (t === "expense" ? "支出" : "收入"), cur + fmt.money(t === "expense" ? sum.out : sum.in)) +
         kpi("账单笔数", recs.length) +
         kpi("最高单笔", cur + fmt.money(maxOne)) +
-        kpi("记账天数", dayCount + "/" + spanDays + "天") +
+        kpi("记账天数", '<span id="kpiDays" style="cursor:pointer;text-decoration:underline dotted">' + dayCount + "/" + spanDays + "天</span>") +
       "</div>";
 
     /* 饼图 + 图例 */
@@ -194,6 +200,24 @@ const ViewsReport = {
       "</div>";
 
     host.innerHTML = html;
+    // 记账天数点击：显示分子/分母的起止时间
+    const daysEl = UI.$("#kpiDays");
+    if (daysEl) daysEl.onclick = () => {
+      const sd = this.range.mode === "all"
+        ? (R.spanStart || R.start) : R.start;
+      const ed = this.range.mode === "all"
+        ? (R.spanEnd || fmt.YMD(new Date())) : R.end;
+      UI.sheet({ title: "记账天数说明", subLevel: 1 }).body.innerHTML =
+        '<div class="days-note">' +
+        '<div class="dn-row"><span class="dn-k">分子（记账天数）</span><span class="dn-v">' + dayCount + ' 天</span></div>' +
+        '<div class="dn-row"><span class="dn-k">　└ 从</span><span class="dn-v">' + (daySet ? [...daySet].sort()[0] : R.start) + '</span></div>' +
+        '<div class="dn-row"><span class="dn-k">　└ 到</span><span class="dn-v">' + (daySet ? [...daySet].sort().pop() : R.end) + '</span></div>' +
+        '<div class="dn-row"><span class="dn-k">分母（总天数）</span><span class="dn-v">' + spanDays + ' 天</span></div>' +
+        '<div class="dn-row"><span class="dn-k">　└ 从</span><span class="dn-v">' + sd + '</span></div>' +
+        '<div class="dn-row"><span class="dn-k">　└ 到</span><span class="dn-v">' + ed + '</span></div>' +
+        '<div class="dn-tip">分子 = 该期间内有账单的天数；分母 = 该期间的总天数</div>' +
+        '</div>';
+    };
     Charts.pie(UI.$("#rpPie"), pieEntries);
     if (lineBlock) {
       const tr = this.range.mode === "month" ? Store.trend(6) : this._trendBetween(R.start, R.end);
