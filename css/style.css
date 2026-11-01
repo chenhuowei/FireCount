@@ -228,7 +228,8 @@ body[data-theme="deep"] .bill-top { background: linear-gradient(150deg, #D95E12,
   white-space: nowrap; overflow: hidden; letter-spacing: .5px;
 }
 .jy-amount.has-op { border-bottom-color: var(--brand); }
-.jy-formula { text-align: right; font-size: 13px; color: var(--text-3); height: 18px; margin-top: 3px; font-variant-numeric: tabular-nums; }
+.jy-formula { text-align: right; font-size: 13px; color: var(--text-3); min-height: 0; margin-top: 3px; font-variant-numeric: tabular-nums; }
+.jy-formula:empty { display: none; height: 0; margin: 0; }
 
 /* 分类宫格（jyb_gridview_viewpager 复刻：分页 + 指示点） */
 .jy-grid-wrap { margin-top: 4px; }
@@ -588,7 +589,6 @@ canvas.chart { width: 100%; display: block; }
 .sheet-body.jy-sheet-body {
   display: flex; flex-direction: column;
   overflow: hidden;              /* 整页不滚动，只有分类区内部滚动 */
-  padding-bottom: 4px;
 }
 .jy-sheet-body #modeRow { flex: none; }
 .jy-sheet-body #jyBody {
@@ -669,3 +669,10 @@ canvas.chart { width: 100%; display: block; }
   background: var(--brand-soft, #FFF1E8);
 }
 .wheel-item.dis { opacity: .3; pointer-events: none; }
+
+/* ---------- 转账模式：金额行卡片化（与整体风格统一，消除分离感） ---------- */
+.jy-sheet-body .jy-amount-row {
+  background: var(--card); border-radius: 14px; box-shadow: var(--shadow);
+  padding: 12px 14px; margin-top: 4px;
+}
+.jy-sheet-body .jy-quickbar { border-bottom: none; padding-bottom: 10px; }
