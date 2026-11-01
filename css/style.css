@@ -415,9 +415,11 @@ body[data-theme="deep"] .bill-top { background: linear-gradient(150deg, #D95E12,
 .color-row i.active { outline: 3px solid var(--text-1); outline-offset: 2px; }
 
 /* ---------- 我的 ---------- */
-.me-hero { display: flex; align-items: center; gap: 14px; padding: 22px 16px 18px; }
-.me-name { font-size: 18px; font-weight: 700; }
-.me-stats { display: flex; gap: 8px; margin-top: 8px; }
+.me-hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 24px 16px 20px; }
+.me-hero .me-name { font-size: 19px; font-weight: 700; }
+.me-hero .me-sub { font-size: 12px; color: var(--text-3); }
+.me-stats { width: 100%; display: flex; gap: 8px; margin-top: 12px; }
+.me-stats .st { flex: 1; background: var(--card); border-radius: 10px; padding: 9px 4px; text-align: center; box-shadow: var(--shadow); }
 .me-stats .st { background: var(--card); border-radius: 10px; padding: 7px 12px; text-align: center; box-shadow: var(--shadow); }
 .me-stats .k { font-size: 10.5px; color: var(--text-3); }
 .me-stats .v { font-size: 15px; font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; }
