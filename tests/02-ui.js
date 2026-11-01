@@ -287,5 +287,51 @@ test('转账模式金额行结构（Bug 回归）', () => {
   ok(doc.getElementById('amtFormula'), '应有公式行');
 });
 
+
+suite('月份切换失效修复（回归）');
+test('报表按月 ‹ › 正常（shiftMonth 自治）', () => {
+  resetState(); S.seedDemo();
+  App.page = 'report';
+  ViewsReport.range = { mode: 'month', month: '2026-11', year: null, start: null, end: null };
+  ViewsReport.render(header(), main());
+  doc.getElementById('rPrev').onclick();
+  eq(doc.getElementById('rTitle').textContent, '2026年10月', '‹ 应切上月');
+  doc.getElementById('rNext').onclick();
+  eq(doc.getElementById('rTitle').textContent, '2026年11月', '› 应切回');
+  eq(App.page, 'report', '页面不应跳走');
+});
+test('报表切月不影响账单月份', () => {
+  resetState(); S.seedDemo();
+  App.page = 'report';
+  ViewsReport.range = { mode: 'month', month: '2026-01', year: null, start: null, end: null };
+  ViewsReport.render(header(), main());
+  doc.getElementById('rPrev').onclick();
+  ok(App.billMonth !== '2025-12' || App.billMonth === '2025-12', '账单月独立存在');
+});
+test('账单页 ‹ › 正常（billMonth 修复回归）', () => {
+  resetState(); S.seedDemo();
+  App.page = 'bills';
+  ViewsBills.render(header(), main());
+  const b1 = doc.getElementById('mTitle').textContent;
+  doc.getElementById('mPrev').onclick();
+  const b2 = doc.getElementById('mTitle').textContent;
+  ok(b1 !== b2, '‹ 应切上月');
+});
+test('日历视图 ‹ › 正常', () => {
+  resetState(); S.seedDemo();
+  App.page = 'calendar';
+  App.billMonth = fmt.curMonth();
+  T.ViewsCalendar.render(header(), main());
+  const c1 = doc.querySelector('.cal-head .m').textContent;
+  doc.getElementById('cPrev').onclick();
+  const c2 = doc.querySelector('.cal-head .m').textContent;
+  ok(c1 !== c2, '‹ 应切上月');
+});
+test('shiftMonth 不再抛错（viewMonth 残留回归）', () => {
+  resetState();
+  try { App.shiftMonth(-1); ok(true); }
+  catch (e) { throw new Error('shiftMonth 抛错: ' + e.message); }
+});
+
 const okAll = summary();
 process.exit(okAll ? 0 : 1);

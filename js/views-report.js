@@ -37,7 +37,14 @@ const ViewsReport = {
     return { start: r.start, end: r.end, title: r.start.slice(5).replace("-", "/") + " ~ " + r.end.slice(5).replace("-", "/") };
   },
 
-  shiftMonth(delta) { App.shiftMonth(delta); },
+  shiftMonth(delta) {
+    // 报表月模式自治：改 range.month 并局部刷新（不走 App.shiftMonth，
+    // 那会按 App.page 重渲染，且依赖已废弃的全局 viewMonth）
+    const y = +this.range.month.slice(0, 4), m = +this.range.month.slice(5, 7);
+    const d = new Date(y, m - 1 + delta, 1);
+    this.range.month = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+    this.refreshBody();
+  },
   shiftYear(delta) {
     this.range.year = (this.range.year || new Date().getFullYear()) + delta;
     this.refreshBody();   // 局部更新，不整页闪烁
@@ -83,8 +90,8 @@ const ViewsReport = {
     if (this.range.mode === "month") {
       nav.innerHTML =
         '<button id="rPrev">' + UI.svg("left", 14) + '</button><div class="m" id="rTitle" style="cursor:pointer">' + R.title + '</div><button id="rNext">' + UI.svg("right", 14) + "</button>";
-      UI.$("#rPrev").onclick = () => App.shiftMonth(-1);
-      UI.$("#rNext").onclick = () => App.shiftMonth(1);
+      UI.$("#rPrev").onclick = () => this.shiftMonth(-1);
+      UI.$("#rNext").onclick = () => this.shiftMonth(1);
       UI.$("#rTitle").onclick = () => UI.periodPicker("month", this.range.month, v => { this.range.month = v; this.refreshBody(); });
       // range.month 自治：首次为 null 时 resolve() 会用当前月
     } else if (this.range.mode === "year") {

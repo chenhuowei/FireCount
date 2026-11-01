@@ -112,10 +112,10 @@ const App = {
   },
 
   shiftMonth(delta) {
-    const y = +this.viewMonth.slice(0, 4), m = +this.viewMonth.slice(5, 7);
+    const y = +this.billMonth.slice(0, 4), m = +this.billMonth.slice(5, 7);
     const d = new Date(y, m - 1 + delta, 1);
-    this.viewMonth = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
-    this.render();
+    this.billMonth = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+    this.render({ skipAnim: true });   // 切月不重播动画，避免闪烁
   }
 };
 
