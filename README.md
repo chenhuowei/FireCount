@@ -35,6 +35,48 @@ npm install && npm test
 
 ---
 
+## 开发与构建环境
+
+### 开发（改代码 / 预览 / 测试）
+
+无任何构建步骤，编辑即生效：
+
+| 工具 | 版本要求 | 用途 |
+|---|---|---|
+| 任意编辑器 | — | 改 js/css/html（原生 JS，无框架） |
+| Node.js | ≥ 18 | 本地预览服务器与自动化测试 |
+| npm（jsdom） | 仅测试用 | `npm install && npm test`（178 项） |
+
+```bash
+npm run serve   # 本地预览 http://127.0.0.1:8765
+npm test        # 全量自动化测试
+```
+
+### 打包 APK（Android）
+
+| 工具 | 版本要求 | 说明 |
+|---|---|---|
+| JDK | 8+（实测 17 可用） | javac / jar / keytool，需在 PATH |
+| Android build-tools | **34** | aapt2 / d8 / zipalign / apksigner |
+| Android platform | **android-34**（android.jar） | 编译期 API |
+| Git Bash | — | Windows 下运行构建脚本 |
+
+> 官方工具下载与详细步骤（约 120MB）见 [android/BUILD.md](android/BUILD.md)。
+
+```bash
+cd android
+ANDROID_BT=<build-tools-34 目录> ANDROID_JAR=<android.jar 路径> KS_PASS=<签名密码> ./build.sh
+```
+
+产物：`小伙记账-<版本>.apk`。首次构建自动生成签名密钥库（**务必自行备份**，丢失后只能卸载重装）。
+
+### 图标
+
+`android/genicon.js` 为图标生成器（纯 Node 无依赖，SDF 像素级绘制），
+修改设计后运行：`node android/genicon.js android/app/res` 重新生成全套密度图标。
+
+---
+
 ## 功能总览
 
 ### 界面布局
