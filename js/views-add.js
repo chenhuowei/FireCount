@@ -28,19 +28,21 @@ const ViewsAdd = {
       '<button class="pick-chip add" data-addtag>＋</button></div>';
   },
   /* 标签管理：新增 / 删除（删除同时从账单剥离），S 传入时自动勾选新增标签 */
+  /* 标签管理：chip 点选（明显选中态）+ 添加 + 删除入口 */
   tagManagerSheet(S, onChange) {
-    const sh = UI.sheet({ title: "标签管理", subLevel: 1 });
+    const sh = UI.sheet({ title: "标签", subLevel: 1 });
     const render = () => {
       const tags = Store.tags();
+      const sel = (S && S.tags) ? S.tags : [];
       sh.body.innerHTML =
+        (tags.length
+          ? '<div class="tag-pick-wrap">' + tags.map(t =>
+              '<button class="tag-pick' + (sel.includes(t) ? " on" : "") + '" data-toggletag="' + UI.escape(t) + '">' +
+              '<span class="tp-check">' + (sel.includes(t) ? "✓" : "") + "</span>#" + UI.escape(t) +
+              '<span class="tp-usage">' + Store.tagUsage(t) + "</span></button>").join("") + "</div>"
+          : '<div class="empty" style="padding:20px 0"><div class="t1">还没有标签，在下方添加</div></div>') +
         '<div class="form-row" style="border:none"><input type="text" id="tgNew" maxlength="8" placeholder="新标签名称（8 字以内）" style="text-align:left">' +
-        '<button class="btn btn-primary" id="tgAdd" style="padding:8px 16px;flex:none">添加</button></div>' +
-        (tags.length ? '<div class="card" style="margin-top:4px">' + tags.map(t =>
-          '<div class="cell"><div class="cell-main"><div class="cell-title">#' + UI.escape(t) + "</div>" +
-          '<div class="cell-desc">' + Store.tagUsage(t) + " 笔账单使用" + (S && S.tags && S.tags.includes(t) ? " · 本次已选" : "") + "</div></div>" +
-          '<button class="txt-btn" data-deltag="' + UI.escape(t) + '" style="color:var(--danger)">删除</button></div>'
-        ).join("") + "</div>"
-          : '<div class="empty" style="padding:26px"><div class="t1">还没有标签</div></div>');
+        '<button class="btn btn-primary" id="tgAdd" style="padding:8px 16px;flex:none">添加</button></div>';
       UI.$("#tgAdd", sh.body).onclick = () => {
         const v = UI.$("#tgNew", sh.body).value.trim();
         if (!v) { UI.toast("请输入标签名称"); return; }
@@ -49,6 +51,35 @@ const ViewsAdd = {
         UI.toast("已添加 #" + v);
         render(); onChange && onChange();
       };
+      // 点 chip 切换选中（明显高亮）
+      sh.body.querySelectorAll("[data-toggletag]").forEach(el => el.onclick = () => {
+        const t = el.dataset.toggletag;
+        const i = sel.indexOf(t);
+        if (i >= 0) S.tags.splice(i, 1); else S.tags.push(t);
+        el.classList.toggle("on", sel.includes(t));
+        el.querySelector(".tp-check").textContent = sel.includes(t) ? "✓" : "";
+        onChange && onChange();
+      });
+    };
+    render();
+    sh.foot.innerHTML = '<button class="btn btn-ghost btn-block" id="tgManage">删除标签…</button>';
+    UI.$("#tgManage", sh.foot).onclick = () => {
+      ViewsAdd.tagDeleteSheet(S, () => { render(); onChange && onChange(); });
+    };
+  },
+
+  /* 标签删除弹层（列表 + 独立删除按钮，level 2 叠在标签选择上） */
+  tagDeleteSheet(S, onChange) {
+    const sh = UI.sheet({ title: "删除标签", subLevel: 2 });
+    const render = () => {
+      const tags = Store.tags();
+      sh.body.innerHTML = tags.length
+        ? tags.map(t =>
+            '<div class="cell"><div class="cell-main"><div class="cell-title">#' + UI.escape(t) + "</div>" +
+            '<div class="cell-desc">' + Store.tagUsage(t) + " 笔账单使用</div></div>" +
+            '<button class="txt-btn" data-deltag="' + UI.escape(t) + '" style="color:var(--danger)">删除</button></div>'
+          ).join("")
+        : '<div class="empty" style="padding:26px"><div class="t1">还没有标签</div></div>';
       sh.body.querySelectorAll("[data-deltag]").forEach(b => b.onclick = () => {
         const t = b.dataset.deltag;
         const used = Store.tagUsage(t);
@@ -60,7 +91,7 @@ const ViewsAdd = {
           if (!ok) return;
           Store.deleteTag(t);
           if (S && S.tags) S.tags = S.tags.filter(x => x !== t);
-          UI.toast("已删除"); render(); onChange && onChange();
+          render(); onChange && onChange();
         });
       });
     };

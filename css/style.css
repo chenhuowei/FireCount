@@ -696,3 +696,20 @@ canvas.chart { width: 100%; display: block; }
   background: var(--brand-soft, #FFF1E8);
   font-weight: 600;
 }
+
+/* ---------- 标签点选（明显选中态） ---------- */
+.tag-pick-wrap { display: flex; flex-wrap: wrap; gap: 8px; padding: 6px 0 12px; }
+.tag-pick {
+  display: inline-flex; align-items: center; gap: 4px;
+  border: 1.5px solid var(--line); background: var(--card); border-radius: 16px;
+  padding: 8px 14px; font-size: 14px; color: var(--text-2);
+  cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none;
+}
+.tag-pick .tp-check { color: var(--brand); font-weight: 700; width: 0; overflow: hidden; transition: width .12s; }
+.tag-pick.on {
+  border-color: var(--brand); background: var(--brand-soft, #FFF1E8);
+  color: var(--brand); font-weight: 700;
+}
+.tag-pick.on .tp-check { width: auto; }
+.tag-pick .tp-usage { font-size: 10.5px; color: var(--text-3); font-weight: 400; }
+.tag-pick.on .tp-usage { color: var(--brand); opacity: .75; }
