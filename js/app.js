@@ -20,6 +20,7 @@ const App = {
     books:      { render: (h, m, p) => ViewsMine.renderBooks(h, m) },
     budget:     { render: (h, m, p) => ViewsMine.renderBudget(h, m) },
     categories: { render: (h, m, p) => ViewsMine.renderCategories(h, m) },
+    tags:       { render: (h, m, p) => ViewsMine.renderTags(h, m) },
     accountDetail: { render: (h, m, p) => ViewsWallet.renderDetail(h, m, p) }
   },
 

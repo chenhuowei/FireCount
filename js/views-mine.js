@@ -27,6 +27,7 @@ const ViewsMine = {
         cell("cloud", "WebDAV 云备份", webdavDesc(), "webdav") +
         cell("budget", "预算设置", budgetDesc(), "budget") +
         cell("tag", "分类管理", "支出 " + Store.categories("expense").length + " · 收入 " + Store.categories("income").length, "categories") +
+        cell("tag2", "标签管理", Store.tags().length + " 个标签", "tags") +
       "</div>" +
       '<div class="card">' +
         cell("export", "数据导出", "导出 CSV / JSON 备份", "export") +
@@ -62,7 +63,7 @@ const ViewsMine = {
       if (go === "wipe") { ViewsMine.wipeSheet(); return; }
       if (go === "wallet") { App.go("wallet"); return; }
       if (go === "bills") { App.go("bills"); return; }
-      if (go === "books" || go === "budget" || go === "categories") App.go(go);
+      if (go === "books" || go === "budget" || go === "categories" || go === "tags") App.go(go);
     });
 
     function stat(v, k) { return '<div class="st"><div class="k">' + k + '</div><div class="v">' + v + "</div></div>"; }
@@ -301,6 +302,51 @@ const ViewsMine = {
     renderList();
     UI.$("[data-back]", header).onclick = () => App.back();
     UI.$("#ctAdd").onclick = () => ViewsAdd.categoryEditor(null, () => renderList());
+  },
+
+  /* ================= 标签管理（新增 / 删除） ================= */
+  renderTags(header, main) {
+    header.classList.remove("hidden");
+    header.innerHTML =
+      '<div class="hd"><button class="hd-btn" data-back>' + UI.svg("back") + '</button><div class="hd-title">标签管理</div>' +
+      '<div class="hd-sub"><button class="txt-btn" id="tgAdd" style="color:var(--brand)">＋添加</button></div></div>';
+    const renderList = () => {
+      const tags = Store.tags();
+      main.innerHTML = '<div class="page page-anim">' +
+        '<div class="card">' + (tags.length ? tags.map(t =>
+          '<div class="cell"><div class="cell-main"><div class="cell-title">#' + UI.escape(t) + "</div>" +
+          '<div class="cell-desc">' + Store.tagUsage(t) + " 笔账单使用</div></div>" +
+          '<button class="txt-btn" data-deltag="' + UI.escape(t) + '" style="color:var(--danger)">删除</button></div>'
+        ).join("") : '<div class="empty" style="padding:26px"><div class="t1">还没有标签</div><div class="t2" style="font-size:11px;color:var(--text-3)">点右上角＋添加</div></div>') + "</div>" +
+        '<div class="sec-title">删除标签会同时从使用它的账单中移除该标记</div></div>';
+      UI.$("[data-back]", header).onclick = () => App.back();
+      UI.$("#tgAdd").onclick = () => {
+        const sh = UI.sheet({ title: "添加标签", subLevel: 1 });
+        sh.body.innerHTML = '<div class="form-row" style="border:none"><input type="text" id="ntInput" maxlength="8" placeholder="标签名称（8 字以内）" style="text-align:left"></div>';
+        sh.foot.innerHTML = '<button class="btn btn-primary btn-block" id="ntOk">添加</button>';
+        setTimeout(() => { const i = UI.$("#ntInput", sh.body); if (i) i.focus(); }, 80);
+        UI.$("#ntOk", sh.foot).onclick = () => {
+          const v = UI.$("#ntInput", sh.body).value.trim();
+          if (!v) { UI.toast("请输入标签名称"); return; }
+          if (!Store.addTag(v)) { UI.toast("标签已存在"); return; }
+          sh.close(); renderList(); UI.toast("已添加 #" + v);
+        };
+      };
+      main.querySelectorAll("[data-deltag]").forEach(b => b.onclick = () => {
+        const t = b.dataset.deltag;
+        const used = Store.tagUsage(t);
+        UI.confirm({
+          title: "删除标签",
+          body: "将删除标签 #" + UI.escape(t) + (used ? "，并从 " + used + " 笔账单中移除该标记" : "") + "。",
+          ok: "删除", danger: true
+        }).then(ok => {
+          if (!ok) return;
+          Store.deleteTag(t);
+          renderList(); UI.toast("已删除");
+        });
+      });
+    };
+    renderList();
   },
 
   /* ================= 导出 / 导入 / 成员 / 币种 ================= */
