@@ -596,7 +596,7 @@ canvas.chart { width: 100%; display: block; }
   display: flex; flex-direction: column;
 }
 .jy-sheet-body .jy-amount-zone { flex: none; }
-.jy-sheet-body .jy-transfer-box { flex: none; }
+.jy-sheet-body .jy-transfer-box { flex: 1; min-height: 0; }
 /* 分类宫格：占据剩余空间，内部滚动 */
 .jy-sheet-body .jy-grid-wrap {
   flex: 1; min-height: 0;
