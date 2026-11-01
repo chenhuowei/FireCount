@@ -520,7 +520,7 @@ canvas.chart { width: 100%; display: block; }
 .jy-quickbar .qb span { max-width: 72px; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---------- 全量分类宫格（不分页） ---------- */
-.jy-grid-wrap { overflow-y: auto; max-height: 42vh; -webkit-overflow-scrolling: touch; }
+.jy-grid-wrap { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .jy-grid-pages { display: block; }
 .jy-grid-page.jy-grid-full {
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px 0;
