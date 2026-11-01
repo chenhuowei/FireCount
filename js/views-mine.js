@@ -57,7 +57,7 @@ const ViewsMine = {
       if (go === "webdav") { WebDAV.settingsSheet(); return; }
       if (go === "currency") { ViewsMine.currencySheet(); return; }
       if (go === "about") {
-        UI.toast("小伙记账 · FireCount v1.0.7", 2500);
+        UI.toast("小伙记账 · FireCount v1.0.8", 2500);
         return;
       }
       if (go === "wipe") { ViewsMine.wipeSheet(); return; }
