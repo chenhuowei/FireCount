@@ -2,9 +2,9 @@
  * 数据层：localStorage 持久化 + 业务计算
  * 数据模型对齐 APK 证据：
  *  - 多账本 Books（BooksManageActivity）
- *  - 账户 Account（AccountAddActivity / 信用卡 creditdetail_*）
+ *  - 账户（现金/储蓄卡/信用卡等）
  *  - 记录 Record（AddNewRecordActivity：支出/收入/转账）
- *  - 预算 Budget（BudgetActivity_v3：月总预算 + 分类预算）
+ *  - 预算（月总预算 + 分类预算）
  *  - 周期记账 Cycle（NoticeAddActivity 定期提醒）
  * ============================================================ */
 "use strict";
@@ -383,7 +383,7 @@ const Store = {
       return hay.includes(q);
     }).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 100);
   },
-  /* 记账天数（TheNumberOfTallyDayActivity 证据） */
+  /* 记账天数 */
   tallyDays() {
     const set = new Set(this.s.records.map(r => r.date.slice(0, 10)));
     set.add(new Date().toISOString().slice(0, 10));
@@ -392,7 +392,7 @@ const Store = {
     return Math.max(1, Math.floor((Date.now() - new Date(first + "T00:00:00").getTime()) / 86400000) + 1);
   },
 
-  /* ---------- 预算（BudgetActivity_v3 证据：总预算 + 分类预算） ---------- */
+  /* ---------- 预算（月总预算 + 分类预算） ---------- */
   budget(month) {
     return this.s.budgets[month] || { total: 0, perCategory: {} };
   },
@@ -441,8 +441,8 @@ const Store = {
     return "\uFEFF" + [head, ...rows].map(r => r.join(",")).join("\n");
   },
 
-  /* ---------- 口袋记账格式 CSV 导入 ----------
-   * 格式依据：口袋记账 v4.5.0 导出 Excel/CSV（表头：时间 / 账目分类 / 金额 / ...）
+  /* ---------- 口袋记账导出格式 CSV 导入 ----------
+   * 格式依据：口袋记账导出 Excel/CSV（表头：时间 / 账目分类 / 金额 / ...）
    * 金额：正数=收入，负数=支出；“余额变更”行跳过。
    * 也兼容本应用导出的 CSV（日期/类型/分类/金额/...）
    * 模式：append 合并（跳过 重复行）或 replace 覆盖当前账本账单
@@ -479,7 +479,7 @@ const Store = {
           cAcc = col(["账户"]), cMem = col(["成员"]), cBook = col(["账本"]), cTags = col(["标签"]);
     if (cTime < 0 || cAmt < 0) throw new Error("表头缺少 时间/金额 列");
 
-    // 导入分类名 → 图标键/分类名映射（覆盖口袋记账导出高频分类）
+    // 导入分类名 → 图标键/分类名映射（覆盖常见导出分类）
     const kdjzMap = {
       // 精确同名（默认分类已覆盖），仅保留跨名称的历史别名
       "零食": "cake", "水果": "shuiguolingshi", "衣服鞋包": "fushi", "房租": "jujia",

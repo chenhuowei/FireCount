@@ -1,8 +1,8 @@
 /* ============================================================
- * 我的页 + 子功能页（UserCenter 模块复刻）：
+ * 我的页 + 子功能页：
  *   多账本管理（Books）· 预算（Budget_v3 日/周/月三环 + 分类预算）
  *   分类管理（RecordtypeManager）
- *   数据导出/导入（DeriveData / DataBackUps）· 设置（主题/币种/成员）
+ *   数据导出/导入 · 设置（主题/币种/成员）
  * ============================================================ */
 "use strict";
 
@@ -40,7 +40,7 @@ const ViewsMine = {
         cell("info", "关于", "版本 1.0.6", "about") +
         cell("trash", "清空数据", "删除全部账单与设置", "wipe") +
       "</div>" +
-      '<div style="text-align:center;color:var(--text-3);font-size:11px;padding:6px 0 20px">小伙记账 · 功能复刻版（纯本地运行）</div></div>';
+      '<div style="text-align:center;color:var(--text-3);font-size:11px;padding:6px 0 20px">小伙记账 · 纯本地记账（数据仅存于本机）</div></div>';
 
     UI.$$(".cell[data-go]", main).forEach(el => el.onclick = () => {
       const go = el.dataset.go;

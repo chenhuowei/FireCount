@@ -1,9 +1,9 @@
 /* ============================================================
- * 钱包页（modules.Account 复刻）：
+ * 钱包页：
  *   净资产总览（资产 vs 负债）/ 账户分组列表（钱包 Tab）
- *   账户详情（NewAccountDetailActivity + 信用卡 creditdetail_* 字段）
- *   添加/编辑账户（AccountAddActivity + AccountTypeSelectActivity）
- *   转账（AccountTransferActivity）
+ *   账户详情（含信用卡额度/账单日/还款日）
+ *   添加/编辑账户
+ *   转账
  * ============================================================ */
 "use strict";
 
@@ -136,7 +136,7 @@ const ViewsWallet = {
       '<div class="bi-amt ' + cls + '" style="font-size:15px"><small>' + cur + "</small>" + amt + "</div></div></div>";
   },
 
-  /* ---------- 添加 / 编辑账户（AccountTypeSelectActivity 复刻） ---------- */
+  /* ---------- 添加 / 编辑账户 ---------- */
   addAccountSheet(editAcc, cb) {
     const editing = !!editAcc;
     const sh = UI.sheet({ title: editing ? "编辑账户" : "添加账户" });
@@ -206,7 +206,7 @@ const ViewsWallet = {
     }
   },
 
-  /* ---------- 转账（AccountTransferActivity 复刻；账户平铺直选） ---------- */
+  /* ---------- 转账 ---------- */
   transferSheet() {
     const sh = UI.sheet({ title: "账户转账" });
     const S = {

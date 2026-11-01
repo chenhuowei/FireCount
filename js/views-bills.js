@@ -1,8 +1,8 @@
 /* ============================================================
- * 明细页（records_line_layout.xml 复刻）：
+ * 明细页：
  *   账本切换 / 月份切换 / 账户筛选 / 日历 / 搜索
  *   按天分组的账单列表 + 左滑编辑删除（bill_list_btn_bianji/shanchu 证据）
- * 附：日历视图（CalendarRecord）与 搜索（SearchRecordActivity）
+ * 附：日历视图 与 搜索
  * ============================================================ */
 "use strict";
 
@@ -186,7 +186,7 @@ const ViewsBills = {
   }
 };
 
-/* ================= 日历视图（CalendarRecord 模块复刻） ================= */
+/* ================= 日历视图 ================= */
 const ViewsCalendar = {
   render(header, main) {
     const m = App.billMonth;
@@ -242,7 +242,7 @@ const ViewsCalendar = {
   }
 };
 
-/* ================= 搜索（SearchRecordActivity 复刻） ================= */
+/* ================= 搜索 ================= */
 const ViewsSearch = {
   render(header, main) {
     header.classList.remove("hidden");
