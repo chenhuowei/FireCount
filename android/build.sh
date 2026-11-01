@@ -33,7 +33,7 @@ echo "[3/7] 编译资源与清单"
 
 echo "[4/7] 编译 Java → dex"
 javac -source 8 -target 8 -encoding UTF-8 -classpath "$AJAR" -d build/classes \
-  app/java/com/fircount/MainActivity.java
+  app/java/com/firecount/MainActivity.java
 jar cf build/classes-bundle.jar -C build/classes .
 printf '@echo off\r\ncall "%s\\d8.bat" --release --lib "%s" --output "%s\\build\\dexout" "%s\\build\\classes-bundle.jar"\r\nif errorlevel 1 exit /b 1\r\n' \
   "$BTW" "$(cygpath -w "$AJAR")" "$ROOTW" "$ROOTW" > build/_d8.bat
@@ -47,12 +47,12 @@ echo "[6/7] 对齐"
 "$BT/zipalign" -f 4 build/base.apk build/aligned.apk
 
 echo "[7/7] 签名"
-[ -f "$KS" ] || keytool -genkeypair -v -keystore "$KS" -alias fircount -keyalg RSA -keysize 2048 \
+[ -f "$KS" ] || keytool -genkeypair -v -keystore "$KS" -alias firecount -keyalg RSA -keysize 2048 \
   -validity 10950 -storepass "$KSPASS" -keypass "$KSPASS" \
   -dname "CN=XiaoHu, OU=Dev, O=Personal, L=Beijing, C=CN"
-printf '@echo off\r\ncall "%s\\apksigner.bat" sign --ks "%s" --ks-pass pass:%s --key-pass pass:%s --ks-key-alias fircount --out "%s\\build\\fircount-signed.apk" "%s\\build\\aligned.apk"\r\nif errorlevel 1 exit /b 1\r\ncall "%s\\apksigner.bat" verify "%s\\build\\fircount-signed.apk"\r\n' \
+printf '@echo off\r\ncall "%s\\apksigner.bat" sign --ks "%s" --ks-pass pass:%s --key-pass pass:%s --ks-key-alias firecount --out "%s\\build\\firecount-signed.apk" "%s\\build\\aligned.apk"\r\nif errorlevel 1 exit /b 1\r\ncall "%s\\apksigner.bat" verify "%s\\build\\firecount-signed.apk"\r\n' \
   "$BTW" "$ROOTW\\$KS" "$KSPASS" "$KSPASS" "$ROOTW" "$ROOTW" "$BTW" "$ROOTW" > build/_sign.bat
 cmd //c "$(cygpath -w "$PWD")\\build\\_sign.bat"
 
-cp build/fircount-signed.apk "../小伙记账-v$VN.apk"
+cp build/firecount-signed.apk "../小伙记账-v$VN.apk"
 echo "完成: $(dirname "$PWD")/小伙记账-v$VN.apk"

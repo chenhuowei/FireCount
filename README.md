@@ -1,4 +1,4 @@
-# 小伙记账 · FirCount
+# 小伙记账 · FireCount
 
 一款参考口袋记账核心功能实现的个人记账应用——零框架、零构建，原生 JavaScript，浏览器直接运行，亦可一键打包为 Android APK。
 
@@ -10,9 +10,9 @@
 
 | 项 | 值 |
 |---|---|
-| 项目代号 | FirCount |
+| 项目代号 | FireCount |
 | 应用名 | 小伙记账 |
-| Android 包名 | `com.fircount` · versionCode 6 · versionName 1.0.6 |
+| Android 包名 | `com.firecount` · versionCode 6 · versionName 1.0.6 |
 | 环境 | minSdk 24 / targetSdk 34 |
 | 技术栈 | 原生 JavaScript SPA（无框架、无构建步骤，约 4000 行）+ 单 Activity WebView 壳 |
 | 运行时依赖 | 仅 SheetJS mini 0.20.3（XLSX 解析，Apache-2.0） |
@@ -211,7 +211,7 @@ firecount/
 │   └── app/
 │       ├── AndroidManifest.xml
 │       ├── res/xml/shortcuts.xml
-│       └── java/com/fircount/MainActivity.java   # WebView 壳：
+│       └── java/com/firecount/MainActivity.java   # WebView 壳：
 │           · SQLite 桥（异步单线程写入队列 + head_bak 备份槽）
 │           · 指纹认证桥（FingerprintManager + CancellationSignal）
 │           · WebDAV HTTP 代理（反射支持 PROPFIND/MKCOL，标准 UA）
@@ -256,7 +256,7 @@ npm test        # 全量 178 项（静态审查 + 核心/UI/APK/资源五套）
 | 版本 | 要点 |
 |---|---|
 | 1.0.6 | 支出分类与用户导出数据完全一致（24 项）+ 自动迁移；底栏 报表/账单/我的（账单页激活变＋记账）；报表四时间范围（月/年/自定义/全部+滚轮直选）；年月滚轮选择器（双列，2000~2100）；弹层 level 分级（防叠加、父子层互不干扰）；XLSX/CSV 导入；应用锁 PIN+指纹；坚果云 WebDAV 全链路（自动备份 5 秒可配、保留份数 1~5 可输入、防无限循环、防配置丢失三重兜底）；记账页固定布局（24 类宫格+快捷条常驻+顶栏重构）；我的页卡片式统计；应用图标（火焰账本）；清空数据确认码且保留同步配置；移除周期记账与扫码按钮 |
-| 1.0.0 ~ 1.0.5 | 核心记账功能（记账/账本/账户/报表/预算/搜索/标签/附件/深色模式）；包名定稿 `com.fircount` |
+| 1.0.0 ~ 1.0.5 | 核心记账功能（记账/账本/账户/报表/预算/搜索/标签/附件/深色模式）；包名定稿 `com.firecount` |
 
 ---
 

@@ -1,4 +1,4 @@
-package com.fircount;
+package com.firecount;
 
 import android.app.Activity;
 import android.content.ContentValues;
@@ -461,7 +461,7 @@ public class MainActivity extends Activity {
                     }
                     // 部分服务器 WAF 对无 UA 的请求直接 403，补标准 UA
                     if (conn.getRequestProperty("User-Agent") == null) {
-                        conn.setRequestProperty("User-Agent", "FirCount/1.3 (Android)");
+                        conn.setRequestProperty("User-Agent", "FireCount/1.3 (Android)");
                     }
                     // PROPFIND/MKCOL 也可能带 body（propfind 请求体），需要 doOutput 支援
                     if (body != null && !body.isEmpty() && !"GET".equals(method) && !"HEAD".equals(method)) {
@@ -625,10 +625,10 @@ public class MainActivity extends Activity {
     private void handleShortcutIntent(Intent intent) {
         if (intent == null || intent.getAction() == null) return;
         final String action = intent.getAction();
-        if (!"com.fircount.ACTION_QUICK_ADD".equals(action)
-                && !"com.fircount.ACTION_SYNC_NOW".equals(action)) return;
+        if (!"com.firecount.ACTION_QUICK_ADD".equals(action)
+                && !"com.firecount.ACTION_SYNC_NOW".equals(action)) return;
         intent.setAction(Intent.ACTION_MAIN); // 防止重建/切回重复触发
-        dispatchShortcut("com.fircount.ACTION_QUICK_ADD".equals(action) ? "add" : "sync");
+        dispatchShortcut("com.firecount.ACTION_QUICK_ADD".equals(action) ? "add" : "sync");
     }
 
     private void dispatchShortcut(final String type) {

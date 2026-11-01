@@ -16,7 +16,7 @@ const suites = [
 
 let failed = [];
 console.log('\n' + '#'.repeat(70));
-console.log('# 小伙记账 · FirCount 全量自动化测试');
+console.log('# 小伙记账 · FireCount 全量自动化测试');
 console.log('# ' + new Date().toLocaleString('zh-CN'));
 console.log('#'.repeat(70));
 

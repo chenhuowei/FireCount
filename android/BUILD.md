@@ -23,7 +23,7 @@ KS_PASS=你的签名密码 \
 
 产物：仓库根目录 `小伙记账-<版本>.apk`（versionCode/versionName 可用 `VC=6 VN=1.0.6` 环境变量覆盖）。
 
-首次构建会自动生成签名密钥库 `android/fircount.keystore`（**已被 .gitignore 排除，请自行备份**；
+首次构建会自动生成签名密钥库 `android/firecount.keystore`（**已被 .gitignore 排除，请自行备份**；
 丢失后将无法覆盖升级安装，只能卸载重装）。升级安装需使用同一密钥库签名。
 
 ## 工程结构
@@ -31,7 +31,7 @@ KS_PASS=你的签名密码 \
 ```
 android/
 ├── app/
-│   ├── AndroidManifest.xml       # 包名 com.fircount · 小伙记账 · 预测性返回
+│   ├── AndroidManifest.xml       # 包名 com.firecount · 小伙记账 · 预测性返回
 │   ├── java/.../MainActivity.java # WebView 壳：SQLite 桥 / 返回桥 / 文件选择器 / 导出桥
 │   └── res/mipmap-*/             # 各密度启动图标
 ├── genicon.js                    # 图标生成器（记账本+¥，纯 Node 无依赖）

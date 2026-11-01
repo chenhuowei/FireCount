@@ -1,8 +1,8 @@
 {
-  "name": "fircount",
+  "name": "firecount",
   "version": "1.0.5",
   "private": true,
-  "description": "小伙记账 · FirCount —— 零依赖记账 SPA + Android WebView 壳",
+  "description": "小伙记账 · FireCount —— 零依赖记账 SPA + Android WebView 壳",
   "scripts": {
     "serve": "node tests/serve.js",
     "test": "node tests/run-all.js",
