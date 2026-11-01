@@ -397,13 +397,16 @@ const ViewsAdd = {
   /* 计算器上方单行快捷条：月日 / 账户 / 成员 / 标签 / 附件 / 备注 */
   quickBarHTML(S) {
     const transfer = S.mode === "transfer";
+    // 有值高亮：该快捷按钮对应的数据存在/非默认 → 橙色（含图标与文字）
+    const isToday = S.date.slice(0, 10) === fmt.YMD(new Date());
+    const accName = (Store.account(S.accountId) || { name: "现金" }).name;
     return '<div class="jy-quickbar">' +
-      '<button class="qb" data-qb="date">' + UI.svg("calendar", 14) + '<span id="qbDate">' + fmt.monthDay(S.date.slice(0, 10)) + '</span></button>' +
-      (transfer ? "" : '<button class="qb" data-qb="acc"><span>' + UI.escape((Store.account(S.accountId) || { name: "现金" }).name) + '</span></button>') +
-      (transfer ? "" : '<button class="qb" data-qb="member"><span>' + UI.escape(S.member || "我") + '</span></button>') +
-      '<button class="qb" data-qb="tag" title="标签">' + UI.svg("tag", 16) + (S.tags.length ? '<i class="qb-badge">' + S.tags.length + '</i>' : '') + '</button>' +
-      '<button class="qb" data-qb="photo" title="附件">' + UI.svg("photo", 16) + (S.photos.length ? '<i class="qb-badge">' + S.photos.length + '</i>' : '') + '</button>' +
-      '<button class="qb" data-qb="note" title="备注">' + UI.svg("edit", 16) + (S.note ? '<i class="qb-dot"></i>' : '') + '</button>' +
+      '<button class="qb' + (!isToday ? " has-val" : "") + '" data-qb="date">' + UI.svg("calendar", 14) + '<span id="qbDate">' + fmt.monthDay(S.date.slice(0, 10)) + '</span></button>' +
+      (transfer ? "" : '<button class="qb has-val" data-qb="acc"><span>' + UI.escape(accName) + '</span></button>') +
+      (transfer ? "" : '<button class="qb has-val" data-qb="member"><span>' + UI.escape(S.member || "我") + '</span></button>') +
+      '<button class="qb' + (S.tags.length ? " has-val" : "") + '" data-qb="tag" title="标签">' + UI.svg("tag", 16) + (S.tags.length ? '<i class="qb-badge">' + S.tags.length + '</i>' : '') + '</button>' +
+      '<button class="qb' + (S.photos.length ? " has-val" : "") + '" data-qb="photo" title="附件">' + UI.svg("photo", 16) + (S.photos.length ? '<i class="qb-badge">' + S.photos.length + '</i>' : '') + '</button>' +
+      '<button class="qb' + (S.note ? " has-val" : "") + '" data-qb="note" title="备注">' + UI.svg("edit", 16) + (S.note ? '<i class="qb-dot"></i>' : '') + '</button>' +
       '</div>';
   },
 

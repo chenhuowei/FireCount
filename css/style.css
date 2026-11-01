@@ -689,3 +689,10 @@ canvas.chart { width: 100%; display: block; }
 }
 .jy-sheet-body .jy-formula:empty { display: none; }
 .jy-sheet-body .jy-quickbar { border-bottom: none; padding: 10px 2px; }
+
+/* ---------- 快捷条：有值高亮（橙字） ---------- */
+.jy-quickbar .qb.has-val {
+  color: var(--brand); border-color: var(--brand);
+  background: var(--brand-soft, #FFF1E8);
+  font-weight: 600;
+}
