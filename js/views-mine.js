@@ -15,7 +15,7 @@ const ViewsMine = {
     main.innerHTML =
       '<div class="page page-anim">' +
       '<div class="me-hero">' +
-        '<div class="me-avatar"><img src="img/appicon.png" alt="app"></div>' +
+        
         '<div style="flex:1"><div class="me-name">' + DATA.appName + ' · 我的账本</div>' +
           '<div style="font-size:12px;color:var(--text-3);margin-top:4px">已坚持记账 ' + days + ' 天 · 累计 ' + total + " 笔账单</div>" +
           '<div class="me-stats">' +

@@ -416,11 +416,6 @@ body[data-theme="deep"] .bill-top { background: linear-gradient(150deg, #D95E12,
 
 /* ---------- 我的 ---------- */
 .me-hero { display: flex; align-items: center; gap: 14px; padding: 22px 16px 18px; }
-.me-avatar {
-  width: 62px; height: 62px; border-radius: 50%; overflow: hidden; flex: none;
-  box-shadow: 0 4px 12px rgba(255, 122, 46, .3);
-}
-.me-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .me-name { font-size: 18px; font-weight: 700; }
 .me-stats { display: flex; gap: 8px; margin-top: 8px; }
 .me-stats .st { background: var(--card); border-radius: 10px; padding: 7px 12px; text-align: center; box-shadow: var(--shadow); }

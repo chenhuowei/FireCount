@@ -21,7 +21,7 @@ BTW=$(cygpath -w "$BT"); ROOTW=$(cygpath -w "$PWD")
 rm -rf build && mkdir -p build/classes build/dexout app/assets/www
 
 echo "[1/7] 同步 Web 资产"
-cp -r ../index.html ../css ../js ../img app/assets/www/
+cp -r ../index.html ../css ../js app/assets/www/
 
 echo "[2/7] 生成图标（如无 res 可先生成）"
 [ -d app/res ] || { node genicon.js app/res; }

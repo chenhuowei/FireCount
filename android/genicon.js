@@ -108,8 +108,8 @@ function makeIcon(S) {
 
     // 2) 火焰：从账本中缝上方升起，与账本融为一体（先画火焰，账本压住下沿）
     //    外焰（焦糖橙）：水滴形 = 大圆 + 上尖。用两段圆弧近似。
-    const fx = 96 * u, fyBase = 92 * u;             // 火焰中轴，底部埋进账本
-    const fW = 44 * u, fH = 88 * u;                // 外焰宽/高
+    const fx = 96 * u, fyBase = 88 * u;             // 火焰中轴，底部埋进账本
+    const fW = 50 * u, fH = 96 * u;                // 外焰宽/高
     // 外焰形状：底部半圆(r=fW/2) + 上方收尖（两翼贝塞尔近似：宽度随高度余弦收窄）
     const outerFlame = (() => {
       const dy = fyBase - y;                        // 相对焰底向上
@@ -139,8 +139,8 @@ function makeIcon(S) {
     if (innerFlame > 0) mix(px, flameGold, innerFlame);
 
     // 3) 账本：米白翻开双页，页沿略高于火焰底，使火焰像从账本里升起
-    const pageTop = 86 * u, pageBot = 160 * u, gap = 5 * u;
-    const L0 = 26 * u, L1 = 94 * u - gap, R0 = 98 * u + gap, R1 = 166 * u;
+    const pageTop = 80 * u, pageBot = 170 * u, gap = 5 * u;
+    const L0 = 22 * u, L1 = 94 * u - gap, R0 = 98 * u + gap, R1 = 170 * u;
     // 焰底被账本上沿裁掉一点：账本先画，火焰底部自然被覆盖
     const pgL = rrCover(x, y, L0, pageTop, L1, pageBot, 10 * u);
     const pgR = rrCover(x, y, R0, pageTop, R1, pageBot, 10 * u);
@@ -173,27 +173,6 @@ function makeIcon(S) {
     const core = circCover(x, y, fx, coreCy, coreR);
     if (core > 0 && y < pageTop + 6 * u) mix(px, flameCore, core);
 
-    // 6) 文字「小伙记账」：暖白，账本下方。SDF 画 4 个简笔汉字过于复杂，
-    //    用 4 个等宽圆角块模拟文字条（品牌感占位），或用小号 ¥ 徽章保持记账语义。
-    //    选择：底部暖白横条带 + 中央 ¥，与火焰/账本构成三角视觉。
-    const tx0 = 46 * u, tx1 = 146 * u, ty0 = 170 * u, ty1 = 182 * u;
-    const tx = rrCover(x, y, tx0, ty0, tx1, ty1, 6 * u);
-    if (tx > 0) mix(px, white, tx * 0.95);
-    const inTx = tx > 0.5;
-    if (inTx) {
-      // 迷你 ¥
-      const wx = 96 * u, wy = 176 * u, w = 2.6 * u;
-      const strokes = [
-        [wx - 4.5 * u, wy - 4.5 * u, wx, wy + 1 * u],
-        [wx + 4.5 * u, wy - 4.5 * u, wx, wy + 1 * u],
-        [wx, wy - 4.5 * u, wx, wy + 5 * u],
-        [wx - 4 * u, wy + 0.5 * u, wx + 4 * u, wy + 0.5 * u],
-        [wx - 4 * u, wy + 3 * u, wx + 4 * u, wy + 3 * u]
-      ];
-      let yen = 0;
-      for (const st of strokes) yen = Math.max(yen, lineCover(x, y, st[0], st[1], st[2], st[3], w));
-      if (yen > 0) mix(px, flameDeep, yen);
-    }
 
     return [Math.round(px[0]), Math.round(px[1]), Math.round(px[2]), 255];
   });
