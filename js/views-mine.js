@@ -22,8 +22,9 @@ const ViewsMine = {
           "</div></div>" +
       "</div>" +
       '<div class="card">' +
-        cell("wallet", "钱包资产管理", walletDesc(), "wallet") +
+        cell("wallet", "资产管理", walletDesc(), "wallet") +
         cell("book", "多账本管理", "当前：" + UI.escape(Store.book().name), "books") +
+        cell("cloud", "WebDAV 云备份", webdavDesc(), "webdav") +
         cell("budget", "预算设置", budgetDesc(), "budget") +
         cell("tag", "分类管理", "支出 " + Store.categories("expense").length + " · 收入 " + Store.categories("income").length, "categories") +
       "</div>" +
@@ -33,7 +34,6 @@ const ViewsMine = {
         cell("theme", "深色模式", s.settings.theme === "deep" ? "已开启" : "已关闭", "themeToggle") +
         cell("user", "成员管理", s.settings.members.join(" / "), "members") +
         cell("lock", "应用锁", (s.settings.lock && s.settings.lock.enabled) ? "已开启" : "未开启", "applock") +
-        cell("cloud", "WebDAV 云备份", webdavDesc(), "webdav") +
         cell("budget", "币种设置", "当前符号 " + s.settings.currency, "currency") +
       "</div>" +
       '<div class="card">' +
@@ -74,7 +74,7 @@ const ViewsMine = {
     function walletDesc() {
       const w = Store.walletSummary();
       const t = w.net;
-      return "净资产 " + fmt.money(Math.abs(t)) + (t < 0 ? "（负债）" : "");
+      return "净资产 " + fmt.money(Math.abs(t)) + (t < 0 ? "（负债）" : "") + " · 含期初余额";
     }
     function budgetDesc() {
       const b = Store.budget(fmt.curMonth());

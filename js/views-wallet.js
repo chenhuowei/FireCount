@@ -11,7 +11,7 @@ const ViewsWallet = {
   render(header, main) {
     header.classList.remove("hidden");
     header.innerHTML =
-      '<div class="hd"><button class="hd-btn" data-back>' + UI.svg("back") + '</button><div class="hd-title">钱包资产管理</div>' +
+      '<div class="hd"><button class="hd-btn" data-back>' + UI.svg("back") + '</button><div class="hd-title">资产管理</div>' +
       '<div class="hd-sub"></div></div>';
     UI.$("[data-back]", header).onclick = () => App.back();
     const wl = Store.walletSummary();
@@ -22,7 +22,7 @@ const ViewsWallet = {
     main.innerHTML =
       '<div class="page page-anim">' +
       '<div class="card wl-hero">' +
-        '<div class="h">净资产（资产 − 负债）</div>' +
+        '<div class="h">净资产（资产 − 负债，含期初余额）</div>' +
         '<div class="v">' + cur + " " + fmt.money(wl.net) + "</div>" +
         '<div class="sub">' +
           '<div class="s"><div class="k">总资产</div><div class="n money-in">' + cur + " " + fmt.money(wl.asset) + '</div></div>' +
