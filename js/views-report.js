@@ -16,7 +16,7 @@ const ViewsReport = {
     const ym = m => m.getFullYear() + "-" + String(m.getMonth() + 1).padStart(2, "0");
     const ymd = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
     if (r.mode === "all") {
-      // 分母口径：第一笔账单日 ~ 今天
+      // 总天数口径：第一笔账单日 ~ 今天
       const all = Store.rangeRecords("0000-01-01", "9999-12-31");
       const ds = all.map(x => x.date.slice(0, 10)).sort();
       const first = ds[0] || ymd(now);
@@ -200,7 +200,7 @@ const ViewsReport = {
       "</div>";
 
     host.innerHTML = html;
-    // 记账天数点击：显示分子/分母的起止时间
+    // 记账天数点击：显示记账天数与总天数的起止时间
     const daysEl = UI.$("#kpiDays");
     if (daysEl) daysEl.onclick = () => {
       const sd = this.range.mode === "all"
@@ -209,13 +209,13 @@ const ViewsReport = {
         ? (R.spanEnd || fmt.YMD(new Date())) : R.end;
       UI.sheet({ title: "记账天数说明", subLevel: 1 }).body.innerHTML =
         '<div class="days-note">' +
-        '<div class="dn-row"><span class="dn-k">分子（记账天数）</span><span class="dn-v">' + dayCount + ' 天</span></div>' +
+        '<div class="dn-row"><span class="dn-k">记账天数</span><span class="dn-v">' + dayCount + ' 天</span></div>' +
         '<div class="dn-row"><span class="dn-k">　└ 从</span><span class="dn-v">' + (daySet ? [...daySet].sort()[0] : R.start) + '</span></div>' +
         '<div class="dn-row"><span class="dn-k">　└ 到</span><span class="dn-v">' + (daySet ? [...daySet].sort().pop() : R.end) + '</span></div>' +
-        '<div class="dn-row"><span class="dn-k">分母（总天数）</span><span class="dn-v">' + spanDays + ' 天</span></div>' +
+        '<div class="dn-row"><span class="dn-k">总天数</span><span class="dn-v">' + spanDays + ' 天</span></div>' +
         '<div class="dn-row"><span class="dn-k">　└ 从</span><span class="dn-v">' + sd + '</span></div>' +
         '<div class="dn-row"><span class="dn-k">　└ 到</span><span class="dn-v">' + ed + '</span></div>' +
-        '<div class="dn-tip">分子 = 该期间内有账单的天数；分母 = 该期间的总天数</div>' +
+        '<div class="dn-tip">记账天数 = 该期间内有账单的天数；总天数 = 该期间的总天数</div>' +
         '</div>';
     };
     Charts.pie(UI.$("#rpPie"), pieEntries);
