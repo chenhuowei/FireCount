@@ -62,41 +62,8 @@ const ViewsAdd = {
       });
     };
     render();
-    sh.foot.innerHTML = '<button class="btn btn-ghost btn-block" id="tgManage">删除标签…</button>';
-    UI.$("#tgManage", sh.foot).onclick = () => {
-      ViewsAdd.tagDeleteSheet(S, () => { render(); onChange && onChange(); });
-    };
   },
 
-  /* 标签删除弹层（列表 + 独立删除按钮，level 2 叠在标签选择上） */
-  tagDeleteSheet(S, onChange) {
-    const sh = UI.sheet({ title: "删除标签", subLevel: 2 });
-    const render = () => {
-      const tags = Store.tags();
-      sh.body.innerHTML = tags.length
-        ? tags.map(t =>
-            '<div class="cell"><div class="cell-main"><div class="cell-title">#' + UI.escape(t) + "</div>" +
-            '<div class="cell-desc">' + Store.tagUsage(t) + " 笔账单使用</div></div>" +
-            '<button class="txt-btn" data-deltag="' + UI.escape(t) + '" style="color:var(--danger)">删除</button></div>'
-          ).join("")
-        : '<div class="empty" style="padding:26px"><div class="t1">还没有标签</div></div>';
-      sh.body.querySelectorAll("[data-deltag]").forEach(b => b.onclick = () => {
-        const t = b.dataset.deltag;
-        const used = Store.tagUsage(t);
-        UI.confirm({
-          title: "删除标签",
-          body: "将删除标签 #" + UI.escape(t) + (used ? "，并从 " + used + " 笔账单中移除该标记" : "") + "。",
-          ok: "删除", danger: true
-        }).then(ok => {
-          if (!ok) return;
-          Store.deleteTag(t);
-          if (S && S.tags) S.tags = S.tags.filter(x => x !== t);
-          render(); onChange && onChange();
-        });
-      });
-    };
-    render();
-  },
   /* 选中项自动滚动到可视区域中间 */
   centerChips(root) {
     UI.$$(".chip-scroll", root).forEach(w => {
