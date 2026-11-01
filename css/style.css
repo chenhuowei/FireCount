@@ -670,9 +670,12 @@ canvas.chart { width: 100%; display: block; }
 }
 .wheel-item.dis { opacity: .3; pointer-events: none; }
 
-/* ---------- 转账模式：金额行卡片化（与整体风格统一，消除分离感） ---------- */
+/* ---------- 转账模式：金额行与转账卡视觉连体 ---------- */
+.jy-sheet-body .jy-transfer-box { margin-bottom: 0; border-radius: 14px 14px 0 0; }
 .jy-sheet-body .jy-amount-row {
-  background: var(--card); border-radius: 14px; box-shadow: var(--shadow);
-  padding: 12px 14px; margin-top: 4px;
+  background: var(--card); padding: 12px 14px; margin-top: 0;
+  border-radius: 0 0 14px 14px; box-shadow: var(--shadow);
+  border-top: 1px solid var(--line);
 }
-.jy-sheet-body .jy-quickbar { border-bottom: none; padding-bottom: 10px; }
+.jy-sheet-body .jy-formula:empty { display: none; }
+.jy-sheet-body .jy-quickbar { border-bottom: none; padding: 10px 2px; }
