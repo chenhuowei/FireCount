@@ -98,24 +98,16 @@ const UI = {
   /* ---------- 底部弹层（支持堆叠：记一笔之上再开分类/账户选择器） ---------- */
   _sheets: [],
   sheet(opts) {
-    // 弹层管理：
-    //  · 普通弹层（默认）：单例——立即移除已打开的弹层，连点不叠加
-    //  · 子弹层（opts.sub:true）：叠在当前弹层之上（如记一笔上开标签管理），
-    //    不清除下层；但同层级的连续子弹层仍互相替换
-    if (opts.sub) {
-      // 子弹层：仅替换同为子弹层的实例，保留主层
-      const subs = UI._sheets.filter(x => x.sub);
-      for (const old of subs) {
-        try { old.node.remove(); } catch (e) {}
-        UI._sheets = UI._sheets.filter(x => x !== old);
-      }
-    } else {
-      // 主弹层：清除所有已打开弹层（含子弹层），重新开始
-      if (UI._sheets.length) {
-        for (const old of UI._sheets.splice(0)) {
-          try { old.node.remove(); } catch (e) {}
-        }
-      }
+    // 弹层管理（按 subLevel 分级）：
+    //  · level 0 主弹层（记一笔等）：打开时清除所有已打开弹层
+    //  · level 1 子弹层（记一笔上开标签/附件等）：叠在主层上，同级互斥
+    //  · level 2 孙弹层（子弹层上再开，如日期组件里选年月）：叠在子层上，同级互斥
+    // 规则：新弹层只替换 **同 level** 的旧弹层，更高 level 保留
+    const lvl = opts.subLevel || (opts.sub ? 1 : 0);
+    const same = UI._sheets.filter(x => x.level === lvl);
+    for (const old of same) {
+      try { old.node.remove(); } catch (e) {}
+      UI._sheets = UI._sheets.filter(x => x !== old);
     }
     const host = UI.$("#sheetHost");
     const node = document.createElement("div");
@@ -134,7 +126,7 @@ const UI = {
     host.appendChild(node);
     const wrap = node.querySelector(".sheet-wrap"), mask = node.querySelector(".sheet-mask"), sheet = node.querySelector(".sheet");
     requestAnimationFrame(() => { mask.style.opacity = 1; sheet.classList.add("on"); });
-    const entry = { node, sub: !!opts.sub };
+    const entry = { node, sub: lvl > 0, level: lvl };
     const close = () => {
       mask.style.opacity = 0; sheet.classList.remove("on");
       setTimeout(() => { node.remove(); }, 240);
@@ -161,7 +153,7 @@ const UI = {
   datePicker(current, cb) {
     const date = (current || fmt.YMD(new Date()) + " 12:00");
     let selD = date.slice(0, 10), selT = date.slice(11, 16) || "12:00";
-    const sh = UI.sheet({ title: "选择时间", sub: true });
+    const sh = UI.sheet({ title: "选择时间", subLevel: 1 });
     let viewY = +selD.slice(0, 4), viewM = +selD.slice(5, 7);
     const todayStr = fmt.YMD(new Date());
     sh.body.innerHTML =
@@ -213,7 +205,7 @@ const UI = {
     const MIN_Y = 2000, MAX_Y = 2100;   // 硬边界
     let winLo = Math.max(MIN_Y, defY - 5), winHi = Math.min(MAX_Y, defY + 5);  // 显示窗口
 
-    const sh = UI.sheet({ title: kind === "month" ? "选择年月" : "选择年份", sub: true });
+    const sh = UI.sheet({ title: kind === "month" ? "选择年月" : "选择年份", subLevel: 2 });
     sh.body.innerHTML =
       '<div class="wheel-wrap">' +
         (kind === "month" ? '<div class="wheel-col" id="wY"></div>' : '<div class="wheel-col wheel-only" id="wY"></div>') +

@@ -29,7 +29,7 @@ const ViewsAdd = {
   },
   /* 标签管理：新增 / 删除（删除同时从账单剥离），S 传入时自动勾选新增标签 */
   tagManagerSheet(S, onChange) {
-    const sh = UI.sheet({ title: "标签管理", sub: true });
+    const sh = UI.sheet({ title: "标签管理", subLevel: 1 });
     const render = () => {
       const tags = Store.tags();
       sh.body.innerHTML =
@@ -125,7 +125,8 @@ const ViewsAdd = {
           '<div class="jy-transfer-box">' +
             '<div class="row row-chips"><div class="lab">转出账户</div>' + ViewsAdd.accountChipsHTML("accountId", S.accountId) + "</div>" +
             '<div class="row row-chips"><div class="lab">转入账户</div>' + ViewsAdd.accountChipsHTML("toAccountId", S.toAccountId) + "</div>" +
-          "</div>" + amountZoneHTML().inline + ViewsAdd.quickBarHTML(S);
+          "</div>" + 
+          '<div class="jy-amount-row">' + amountZoneHTML().inline + "</div>" + amountZoneHTML().formula + ViewsAdd.quickBarHTML(S);
       } else {
         const cats = Store.categories(S.mode);
         const chosen = Store.category(S.categoryId) || cats[0];
@@ -378,7 +379,7 @@ const ViewsAdd = {
   },
 
   pickAccount(field, S, cb) {
-    const sh = UI.sheet({ title: "选择账户", sub: true });
+    const sh = UI.sheet({ title: "选择账户", subLevel: 1 });
     sh.body.innerHTML = Store.s.accounts.map(a =>
       '<div class="cell" data-id="' + a.id + '">' + UI.accIcon(a, "cell-icon") +
       '<div class="cell-main"><div class="cell-title">' + UI.escape(a.name) + "</div>" +
@@ -409,7 +410,7 @@ const ViewsAdd = {
   /* 备注编辑弹层 */
   /* 附件管理：缩略图预览 / 删除 / 新增（最多 3 张） */
   photoSheet(S, onChange) {
-    const sh = UI.sheet({ title: "账单附件", sub: true });
+    const sh = UI.sheet({ title: "账单附件", subLevel: 1 });
     const render = () => {
       sh.body.innerHTML =
         (S.photos.length
@@ -452,7 +453,7 @@ const ViewsAdd = {
   },
 
   noteSheet(S, onChange) {
-    const sh = UI.sheet({ title: "备注", sub: true });
+    const sh = UI.sheet({ title: "备注", subLevel: 1 });
     sh.body.innerHTML =
       '<div style="padding:4px 2px 10px"><input type="text" id="nsInput" maxlength="60" placeholder="点击填写备注" value="' + UI.escape(S.note) + '" style="width:100%;border:none;background:var(--chip);border-radius:10px;padding:12px;font-size:15px;outline:none"></div>';
     sh.foot.innerHTML = '<button class="btn btn-primary btn-block" id="nsOk">确定</button>';
@@ -553,7 +554,7 @@ const ViewsAdd = {
 
   categoryEditor(cat, cb) {
     const isNew = !cat;
-    const sh = UI.sheet({ title: isNew ? "添加分类" : "编辑分类", sub: true });
+    const sh = UI.sheet({ title: isNew ? "添加分类" : "编辑分类", subLevel: 1 });
     const S = { icon: cat ? cat.icon : "svg:" + (DATA.iconChoices[0] || "canyin"), color: cat ? cat.color : DATA.colorChoices[0], type: cat ? cat.type : "expense" };
     sh.body.innerHTML =
       (isNew ? '<div class="seg" id="catTypeSeg" style="margin-bottom:6px"><button data-t="expense" class="active">支出分类</button><button data-t="income">收入分类</button></div>' : "") +

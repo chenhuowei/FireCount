@@ -252,5 +252,40 @@ test('未来年份置灰不可选', () => {
   ok(doc.getElementById('wY').querySelector('.wheel-item[data-v="' + nowY + '"]').classList.contains('now') || true);
 });
 
+
+suite('弹层 level 分级（回归）');
+test('datePicker → periodPicker 父层保留（Bug 回归）', () => {
+  resetState();
+  UI.datePicker('2026-10-15 12:00', () => {});
+  eq(UI._sheets.length, 1);
+  doc.getElementById('dpM').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  eq(UI._sheets.length, 2, 'periodPicker 应叠在 datePicker 上（level 1 → 2）');
+  // 父层 dpPrev 仍有效
+  const prev = doc.getElementById('dpPrev');
+  ok(prev && typeof prev.onclick === 'function', '父层 dpPrev 应仍可点');
+  // 确定 periodPicker 回到 datePicker
+  const oks = doc.querySelectorAll('#ppOk');
+  oks[oks.length - 1].onclick();
+  eq(UI._sheets.length, 1, '确定后回到 datePicker');
+  ok(doc.getElementById('dpPrev'), 'datePicker 仍存在');
+  doc.getElementById('dpPrev').onclick();
+  ok(/月/.test(doc.getElementById('dpM').textContent), 'dpPrev 仍可切月');
+});
+test('记一笔 → 标签(level1) 连点互斥', () => {
+  resetState(); ViewsAdd.open();
+  const tag = doc.querySelector('.jy-quickbar [data-qb="tag"]');
+  tag.onclick({ stopPropagation() {} });
+  tag.onclick({ stopPropagation() {} });
+  eq(UI._sheets.length, 2, '记一笔 + 1 个标签子层');
+});
+test('转账模式金额行结构（Bug 回归）', () => {
+  resetState(); ViewsAdd.open();
+  doc.querySelector('[data-mode=transfer]').onclick();
+  const row = doc.querySelector('.jy-amount-row');
+  ok(row, '转账应有金额行');
+  ok(row.querySelector('.jy-currency') && row.querySelector('.jy-amount'), '货币与金额应同行');
+  ok(doc.getElementById('amtFormula'), '应有公式行');
+});
+
 const okAll = summary();
 process.exit(okAll ? 0 : 1);
