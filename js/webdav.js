@@ -128,7 +128,7 @@ const WebDAV = {
         const old = files.filter(f => f.name !== "latest.json").slice(keep);
         for (const f of old) await this.req("DELETE", this.url(f.name));
       } catch (e) { /* 清理失败不影响备份结果 */ }
-      UI.toast(manual ? "备份成功：" + name : "已自动备份");
+      UI.toast((manual ? "备份成功：" + name : "已自动备份 · " + fmt.money(Store.monthSummary(fmt.curMonth()).out) + " 已同步"), manual ? 2000 : 2500);
     } catch (e) {
       UI.toast("备份失败：" + (e.message || e));
     } finally {

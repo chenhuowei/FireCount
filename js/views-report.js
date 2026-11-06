@@ -152,7 +152,7 @@ const ViewsReport = {
         kpi("总" + (t === "expense" ? "支出" : "收入"), cur + fmt.money(t === "expense" ? sum.out : sum.in)) +
         kpi("账单笔数", recs.length) +
         kpi("最高单笔", cur + fmt.money(maxOne)) +
-        kpi("记账天数", '<span id="kpiDays" style="cursor:pointer;text-decoration:underline dotted">' + dayCount + "/" + spanDays + "天</span>") +
+        kpi("记账天数", '<span id="kpiDays" style="cursor:pointer">' + dayCount + "/" + spanDays + "天</span>") +
       "</div>";
 
     /* 饼图 + 图例 */

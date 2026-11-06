@@ -724,3 +724,14 @@ canvas.chart { width: 100%; display: block; }
 .days-note .dn-k { color: var(--text-2); }
 .days-note .dn-v { font-weight: 600; color: var(--text-1); font-variant-numeric: tabular-nums; }
 .days-note .dn-tip { font-size: 11.5px; color: var(--text-3); padding-top: 10px; line-height: 1.6; }
+
+
+/* ---------- 可点击的统计数字（记账天数说明） ---------- */
+#kpiDays, #meDays {
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  display: inline-block; position: relative; padding-bottom: 2px;
+  border-bottom: 1px dashed var(--text-3);
+}
+#kpiDays:active, #meDays:active { color: var(--brand); border-bottom-color: var(--brand); }
+#meDays { font-size: inherit; color: inherit; }
+#meDays:active { color: var(--brand); }

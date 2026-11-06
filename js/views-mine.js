@@ -16,7 +16,7 @@ const ViewsMine = {
       '<div class="page page-anim">' +
       '<div class="me-hero me-hero-center">' +
         '<div class="me-name">' + DATA.appName + ' · 我的账本</div>' +
-          '<div class="me-sub" id="meDays" style="cursor:pointer;text-decoration:underline dotted">已坚持记账 ' + days + ' 天 · 累计 ' + total + " 笔账单</div>" +
+          '<div class="me-sub" id="meDays" style="cursor:pointer">已坚持记账 ' + days + ' 天 · 累计 ' + total + " 笔账单</div>" +
           '<div class="me-stats">' +
             stat(Store.recordsOf().length, "本账单笔") + stat(s.books.length, "账本") + stat(s.accounts.length, "账户") +
           "</div></div>" +
