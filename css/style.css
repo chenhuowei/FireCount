@@ -429,7 +429,7 @@ body[data-theme="deep"] .bill-top { background: linear-gradient(150deg, #D95E12,
 }
 .me-hero .me-stats .st {
   flex: 1; background: none; border-radius: 0; box-shadow: none;
-  padding: 10px 0 12px; text-align: center;
+  padding: 10px 0 6px; text-align: center;
 }
 .me-hero .me-stats .st + .st { border-left: 1px solid var(--line); }
 .me-stats .k { font-size: 10.5px; color: var(--text-3); }
