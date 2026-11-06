@@ -27,7 +27,7 @@ const ViewsMine = {
         cell("cloud", "WebDAV 云备份", webdavDesc(), "webdav") +
         cell("budget", "预算设置", budgetDesc(), "budget") +
         cell("tag", "分类管理", "支出 " + Store.categories("expense").length + " · 收入 " + Store.categories("income").length, "categories") +
-        cell("tag2", "标签管理", Store.tags().length + " 个标签", "tags") +
+        cell("tag", "标签管理", Store.tags().length + " 个标签", "tags") +
       "</div>" +
       '<div class="card">' +
         cell("export", "数据导出", "导出 CSV / JSON 备份", "export") +
