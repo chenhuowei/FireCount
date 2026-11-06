@@ -96,7 +96,7 @@ ul { list-style: none; }
 .tab.active { color: var(--brand); font-weight: 600; }
 
 /* ---------- 通用卡片 / 列表 ---------- */
-.page { padding: 12px 12px 28px; }
+.page { padding: 2px 0px 6px; }
 .card { background: var(--card); border-radius: 14px; box-shadow: var(--shadow); margin-bottom: 12px; overflow: hidden; }
 .cell {
   display: flex; align-items: center; gap: 12px; padding: 14px 14px; position: relative;

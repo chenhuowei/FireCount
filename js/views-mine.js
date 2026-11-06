@@ -26,7 +26,7 @@ const ViewsMine = {
         cell("book", "多账本管理", "当前：" + UI.escape(Store.book().name), "books") +
         cell("cloud", "WebDAV 云备份", webdavDesc(), "webdav") +
         cell("budget", "预算设置", budgetDesc(), "budget") +
-        cell("tag", "分类管理", "支出 " + Store.categories("expense").length + " · 收入 " + Store.categories("income").length, "categories") +
+        cell("list", "分类管理", "支出 " + Store.categories("expense").length + " · 收入 " + Store.categories("income").length, "categories") +
         cell("tag", "标签管理", Store.tags().length + " 个标签", "tags") +
       "</div>" +
       '<div class="card">' +
@@ -70,7 +70,7 @@ const ViewsMine = {
       if (go === "webdav") { WebDAV.settingsSheet(); return; }
       if (go === "currency") { ViewsMine.currencySheet(); return; }
       if (go === "about") {
-        UI.toast("小伙记账 · FireCount v1.0.8", 2500);
+        UI.toast("小伙记账 · FireCount v1.0.9", 2500);
         return;
       }
       if (go === "wipe") { ViewsMine.wipeSheet(); return; }

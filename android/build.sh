@@ -14,8 +14,8 @@ BT="${ANDROID_BT:?请先设置 ANDROID_BT=build-tools 目录}"
 AJAR="${ANDROID_JAR:?请先设置 ANDROID_JAR=android.jar 路径}"
 KSPASS="${KS_PASS:?请先设置 KS_PASS=签名密码}"
 KS="${KS:-kdj.keystore}"
-VC="${VC:-8}"     # versionCode
-VN="${VN:-1.0.8}"   # versionName
+VC="${VC:-9}"     # versionCode
+VN="${VN:-1.0.9}"   # versionName
 BTW=$(cygpath -w "$BT"); ROOTW=$(cygpath -w "$PWD")
 
 rm -rf build && mkdir -p build/classes build/dexout app/assets/www
