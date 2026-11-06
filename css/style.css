@@ -731,16 +731,11 @@ canvas.chart { width: 100%; display: block; }
   cursor: pointer; -webkit-tap-highlight-color: transparent;
   color: var(--brand); font-weight: 800;
   text-shadow:
-    0 1px 0 #E86A1C,
-    0 2px 0 #D85F12,
-    0 3px 0 #C85508,
-    0 4px 6px rgba(140, 70, 10, .45),
-    0 0 18px rgba(255, 122, 46, .35);
+    0 1px 0 #F08036,
+    0 2px 1px #E26E1C,
+    0 3px 2px rgba(180, 80, 20, .55);
 }
 #kpiDays:active, #meDays:active {
   color: var(--brand-deep);
-  text-shadow:
-    0 1px 0 #B0500A,
-    0 2px 0 #984608,
-    0 3px 4px rgba(120, 60, 8, .6);
+  text-shadow: 0 2px 2px rgba(140, 70, 20, .5);
 }
