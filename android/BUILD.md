@@ -21,10 +21,16 @@ KS_PASS=你的签名密码 \
 ./build.sh
 ```
 
-产物：仓库根目录 `小伙记账-<版本>.apk`（versionCode/versionName 可用 `VC=6 VN=1.0.6` 环境变量覆盖）。
+产物：仓库根目录 `小伙记账-<版本>.apk`（versionCode/versionName 可用环境变量覆盖，脚本默认 `VC=10 VN=1.1.0`）。
 
-首次构建会自动生成签名密钥库 `android/firecount.keystore`（**已被 .gitignore 排除，请自行备份**；
-丢失后将无法覆盖升级安装，只能卸载重装）。升级安装需使用同一密钥库签名。
+## 签名密钥库（重要）
+
+- 项目内备份：`android/kdjz.keystore`，别名 `kdjz`（与 1.0.9 及之前版本同一签名，可覆盖升级）。
+- **该 keystore 含签名私钥，已被 .gitignore 排除，不会进入版本库**。请务必单独备份此文件；
+  丢失后无法用同一签名升级，只能让用户卸载后重装。
+- 构建时把 `KS_PASS` 设为该密钥库密码即可；`build.sh` 默认使用 `android/kdjz.keystore`（可用 `KS=路径` 覆盖）。
+- 历史证书指纹：SHA-256 `F8:CD:7E:EC:6F:6E:C0:56:73:B5:AB:4A:67:23:36:47:03:9D:A7:C5:19:26:DE:F2:F2:9D:1F:0E:56:18:A1:00`。
+  重新构建后可用 `apksigner verify --print-certs <apk>` 核对，确保与历史版本一致。
 
 ## 工程结构
 

@@ -13,7 +13,7 @@ cd "$(dirname "$0")"
 BT="${ANDROID_BT:?请先设置 ANDROID_BT=build-tools 目录}"
 AJAR="${ANDROID_JAR:?请先设置 ANDROID_JAR=android.jar 路径}"
 KSPASS="${KS_PASS:?请先设置 KS_PASS=签名密码}"
-KS="${KS:-kdj.keystore}"
+KS="${KS:-kdjz.keystore}"
 VC="${VC:-10}"    # versionCode
 VN="${VN:-1.1.0}"   # versionName
 BTW=$(cygpath -w "$BT"); ROOTW=$(cygpath -w "$PWD")
@@ -47,10 +47,10 @@ echo "[6/7] 对齐"
 "$BT/zipalign" -f 4 build/base.apk build/aligned.apk
 
 echo "[7/7] 签名"
-[ -f "$KS" ] || keytool -genkeypair -v -keystore "$KS" -alias firecount -keyalg RSA -keysize 2048 \
+[ -f "$KS" ] || keytool -genkeypair -v -keystore "$KS" -alias kdjz -keyalg RSA -keysize 2048 \
   -validity 10950 -storepass "$KSPASS" -keypass "$KSPASS" \
-  -dname "CN=XiaoHu, OU=Dev, O=Personal, L=Beijing, C=CN"
-printf '@echo off\r\ncall "%s\\apksigner.bat" sign --ks "%s" --ks-pass pass:%s --key-pass pass:%s --ks-key-alias firecount --out "%s\\build\\firecount-signed.apk" "%s\\build\\aligned.apk"\r\nif errorlevel 1 exit /b 1\r\ncall "%s\\apksigner.bat" verify "%s\\build\\firecount-signed.apk"\r\n' \
+  -dname "CN=KDZ Clone, OU=Dev, O=Personal, L=Beijing, C=CN"
+printf '@echo off\r\ncall "%s\\apksigner.bat" sign --ks "%s" --ks-pass pass:%s --key-pass pass:%s --ks-key-alias kdjz --out "%s\\build\\firecount-signed.apk" "%s\\build\\aligned.apk"\r\nif errorlevel 1 exit /b 1\r\ncall "%s\\apksigner.bat" verify "%s\\build\\firecount-signed.apk"\r\n' \
   "$BTW" "$ROOTW\\$KS" "$KSPASS" "$KSPASS" "$ROOTW" "$ROOTW" "$BTW" "$ROOTW" > build/_sign.bat
 cmd //c "$(cygpath -w "$PWD")\\build\\_sign.bat"
 
