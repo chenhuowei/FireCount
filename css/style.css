@@ -122,7 +122,6 @@ body[data-theme="glass"] .wheel-col,
 body[data-theme="glass"] .me-hero,
 body[data-theme="glass"] .edge-hint,
 body[data-theme="glass"] #rpNav input[type=date],
-body[data-theme="glass"] .bill-item .bi-inner,
 body[data-theme="glass"] .sort-item,
 body[data-theme="glass"] .tag-pick,
 body[data-theme="glass"] .seg button.active,
@@ -145,6 +144,12 @@ body[data-theme="glass"] .pa-item {
     inset 0 -14px 30px rgba(255,255,255,.22),
     0 10px 36px rgba(60,66,110,.18),
     0 2px 8px rgba(60,66,110,.10);
+}
+/* 账单项：必须用不透明背景盖住下层左滑编辑/删除按钮，
+   否则半透明玻璃会透出灰(编辑)+红(删除)色块 */
+body[data-theme="glass"] .bill-item .bi-inner {
+  background: linear-gradient(135deg, #f4f6fb 0%, #eef1f8 45%, #e8ecf5 100%);
+  z-index: 1;
 }
 /* 斜向镜面反光带：玻璃表面扫过的高光 */
 body[data-theme="glass"] .card::before,
