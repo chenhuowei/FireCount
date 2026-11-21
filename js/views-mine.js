@@ -38,7 +38,7 @@ const ViewsMine = {
         cell("budget", "币种设置", "当前符号 " + s.settings.currency, "currency") +
       "</div>" +
       '<div class="card">' +
-        cell("info", "关于", "版本 1.0.9", "about") +
+        cell("info", "关于", "版本 1.1.0", "about") +
         cell("trash", "清空数据", "删除全部账单与设置", "wipe") +
       "</div>" +
       '<div style="text-align:center;color:var(--text-3);font-size:11px;padding:6px 0 20px">小伙记账 · 纯本地记账（数据仅存于本机）</div></div>';
@@ -75,7 +75,7 @@ const ViewsMine = {
       if (go === "webdav") { WebDAV.settingsSheet(); return; }
       if (go === "currency") { ViewsMine.currencySheet(); return; }
       if (go === "about") {
-        UI.toast("小伙记账 · FireCount v1.0.9", 2500);
+        UI.toast("小伙记账 · FireCount v1.1.0", 2500);
         return;
       }
       if (go === "wipe") { ViewsMine.wipeSheet(); return; }

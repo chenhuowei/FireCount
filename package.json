@@ -1,6 +1,6 @@
 {
   "name": "firecount",
-  "version": "1.0.5",
+  "version": "1.1.0",
   "private": true,
   "description": "小伙记账 · FireCount —— 零依赖记账 SPA + Android WebView 壳",
   "scripts": {
