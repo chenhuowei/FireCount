@@ -264,7 +264,7 @@ const ViewsAdd = {
       { k: "1" }, { k: "2" }, { k: "3" },
       // OK 单个按钮跨两行（第4列，第3~4行）
       { k: "ok", cls: "ok", span: true },
-      { k: "." }, { k: "0" }, { k: "C", cls: "func" }
+      { k: "0" }, { k: "." }, { k: "C", cls: "func" }
     ];
     const renderKeys = () => {
       const host = UI.$("#jyKeys", sh.sheet);
