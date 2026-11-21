@@ -32,7 +32,7 @@ const ViewsMine = {
       '<div class="card">' +
         cell("export", "数据导出", "导出 CSV / JSON 备份", "export") +
         cell("import", "数据导入", "从 JSON 备份恢复", "import") +
-        cell("theme", "深色模式", s.settings.theme === "deep" ? "已开启" : "已关闭", "themeToggle") +
+        cell("theme", "主题", ({ light: "浅色", deep: "深色", glass: "玻璃" }[s.settings.theme] || "浅色"), "themeToggle") +
         cell("user", "成员管理", s.settings.members.join(" / "), "members") +
         cell("lock", "应用锁", (s.settings.lock && s.settings.lock.enabled) ? "已开启" : "未开启", "applock") +
         cell("budget", "币种设置", "当前符号 " + s.settings.currency, "currency") +
@@ -59,7 +59,12 @@ const ViewsMine = {
     UI.$$(".cell[data-go]", main).forEach(el => el.onclick = () => {
       const go = el.dataset.go;
       if (go === "themeToggle") {
-        s.settings.theme = s.settings.theme === "deep" ? "light" : "deep";
+        // 三主题循环：浅色 → 深色 → 玻璃 → 浅色
+        const order = ["light", "deep", "glass"];
+        const names = { light: "浅色", deep: "深色", glass: "玻璃" };
+        const i = order.indexOf(s.settings.theme);
+        s.settings.theme = order[(i + 1) % order.length];
+        UI.toast("已切换到" + names[s.settings.theme] + "主题");
         Store.save(); App.applyTheme(); App.refresh();
         return;
       }

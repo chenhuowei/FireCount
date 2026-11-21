@@ -2,7 +2,7 @@
  * WebDAV 云备份（需求②，仅 APK 版：浏览器受 CORS 限制）
  *   预设：坚果云 / 123网盘 / 自定义
  *   原生桥 AndroidBridge.webdavRequest(id, method, url, headers, body)
- *   自动：打开时检查 + 运行中每 30 分钟检查，距上次备份 ≥6h 触发
+ *   自动：打开/回前台时检查 + 运行中每 30 分钟检查，距上次成功备份 ≥24h 触发
  * ============================================================ */
 "use strict";
 
@@ -209,6 +209,11 @@ const WebDAV = {
     this.check();
     if (this._timer) clearInterval(this._timer);
     this._timer = setInterval(() => this.check(), this.CHECK_MS);
+    // 热启动恢复：进程存活时切回前台不会重新走 App.boot，必须补检查。
+    // check() 自带 _busy 防重入 + 24h 阈值判断，多调无副作用。
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) this.check();
+    });
   },
   check() {
     if (!this.configured() || this._busy) return;

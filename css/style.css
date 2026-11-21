@@ -49,6 +49,255 @@ body[data-theme="deep"] {
   --chip: #232935;
   --mask: rgba(0, 0, 0, .65);
 }
+/* ============================================================
+   玻璃主题 · Apple Liquid Glass（iOS 26 风格）
+   底层：柔和彩色光斑流动背景
+   面板：半透白 + 背景模糊 + 高饱和折射 + 镜面高光 + 玻璃厚度边缘
+   ============================================================ */
+body[data-theme="glass"] {
+  --brand: #FF7A2E;
+  --brand-deep: #F0600A;
+  --brand-soft: rgba(255, 122, 46, .18);
+  --income: #1DA972;
+  --expense: #FF5E3A;
+  --transfer: #3B82F6;
+  --bg-body: #E8EDF5;
+  --bg-page: transparent;
+  --card: rgba(255, 255, 255, .46);
+  --card-solid: #F7F8FB;
+  --text-1: #1B2230;
+  --text-2: #556074;
+  --text-3: #8B94A5;
+  --line: rgba(27, 34, 48, .10);
+  --danger: #E5484D;
+  --shadow: 0 8px 30px rgba(60, 66, 110, .16), 0 2px 8px rgba(60, 66, 110, .10);
+  --keyboard-bg: rgba(255, 255, 255, .42);
+  --key-bg: rgba(255, 255, 255, .72);
+  --ok-bg: var(--brand);
+  --chip: rgba(255, 255, 255, .52);
+  --mask: rgba(30, 40, 70, .32);
+}
+
+/* 液态玻璃底层：彩色光斑在固定的页面背景上流动 */
+body[data-theme="glass"] {
+  background: linear-gradient(145deg, #DDE7F6 0%, #F3E9F2 48%, #E6E9F7 100%) fixed;
+}
+body[data-theme="glass"]::before {
+  content: ""; position: fixed; inset: 0; z-index: -2; pointer-events: none;
+  background:
+    radial-gradient(38% 30% at 15% 12%, rgba(255, 176, 122, .75) 0%, rgba(255, 176, 122, 0) 70%),
+    radial-gradient(34% 28% at 88% 20%, rgba(255, 138, 176, .55) 0%, rgba(255, 138, 176, 0) 72%),
+    radial-gradient(42% 36% at 78% 88%, rgba(122, 162, 255, .55) 0%, rgba(122, 162, 255, 0) 72%),
+    radial-gradient(38% 32% at 12% 82%, rgba(126, 220, 200, .48) 0%, rgba(126, 220, 200, 0) 72%);
+  animation: lgFloat 18s ease-in-out infinite alternate;
+}
+body[data-theme="glass"]::after {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(60% 50% at 50% 45%, rgba(255,255,255,.28), rgba(255,255,255,0) 75%);
+}
+@keyframes lgFloat {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  50%  { transform: translate3d(1.5%, -1.5%, 0) scale(1.06); }
+  100% { transform: translate3d(-1.5%, 1.5%, 0) scale(1.02); }
+}
+body[data-theme="glass"] #phone {
+  background: transparent;
+}
+
+/* 玻璃面板通用：高饱和模糊折射 + 斜向镜面反光 + 厚度边缘高光 */
+body[data-theme="glass"] .card,
+body[data-theme="glass"] .day-group,
+body[data-theme="glass"] .jy-transfer-box,
+body[data-theme="glass"] .modal,
+body[data-theme="glass"] .bill-tools .tool,
+body[data-theme="glass"] .search-bar,
+body[data-theme="glass"] .rp-toggle,
+body[data-theme="glass"] .rp-modebar .sel,
+body[data-theme="glass"] .rp-monthbar button,
+body[data-theme="glass"] .cal-head button,
+body[data-theme="glass"] .rp-kpi,
+body[data-theme="glass"] .rp-datefld,
+body[data-theme="glass"] .pp-cell,
+body[data-theme="glass"] .wheel-col,
+body[data-theme="glass"] .me-hero,
+body[data-theme="glass"] .edge-hint,
+body[data-theme="glass"] #rpNav input[type=date],
+body[data-theme="glass"] .bill-item .bi-inner,
+body[data-theme="glass"] .sort-item,
+body[data-theme="glass"] .tag-pick,
+body[data-theme="glass"] .seg button.active,
+body[data-theme="glass"] .budget-set-row input,
+body[data-theme="glass"] .pa-item {
+  position: relative;
+  background: linear-gradient(135deg,
+    rgba(255,255,255,.62) 0%,
+    rgba(255,255,255,.34) 42%,
+    rgba(232,238,250,.30) 72%,
+    rgba(255,255,255,.46) 100%);
+  backdrop-filter: blur(30px) saturate(200%);
+  -webkit-backdrop-filter: blur(30px) saturate(200%);
+  border: 1px solid rgba(255,255,255,.72);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255,255,255,.95),
+    inset 1.5px 0 0 rgba(255,255,255,.55),
+    inset -1.5px 0 0 rgba(255,255,255,.4),
+    inset 0 -1.5px 0 rgba(160,175,205,.4),
+    inset 0 -14px 30px rgba(255,255,255,.22),
+    0 10px 36px rgba(60,66,110,.18),
+    0 2px 8px rgba(60,66,110,.10);
+}
+/* 斜向镜面反光带：玻璃表面扫过的高光 */
+body[data-theme="glass"] .card::before,
+body[data-theme="glass"] .day-group::before,
+body[data-theme="glass"] .me-hero::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(115deg,
+    transparent 0%,
+    rgba(255,255,255,.36) 16%,
+    rgba(255,255,255,.08) 30%,
+    transparent 44%);
+}
+/* chip 类轻玻璃 */
+body[data-theme="glass"] .chip,
+body[data-theme="glass"] .pick-chip,
+body[data-theme="glass"] .btn-ghost,
+body[data-theme="glass"] .cell .cell-icon,
+body[data-theme="glass"] .hd-btn:active,
+body[data-theme="glass"] .hd-sub .txt-btn:active,
+body[data-theme="glass"] .cell:active,
+body[data-theme="glass"] .jy-cat:active,
+body[data-theme="glass"] .cal-cell:active,
+body[data-theme="glass"] .acc-item:active,
+body[data-theme="glass"] .wd-eye:active,
+body[data-theme="glass"] .dp-timerow input[type=time] {
+  background: linear-gradient(135deg, rgba(255,255,255,.66) 0%, rgba(255,255,255,.32) 55%, rgba(228,234,248,.42) 100%);
+  backdrop-filter: blur(14px) saturate(180%);
+  -webkit-backdrop-filter: blur(14px) saturate(180%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.95), inset 0 -1px 0 rgba(160,175,205,.4);
+}
+/* 玻璃面板上的分隔线 */
+body[data-theme="glass"] .cell + .cell::before {
+  background: rgba(27, 34, 48, .09);
+}
+/* 我的页三个统计项背景统一透明（账本/账户不再单独变灰） */
+body[data-theme="glass"] .me-hero .me-stats .st { background: transparent; }
+body[data-theme="glass"] .form-row,
+body[data-theme="glass"] .me-hero .me-stats,
+body[data-theme="glass"] .jy-transfer-box .row + .row {
+  border-color: rgba(27, 34, 48, .09);
+}
+/* 顶部账单英雄区：橙粉渐变 + 玻璃高光 */
+body[data-theme="glass"] .bill-top {
+  background: linear-gradient(150deg, rgba(255,122,46,.86), rgba(255,150,110,.7) 55%, rgba(255,140,180,.62));
+  backdrop-filter: blur(20px) saturate(190%);
+  -webkit-backdrop-filter: blur(20px) saturate(190%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.55), inset 0 -1px 0 rgba(255,255,255,.25);
+}
+/* 头部透明，让底层光斑透上来 */
+body[data-theme="glass"] .hd { background: transparent; }
+/* 底部弹层：更强的玻璃 */
+body[data-theme="glass"] .sheet {
+  background: linear-gradient(135deg,
+    rgba(255,255,255,.68) 0%,
+    rgba(255,255,255,.38) 40%,
+    rgba(226,234,250,.34) 72%,
+    rgba(255,255,255,.46) 100%);
+  backdrop-filter: blur(44px) saturate(200%);
+  -webkit-backdrop-filter: blur(44px) saturate(200%);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255,255,255,1),
+    inset 2px 0 0 rgba(255,255,255,.55), inset -2px 0 0 rgba(255,255,255,.4),
+    inset 0 -1.5px 0 rgba(160,175,205,.42),
+    inset 0 -16px 32px rgba(255,255,255,.28),
+    0 -10px 44px rgba(60,66,110,.24);
+}
+body[data-theme="glass"] .toast {
+  background: linear-gradient(135deg, rgba(70,80,105,.52), rgba(45,52,70,.44));
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border: 1px solid rgba(255,255,255,.34);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.38), 0 8px 32px rgba(0,0,0,.2);
+}
+body[data-theme="glass"] .jy-keyboard {
+  background: linear-gradient(135deg, rgba(255,255,255,.55), rgba(232,238,250,.36) 60%, rgba(255,255,255,.46));
+  backdrop-filter: blur(30px) saturate(200%);
+  -webkit-backdrop-filter: blur(30px) saturate(200%);
+  border: 1px solid rgba(255,255,255,.72);
+  box-shadow: inset 0 1.5px 0 rgba(255,255,255,.95), inset 0 -1.5px 0 rgba(160,175,205,.4);
+}
+body[data-theme="glass"] .jy-key {
+  background: linear-gradient(180deg, rgba(255,255,255,.88), rgba(255,255,255,.52) 70%, rgba(232,238,250,.58));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,1), inset 0 -1px 0 rgba(160,175,205,.42), 0 2px 8px rgba(60,66,110,.16);
+  border: 1px solid rgba(255,255,255,.82);
+}
+body[data-theme="glass"] .jy-amount-row {
+  background: linear-gradient(135deg, rgba(255,255,255,.55), rgba(232,238,250,.34) 65%, rgba(255,255,255,.44));
+  backdrop-filter: blur(26px) saturate(200%);
+  -webkit-backdrop-filter: blur(26px) saturate(200%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.95);
+}
+body[data-theme="glass"] .jy-sheet-body .jy-quickbar {
+  background: rgba(255,255,255,.32);
+  backdrop-filter: blur(26px) saturate(190%);
+  -webkit-backdrop-filter: blur(26px) saturate(190%);
+}
+body[data-theme="glass"] .jy-grid-pages { background: transparent; }
+body[data-theme="glass"] .jy-sheet-body .jy-mode {
+  background: linear-gradient(180deg, rgba(255,255,255,.74), rgba(232,238,250,.44));
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,1), inset 0 -1px 0 rgba(160,175,205,.4);
+}
+/* 玻璃主题：激活模式为浅色玻璃底 + 主题橙字 */
+body[data-theme="glass"] .jy-sheet-body .jy-mode.active {
+  color: var(--brand);
+  background: linear-gradient(180deg, rgba(255,255,255,.6), rgba(255,235,220,.5));
+  border-color: var(--brand);
+}
+body[data-theme="glass"] .jy-quickbar .qb {
+  background: linear-gradient(180deg, rgba(255,255,255,.64), rgba(232,238,250,.44));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.95), inset 0 -1px 0 rgba(160,175,205,.38);
+}
+body[data-theme="glass"] .dp-timerow input[type=time],
+body[data-theme="glass"] .jy-amount { border-bottom-color: rgba(27,34,48,.12); }
+body[data-theme="glass"] .rp-toggle button.active { box-shadow: 0 3px 12px rgba(255,122,46,.42), inset 0 1px 0 rgba(255,255,255,.48); }
+body[data-theme="glass"] .modal { backdrop-filter: blur(44px) saturate(210%); -webkit-backdrop-filter: blur(44px) saturate(210%); }
+/* 日历今天 / 选中态在玻璃上更通透 */
+body[data-theme="glass"] .cal-cell.today .d { box-shadow: 0 2px 8px rgba(255,122,46,.5); }
+body[data-theme="glass"] .cal-cell.sel { background: rgba(255,122,46,.16); }
+
+/* 锁屏（补齐既有缺失样式，同玻璃质感） */
+#lockScreen {
+  position: fixed; inset: 0; z-index: 400;
+  background: var(--bg-body);
+  display: flex; align-items: center; justify-content: center;
+}
+body[data-theme="glass"] #lockScreen { background: rgba(232,237,245,.5); backdrop-filter: blur(44px) saturate(200%); -webkit-backdrop-filter: blur(44px) saturate(200%); }
+.lock-inner { width: 78%; max-width: 320px; text-align: center; }
+.lock-logo { font-size: 44px; }
+.lock-title { font-size: 18px; font-weight: 700; color: var(--text-1); margin-top: 8px; }
+.lock-sub { font-size: 13px; color: var(--text-2); margin-top: 4px; }
+.lock-dots { display: flex; justify-content: center; gap: 12px; margin-top: 22px; }
+.lock-dots i { width: 12px; height: 12px; border-radius: 50%; background: var(--line); transition: all .12s; }
+.lock-dots i.on { background: var(--brand); transform: scale(1.15); }
+.lock-dots.big i { width: 14px; height: 14px; }
+.lock-err { min-height: 18px; font-size: 12.5px; color: var(--danger); margin-top: 10px; }
+.lock-err:empty { margin-top: 0; }
+.lock-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 14px; }
+.lock-key {
+  height: 62px; border-radius: 50%; background: var(--card); font-size: 22px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; color: var(--text-1);
+  box-shadow: var(--shadow); user-select: none;
+}
+.lock-key:active { background: var(--brand-soft); color: var(--brand); }
+.lock-bio, .lock-forgot {
+  display: block; width: 100%; padding: 12px 0 0; font-size: 13.5px; color: var(--brand); font-weight: 600;
+}
+.lock-forgot { color: var(--text-3); font-weight: 400; }
+.lock-inner.shake { animation: lockShake .3s ease; }
+@keyframes lockShake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
 button { font-family: inherit; border: none; background: none; cursor: pointer; color: inherit; }
 input, select, textarea { font-family: inherit; font-size: inherit; color: var(--text-1); }
 ul { list-style: none; }
@@ -88,6 +337,79 @@ ul { list-style: none; }
   flex: none; display: flex; align-items: stretch; height: 60px;
   background: var(--card); border-top: 1px solid var(--line); position: relative; z-index: 30;
 }
+/* 玻璃主题：dock 悬浮 —— 胶囊造型 + 强折射玻璃 */
+body[data-theme="glass"] #tabbar {
+  position: absolute;
+  left: 12px; right: 12px; bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  height: 64px;
+  border-radius: 32px;
+  background: linear-gradient(135deg,
+    rgba(255,255,255,.68) 0%,
+    rgba(255,255,255,.38) 40%,
+    rgba(226,234,250,.34) 72%,
+    rgba(255,255,255,.5) 100%);
+  backdrop-filter: blur(36px) saturate(210%);
+  -webkit-backdrop-filter: blur(36px) saturate(210%);
+  border: 1px solid rgba(255,255,255,.85);
+  border-top: 1px solid rgba(255,255,255,.95);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255,255,255,1),
+    inset 0 -2px 0 rgba(255,255,255,.4),
+    inset 2px 0 0 rgba(255,255,255,.55), inset -2px 0 0 rgba(255,255,255,.55),
+    inset 0 -12px 24px rgba(255,255,255,.26),
+    0 1px 0 rgba(255,255,255,.6),
+    0 20px 50px rgba(60,66,110,.34),
+    0 6px 16px rgba(60,66,110,.2),
+    0 1px 3px rgba(60,66,110,.16);
+}
+/* dock 图标：贴近 dock 高度的饱满玻璃圆片 + 按下深度反馈 */
+body[data-theme="glass"] #tabbar .tab {
+  margin: 4px 3px; border-radius: 19px;
+  border: 1px solid transparent;
+  transition: transform .14s ease, background .18s ease, box-shadow .18s ease;
+}
+body[data-theme="glass"] #tabbar .tab svg {
+  filter: drop-shadow(0 1px 2px rgba(60,66,110,.22));
+}
+body[data-theme="glass"] #tabbar .tab:active {
+  transform: translateY(1px) scale(.95);
+}
+/* 激活项：纯透明玻璃 —— 背景不铺白，靠折射底层光斑 + 边缘高光定义形状 */
+body[data-theme="glass"] #tabbar .tab.active {
+  background: transparent;
+  backdrop-filter: blur(18px) saturate(260%);
+  -webkit-backdrop-filter: blur(18px) saturate(260%);
+  border-color: rgba(255,255,255,.68);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255,255,255,.92),
+    inset 1.5px 0 0 rgba(255,255,255,.5),
+    inset -1.5px 0 0 rgba(255,255,255,.4),
+    inset 0 -2px 0 rgba(150,165,195,.32),
+    0 3px 12px rgba(60,66,110,.16);
+  color: var(--brand-deep);
+}
+body[data-theme="glass"] #tabbar .tab.active svg {
+  filter: drop-shadow(0 1px 2px rgba(255,122,46,.38));
+}
+/* 中间「+ 记一笔」：同样纯透明，仅保留极淡橙色 tint + 橙字 */
+body[data-theme="glass"] #tabbar .tab-bill-add {
+  background: rgba(255,122,46,.10);
+  backdrop-filter: blur(18px) saturate(240%);
+  -webkit-backdrop-filter: blur(18px) saturate(240%);
+  border-color: rgba(255,255,255,.66);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255,255,255,.85),
+    inset 1.5px 0 0 rgba(255,255,255,.45),
+    inset -1.5px 0 0 rgba(255,255,255,.35),
+    inset 0 -2px 0 rgba(180,110,70,.3),
+    0 3px 12px rgba(255,122,46,.18);
+  color: var(--brand-deep) !important;
+}
+body[data-theme="glass"] #tabbar .tab-bill-add svg {
+  filter: drop-shadow(0 1px 2px rgba(180,60,0,.4));
+}
+/* 内容区底部留出 dock 悬浮空间 */
+body[data-theme="glass"] #pageMain { padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px)); }
 .tab {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
   color: var(--text-3); font-size: 10.5px; user-select: none; position: relative;
@@ -648,8 +970,8 @@ canvas.chart { width: 100%; display: block; }
   margin: 0 2px;
 }
 .jy-sheet-body .jy-mode.active {
-  color: #fff; background: var(--brand); border-color: var(--brand); font-weight: 700;
-  box-shadow: 0 3px 8px rgba(255, 122, 46, .35);
+  color: var(--brand); background: var(--brand-soft); border-color: var(--brand); font-weight: 700;
+  box-shadow: 0 3px 8px rgba(255, 122, 46, .25);
 }
 
 /* ---------- 年月滚轮选择器（双列，上下滑动） ---------- */
