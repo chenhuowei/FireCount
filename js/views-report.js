@@ -141,7 +141,9 @@ const ViewsReport = {
     const dayCount = daySet.size;
     // 区间天数（全部模式：第一笔到今天，而非哨兵 0000~9999）
     const spanS = R.spanStart || R.start, spanE = R.spanEnd || R.end;
-    const ds = new Date(spanS + "T00:00:00"), de = new Date(spanE + "T23:59:59");
+    // 用 UTC 零点相减：原写法 de 用 23:59:59 会被 Math.round 进位，导致每个月都多算 1 天；
+    // UTC 也规避了夏令时/时区导致的 23/25 小时误差。
+    const ds = Date.parse(spanS + "T00:00:00Z"), de = Date.parse(spanE + "T00:00:00Z");
     const spanDays = Math.max(1, Math.round((de - ds) / 86400000) + 1);
 
     let html =
