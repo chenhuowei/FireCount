@@ -21,7 +21,7 @@ KS_PASS=你的签名密码 \
 ./build.sh
 ```
 
-产物：仓库根目录 `小伙记账-<版本>.apk`（versionCode/versionName 可用环境变量覆盖，脚本默认 `VC=10 VN=1.1.0`）。
+产物：仓库根目录 `小伙记账-<版本>.apk`（versionCode/versionName 可用环境变量覆盖，脚本默认 `VC=11 VN=1.1.1`）。
 
 ## 签名密钥库（重要）
 
