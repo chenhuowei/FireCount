@@ -299,7 +299,7 @@ suite('WebDAV · 坚果云同步');
     const p = t2.WebDAV.backupNow(true);
     await new Promise(r => setTimeout(r, 80));
     await p;
-    ok(urls.some(u => /firecount_d{8}_d{6}.json/.test(u)), '文件名应为 firecount_YYYYMMDD_HHMMSS.json');
+    ok(urls.some(u => /firecount_\d{8}_\d{6}\.json/.test(u)), '文件名应为 firecount_YYYYMMDD_HHMMSS.json');
     ok(!urls.some(u => u.includes('kdjz_')), '不应再有 kdjz_ 前缀');
   });
   test('备份内部落盘不触发新的自动备份（无限循环 Bug 回归）', async () => {

@@ -151,7 +151,7 @@ const WebDAV = {
         const re = /([\w\-]+\.json)/g; let m;
         while ((m = re.exec(g.body)) !== null) if (!names.includes(m[1])) names.push(m[1]);
         if (names.length) return names.map(n => {
-          const m = /firecount_(d{8})_(d{6})/.exec(n);
+          const m = /firecount_(\d{8})_(\d{6})/.exec(n);
           const mt = m ? m[1].slice(0,4)+"-"+m[1].slice(4,6)+"-"+m[1].slice(6)+" "+m[2].slice(0,2)+":"+m[2].slice(2,4) : "";
           return { name: n, mtime: mt };
         });
@@ -211,9 +211,9 @@ const WebDAV = {
     this._timer = setInterval(() => this.check(), this.CHECK_MS);
     // 热启动恢复：进程存活时切回前台不会重新走 App.boot，必须补检查。
     // check() 自带 _busy 防重入 + 24h 阈值判断，多调无副作用。
-    document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) this.check();
-    });
+    if (this._onVisible) document.removeEventListener("visibilitychange", this._onVisible);
+    this._onVisible = () => { if (!document.hidden) this.check(); };
+    document.addEventListener("visibilitychange", this._onVisible);
   },
   check() {
     if (!this.configured() || this._busy) return;

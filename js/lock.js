@@ -135,7 +135,6 @@ const Lock = {
         if (this.verify(input)) { this.unlock(); }
         else {
           locked = true;
-          el.querySelector("#lock-inner")?.classList.remove("shake");
           el.querySelector(".lock-inner").classList.add("shake");
           el.querySelector("#lockErr").textContent = "PIN 码错误";
           setTimeout(() => { input = ""; locked = false; renderDots(); }, 500);

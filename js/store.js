@@ -386,7 +386,7 @@ const Store = {
   /* 记账天数 */
   tallyDays() {
     const set = new Set(this.s.records.map(r => r.date.slice(0, 10)));
-    set.add(new Date().toISOString().slice(0, 10));
+    set.add(fmt.YMD(new Date()));   // 用本地日期；toISOString() 是 UTC，凌晨会算成前一天
     const days = [...set];
     const first = days.sort()[0];
     return Math.max(1, Math.floor((Date.now() - new Date(first + "T00:00:00").getTime()) / 86400000) + 1);

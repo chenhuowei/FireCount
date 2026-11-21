@@ -72,8 +72,6 @@ const App = {
     this.render();
   },
 
-  refresh() { this.render(); },
-
   render(opts) {
     const header = UI.$("#pageHeader"), main = UI.$("#pageMain");
     if (!(opts && opts.skipAnim)) main.scrollTop = 0;

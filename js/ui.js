@@ -211,7 +211,7 @@ const UI = {
         (kind === "month" ? '<div class="wheel-col" id="wY"></div>' : '<div class="wheel-col wheel-only" id="wY"></div>') +
         (kind === "month" ? '<div class="wheel-col" id="wM"></div>' : "") +
       "</div>" +
-      '<div class="sec-title">上下滑动选择，点击中间行确定</div>';
+      '<div class="sec-title">上下滑动选择，点击确定按钮保存</div>';
     sh.foot.innerHTML = '<button class="btn btn-primary btn-block" id="ppOk">确定</button>';
 
     const wY = UI.$("#wY", sh.body);

@@ -62,7 +62,6 @@ const ViewsReport = {
 
   render(header, main) {
     header.classList.add("hidden");
-    const R = this.resolve();
     const t = this.type;
     main.innerHTML =
       '<div class="page page-anim">' +
@@ -144,8 +143,6 @@ const ViewsReport = {
     const spanS = R.spanStart || R.start, spanE = R.spanEnd || R.end;
     const ds = new Date(spanS + "T00:00:00"), de = new Date(spanE + "T23:59:59");
     const spanDays = Math.max(1, Math.round((de - ds) / 86400000) + 1);
-    const avgDay = t === "expense" && dayCount ? sum.out / dayCount : 0;
-    const avgAllDay = sum.out / spanDays;
 
     let html =
       '<div class="rp-kpis">' +
