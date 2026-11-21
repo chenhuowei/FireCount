@@ -502,12 +502,13 @@ const Store = {
     };
     const matchAcc = name => name ? (this.s.accounts.find(a => a.name === name) || {}).id || "" : "";
     const matchBook = name => name ? (this.s.books.find(b => b.name === name) || {}).id || this.book().id : this.book().id;
-    // XLSX 单元格日期可能是 Date 对象或 Excel 序列数
+    // XLSX 单元格日期可能是 Date 对象或 Excel 序列数（纯 JS 转换，不依赖 XLSX 库）
     const cellText = v => {
       if (v == null) return "";
-      if (typeof window !== "undefined" && window.XLSX && typeof v === "number" && v > 20000 && v < 60000) {
-        const d = window.XLSX.SSF.parse_date_code(v);
-        if (d) return d.y + "-" + String(d.m).padStart(2, "0") + "-" + String(d.d).padStart(2, "0") + " " + String(d.H).padStart(2, "0") + ":" + String(d.M).padStart(2, "0");
+      if (typeof v === "number" && v > 20000 && v < 60000) {
+        // Excel 1900 日期系统：序列 1 = 1900-01-01，因闰年 bug 以 1899-12-30 为基准
+        const d = new Date(Math.round((v - 25569) * 86400000)); // 25569 = 1970-01-01 的序列值
+        if (!isNaN(d.getTime())) return d.getUTCFullYear() + "-" + String(d.getUTCMonth() + 1).padStart(2, "0") + "-" + String(d.getUTCDate()).padStart(2, "0") + " " + String(d.getUTCHours()).padStart(2, "0") + ":" + String(d.getUTCMinutes()).padStart(2, "0");
       }
       if (v instanceof Date) return v.getFullYear() + "-" + String(v.getMonth() + 1).padStart(2, "0") + "-" + String(v.getDate()).padStart(2, "0") + " " + String(v.getHours()).padStart(2, "0") + ":" + String(v.getMinutes()).padStart(2, "0");
       return String(v).trim();

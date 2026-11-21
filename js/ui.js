@@ -326,5 +326,23 @@ const UI = {
     const host = UI.$("#modalHost");
     host.innerHTML = '<div class="photo-viewer"><img src="' + src + '" alt="账单附件"></div>';
     host.querySelector(".photo-viewer").onclick = () => { host.innerHTML = ""; };
+  },
+  /* XLSX 解析库按需加载：首屏不加载 273KB，只在真正导入 xlsx 时拉取 */
+  ensureXLSX(cb, onErr) {
+    if (typeof window.XLSX !== "undefined") { cb(); return; }
+    if (UI._xlsxLoading) { UI._xlsxQueue.push(cb); return; }
+    UI._xlsxLoading = true; UI._xlsxQueue = [cb];
+    const s = document.createElement("script");
+    s.src = "js/xlsx.mini.min.js";
+    s.onload = () => {
+      UI._xlsxLoading = false;
+      const q = UI._xlsxQueue || []; UI._xlsxQueue = [];
+      q.forEach(fn => fn());
+    };
+    s.onerror = () => {
+      UI._xlsxLoading = false; UI._xlsxQueue = [];
+      if (onErr) onErr(); else UI.toast("XLSX 解析库加载失败");
+    };
+    document.head.appendChild(s);
   }
 };

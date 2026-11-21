@@ -473,56 +473,60 @@ const ViewsMine = {
       // XLSX / CSV 表格导入：统一读 ArrayBuffer，按 ZIP 魔数（PK）判断格式
       // （安卓文件选择器返回的文件名常不带扩展名，不能靠 name 判断）
       rd.onload = () => {
-        let rows;
-        try {
-          const buf = rd.result instanceof ArrayBuffer ? rd.result : null;
-          const u8 = buf ? new Uint8Array(buf) : null;
-          const isZip = u8 && u8.length > 4 && u8[0] === 0x50 && u8[1] === 0x4B; // PK\x03\x04 = xlsx
-          if (isZip) {
-            if (typeof XLSX === "undefined") { UI.toast("XLSX 解析库未加载"); return; }
-            const wb = XLSX.read(u8, { type: "array", cellDates: false });
-            // 多表时选行数最多的工作表（口袋导出含收支记录/借入借出/固收理财等多表）
-            let bestName = wb.SheetNames[0], bestLen = -1;
-            for (const sn of wb.SheetNames) {
-              const r = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: "" });
-              if (r.length > bestLen) { bestLen = r.length; bestName = sn; }
+        const buf = rd.result instanceof ArrayBuffer ? rd.result : null;
+        const u8 = buf ? new Uint8Array(buf) : null;
+        const isZip = u8 && u8.length > 4 && u8[0] === 0x50 && u8[1] === 0x4B; // PK\x03\x04 = xlsx
+        const doParse = () => {
+          let rows;
+          try {
+            if (isZip) {
+              const wb = XLSX.read(u8, { type: "array", cellDates: false });
+              // 多表时选行数最多的工作表（口袋导出含收支记录/借入借出/固收理财等多表）
+              let bestName = wb.SheetNames[0], bestLen = -1;
+              for (const sn of wb.SheetNames) {
+                const r = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: "" });
+                if (r.length > bestLen) { bestLen = r.length; bestName = sn; }
+              }
+              rows = XLSX.utils.sheet_to_json(wb.Sheets[bestName], { header: 1, raw: true, defval: "" });
+            } else {
+              const text = new TextDecoder("utf-8").decode(u8 || rd.result);
+              rows = Store.csvToRows(text);
             }
-            rows = XLSX.utils.sheet_to_json(wb.Sheets[bestName], { header: 1, raw: true, defval: "" });
-          } else {
-            const text = new TextDecoder("utf-8").decode(u8 || rd.result);
-            rows = Store.csvToRows(text);
+          } catch (err) { UI.toast("解析失败[" + name + "/" + (u8 ? u8.length : "txt") + "B]: " + (err.message || err), 5000); return; }
+          let parsed;
+          try { parsed = Store.importRows(rows, "preview"); }
+          catch (err) {
+            // 诊断信息：文件名/大小/首行内容，便于远程定位
+            const first = JSON.stringify((rows[0] || []).slice(0, 5));
+            UI.toast("表头未识别[" + name + " " + (u8 ? u8.length + "B" : "") + "] 首行:" + first.slice(0, 60), 6000);
+            return;
           }
-        } catch (err) { UI.toast("解析失败[" + name + "/" + (u8 ? u8.length : "txt") + "B]: " + (err.message || err), 5000); return; }
-        let parsed;
-        try { parsed = Store.importRows(rows, "preview"); }
-        catch (err) {
-          // 诊断信息：文件名/大小/首行内容，便于远程定位
-          const first = JSON.stringify((rows[0] || []).slice(0, 5));
-          UI.toast("表头未识别[" + name + " " + (u8 ? u8.length + "B" : "") + "] 首行:" + first.slice(0, 60), 6000);
-          return;
-        }
-        sh.close();
-        const sh2 = UI.sheet({ title: "导入预览" });
-        sh2.body.innerHTML =
-          '<div style="font-size:13.5px;color:var(--text-2);line-height:1.8;padding:6px 2px">' +
-          '表头识别成功，共 <b>' + parsed.total + '</b> 行有效数据<br>' +
-          '预计新增 <b style="color:var(--primary)">' + parsed.expense + '</b> 笔支出、<b style="color:var(--income)">' + parsed.income + '</b> 笔收入' +
-          (parsed.balanceRows ? '<br>跳过余额变更行 ' + parsed.balanceRows + ' 条' : "") + '</div>' +
-          '<div class="cell" id="csvAppend"><div class="cell-main"><div class="cell-title">合并导入</div><div class="cell-desc">自动跳过与现有重复的账单</div></div>' + UI.svg("arrow", 15) + "</div>" +
-          '<div class="cell" id="csvReplace"><div class="cell-main"><div class="cell-title" style="color:var(--danger)">覆盖当前账本</div><div class="cell-desc">删除当前账本全部账单后导入</div></div>' + UI.svg("arrow", 15) + "</div>";
-        UI.$("#csvAppend", sh2.body).onclick = () => {
-          const r = Store.importRows(rows, "append");
-          sh2.close(); UI.toast("导入完成：新增 " + r.added + " 笔，跳过 " + r.skipped + " 条");
-          App.billMonth = fmt.curMonth(); App.refresh();
-        };
-        UI.$("#csvReplace", sh2.body).onclick = () => {
-          UI.confirm({ title: "覆盖导入", body: "将删除当前账本全部账单（" + Store.bookRecords().length + " 笔）后导入表格数据，且无法恢复。", ok: "覆盖", danger: true }).then(ok => {
-            if (!ok) return;
-            const r = Store.importRows(rows, "replace");
-            sh2.close(); UI.toast("导入完成：新增 " + r.added + " 笔");
+          sh.close();
+          const sh2 = UI.sheet({ title: "导入预览" });
+          sh2.body.innerHTML =
+            '<div style="font-size:13.5px;color:var(--text-2);line-height:1.8;padding:6px 2px">' +
+            '表头识别成功，共 <b>' + parsed.total + '</b> 行有效数据<br>' +
+            '预计新增 <b style="color:var(--primary)">' + parsed.expense + '</b> 笔支出、<b style="color:var(--income)">' + parsed.income + '</b> 笔收入' +
+            (parsed.balanceRows ? '<br>跳过余额变更行 ' + parsed.balanceRows + ' 条' : "") + '</div>' +
+            '<div class="cell" id="csvAppend"><div class="cell-main"><div class="cell-title">合并导入</div><div class="cell-desc">自动跳过与现有重复的账单</div></div>' + UI.svg("arrow", 15) + "</div>" +
+            '<div class="cell" id="csvReplace"><div class="cell-main"><div class="cell-title" style="color:var(--danger)">覆盖当前账本</div><div class="cell-desc">删除当前账本全部账单后导入</div></div>' + UI.svg("arrow", 15) + "</div>";
+          UI.$("#csvAppend", sh2.body).onclick = () => {
+            const r = Store.importRows(rows, "append");
+            sh2.close(); UI.toast("导入完成：新增 " + r.added + " 笔，跳过 " + r.skipped + " 条");
             App.billMonth = fmt.curMonth(); App.refresh();
-          });
+          };
+          UI.$("#csvReplace", sh2.body).onclick = () => {
+            UI.confirm({ title: "覆盖导入", body: "将删除当前账本全部账单（" + Store.bookRecords().length + " 笔）后导入表格数据，且无法恢复。", ok: "覆盖", danger: true }).then(ok => {
+              if (!ok) return;
+              const r = Store.importRows(rows, "replace");
+              sh2.close(); UI.toast("导入完成：新增 " + r.added + " 笔");
+              App.billMonth = fmt.curMonth(); App.refresh();
+            });
+          };
         };
+        // xlsx 库按需加载：仅在确认为 xlsx 文件时才拉取 273KB 的解析库
+        if (isZip) UI.ensureXLSX(doParse, () => UI.toast("XLSX 解析库加载失败，无法导入该文件"));
+        else doParse();
       };
       rd.readAsArrayBuffer(f);
     };

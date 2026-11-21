@@ -290,8 +290,9 @@ public class MainActivity extends Activity {
                 }
             }
         });
-        /* 开启 WebView 远程调试（chrome://inspect），便于真机问题排查 */
-        WebView.setWebContentsDebuggingEnabled(true);
+        /* WebView 远程调试（chrome://inspect）：默认关闭，正式发布不暴露调试接口。
+           需要真机排查时临时改为 true，排查后务必改回 false。 */
+        WebView.setWebContentsDebuggingEnabled(false);
         web.loadUrl("file:///android_asset/www/index.html");
         setContentView(web);
         handleShortcutIntent(getIntent());
