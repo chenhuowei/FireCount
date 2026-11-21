@@ -259,20 +259,42 @@ const ViewsAdd = {
     };
 
     const KEYS = [
-      { k: "7" }, { k: "8" }, { k: "9" }, { k: "del", cls: "func", icon: "del" },
-      { k: "4" }, { k: "5" }, { k: "6" }, { k: "+", cls: "op" },
-      { k: "1" }, { k: "2" }, { k: "3" }, { k: "-", cls: "op" },
-      { k: "C", cls: "func" }, { k: "0" }, { k: "." }, { k: "ok", cls: "ok" }
+      { k: "7" }, { k: "8" }, { k: "9" }, { k: "+", cls: "op" },
+      { k: "4" }, { k: "5" }, { k: "6" }, { k: "-", cls: "op" },
+      { k: "1" }, { k: "2" }, { k: "3" },
+      // OK 单个按钮跨两行（第4列，第3~4行）
+      { k: "ok", cls: "ok", span: true },
+      { k: "." }, { k: "0" }, { k: "C", cls: "func" }
     ];
     const renderKeys = () => {
       const host = UI.$("#jyKeys", sh.sheet);
       if (!host) return;
       host.innerHTML = KEYS.map(k => {
-        const inner = k.icon ? UI.svg(k.icon, 20) : k.k === "ok" ? "OK" : k.k;
+        const inner = k.k === "ok" ? "OK" : k.k;
         const dis = k.k === "ok" && !ViewsAdd.canSave(S) ? " disabled" : "";
-        return '<button class="jy-key ' + (k.cls || "") + dis + '" data-k="' + k.k + '">' + inner + "</button>";
+        const style = k.span ? ' style="grid-column:4;grid-row:3 / span 2;height:auto"' : "";
+        return '<button class="jy-key ' + (k.cls || "") + dis + '" data-k="' + k.k + '"' + style + '>' + inner + "</button>";
       }).join("");
-      host.querySelectorAll(".jy-key").forEach(b => b.onclick = () => ViewsAdd.key(S, b.dataset.k, patchAmount));
+      host.querySelectorAll(".jy-key").forEach(b => {
+        if (b.dataset.k === "C") {
+          // C 键：短按删一位（del），长按 600ms 清空（C）
+          let timer = null, longFired = false, touched = false;
+          b.addEventListener("touchstart", e => {
+            e.preventDefault(); touched = true; longFired = false;
+            timer = setTimeout(() => { longFired = true; ViewsAdd.key(S, "C", patchAmount); }, 600);
+          }, { passive: false });
+          const finish = () => {
+            clearTimeout(timer);
+            if (!longFired) ViewsAdd.key(S, "del", patchAmount);
+            setTimeout(() => { touched = false; }, 50); // 吞掉 touch 后的 click
+          };
+          b.addEventListener("touchend", e => { e.preventDefault(); finish(); });
+          b.addEventListener("touchcancel", () => { clearTimeout(timer); touched = false; });
+          b.onclick = () => { if (touched) return; ViewsAdd.key(S, "del", patchAmount); };
+        } else {
+          b.onclick = () => ViewsAdd.key(S, b.dataset.k, patchAmount);
+        }
+      });
     };
 
     /* 模式切换 */
