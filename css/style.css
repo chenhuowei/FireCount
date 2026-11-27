@@ -648,7 +648,9 @@ body[data-theme="deep"] .bill-top { background: linear-gradient(150deg, #D95E12,
 .rp-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
 .rp-kpi { background: var(--card); border-radius: 12px; box-shadow: var(--shadow); padding: 10px 6px; text-align: center; min-width: 0; overflow: hidden; }
 .rp-kpi .k { font-size: 11px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rp-kpi .v { font-size: 14.5px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 数字过长时可在卡片内左右滑动查看，不再省略 */
+.rp-kpi .v { font-size: 14.5px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.rp-kpi .v::-webkit-scrollbar { display: none; }
 /* 数字越长字号越小，避免大额撑破 KPI 卡片 */
 .rp-kpi .v.len-m { font-size: 12.5px; }
 .rp-kpi .v.len-l { font-size: 11px; }
