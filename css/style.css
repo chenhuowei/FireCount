@@ -645,7 +645,7 @@ body[data-theme="deep"] .bill-top { background: linear-gradient(150deg, #D95E12,
 .rp-toggle { display: flex; background: var(--card); border-radius: 12px; padding: 3px; box-shadow: var(--shadow); margin-bottom: 12px; }
 .rp-toggle button { flex: 1; padding: 8px 0; border-radius: 10px; font-size: 14px; color: var(--text-2); font-weight: 500; }
 .rp-toggle button.active { color: var(--brand); font-weight: 700; }
-.rp-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+.rp-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
 .rp-kpi { background: var(--card); border-radius: 12px; box-shadow: var(--shadow); padding: 10px 6px; text-align: center; min-width: 0; overflow: hidden; }
 .rp-kpi .k { font-size: 11px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* 数字过长时可在卡片内左右滑动查看，不再省略 */
@@ -1070,5 +1070,10 @@ canvas.chart { width: 100%; display: block; }
 #kpiDays:active, #meDays:active {
   background: var(--brand); color: #fff;
 }
-/* 报表窄格内的天数胶囊收紧，避免撑破四列网格 */
-.rp-kpi #kpiDays { padding: 2px 7px; border-width: 1px; font-size: inherit; max-width: 100%; }
+/* 合并格：笔数 + 天数两行 */
+.rp-kpi-combo { display: flex; flex-direction: column; justify-content: center; gap: 6px; }
+.rp-kpi-combo .kc-row { display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; }
+.rp-kpi-combo .kc-k { font-size: 11px; color: var(--text-3); flex: none; }
+.rp-kpi-combo .kc-v { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 0; overflow-x: auto; scrollbar-width: none; white-space: nowrap; }
+.rp-kpi-combo .kc-v::-webkit-scrollbar { display: none; }
+.rp-kpi-combo #kpiDays { padding: 1px 6px; border-width: 1px; border-radius: 12px; font-size: inherit; background: var(--brand-soft, #FFF1E8); border: 1px solid var(--brand); color: var(--brand); }

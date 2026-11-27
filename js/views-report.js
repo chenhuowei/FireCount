@@ -149,9 +149,11 @@ const ViewsReport = {
     let html =
       '<div class="rp-kpis">' +
         kpi("总" + (t === "expense" ? "支出" : "收入"), cur + fmt.money(t === "expense" ? sum.out : sum.in)) +
-        kpi("账单笔数", recs.length) +
         kpi("最高单笔", cur + fmt.money(maxOne)) +
-        kpi("记账天数", '<span id="kpiDays" style="cursor:pointer">' + dayCount + "/" + spanDays + "</span>") +
+        '<div class="rp-kpi rp-kpi-combo">' +
+          '<div class="kc-row"><span class="kc-k">笔数</span><span class="kc-v">' + recs.length + "</span></div>" +
+          '<div class="kc-row"><span class="kc-k">天数</span><span class="kc-v"><span id="kpiDays" style="cursor:pointer">' + dayCount + "/" + spanDays + "</span></span></div>" +
+        "</div>" +
       "</div>";
 
     /* 饼图 + 图例 */
