@@ -227,7 +227,11 @@ const ViewsReport = {
     }
 
     function kpi(k, v) {
-      return '<div class="rp-kpi"><div class="k">' + k + '</div><div class="v">' + v + "</div></div>";
+      // 按可见文本长度自适应字号：大额数字不撑破四列网格
+      const text = String(v).replace(/<[^>]*>/g, "");
+      const len = text.length;
+      const cls = len > 15 ? " len-xl" : len > 12 ? " len-l" : len > 9 ? " len-m" : "";
+      return '<div class="rp-kpi"><div class="k">' + k + '</div><div class="v' + cls + '">' + v + "</div></div>";
     }
   },
 
