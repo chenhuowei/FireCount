@@ -1071,8 +1071,8 @@ canvas.chart { width: 100%; display: block; }
   background: var(--brand); color: #fff;
 }
 /* 合并格：笔数 + 天数两行 */
-.rp-kpi-combo { display: flex; flex-direction: column; justify-content: center; gap: 6px; }
-.rp-kpi-combo .kc-row { display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; }
+.rp-kpi-combo { display: flex; flex-direction: column; justify-content: center; align-items: stretch; text-align: left; gap: 6px; padding-left: 12px; }
+.rp-kpi-combo .kc-row { display: flex; align-items: center; justify-content: flex-start; gap: 8px; min-width: 0; }
 .rp-kpi-combo .kc-k { font-size: 11px; color: var(--text-3); flex: none; }
 .rp-kpi-combo .kc-v { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 0; overflow-x: auto; scrollbar-width: none; white-space: nowrap; }
 .rp-kpi-combo .kc-v::-webkit-scrollbar { display: none; }
