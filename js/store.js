@@ -25,6 +25,7 @@ const Store = {
     } catch (e) { console.warn("dbLoad failed, fallback localStorage", e); }
     try { return localStorage.getItem(this.KEY) || ""; } catch (e) { return ""; }
   },
+  /* 全量写：APK 走 dbSave 整表重建；浏览器写 localStorage（+备份槽） */
   storagePut(json) {
     let dbOk = false;
     try {
@@ -142,6 +143,48 @@ const Store = {
     if (changed) this.save();
   },
 
+  /* ---------- 增量保存：记录快照 diff ----------
+     _recSnapshot 保存上次落盘时每条记录的 JSON 字符串；saveNow 时对比当前记录，
+     算出新增/修改(upserts)与删除(deletes)，只把差异交给原生 SQLite。
+     全量场景（启动/清空/恢复/导入覆盖/演示数据）用 markFull() 强制整表写。 */
+  _recSnapshot: null,
+  _headSnapshot: null,
+  _fullSave: true,
+  markFull() { this._fullSave = true; },
+  _buildSnapshot() {
+    const m = new Map();
+    for (const r of this.s.records) m.set(r.id, JSON.stringify(r));
+    this._recSnapshot = m;
+    this._headSnapshot = JSON.stringify(Object.assign({}, this.s, { records: undefined }));
+  },
+  _persist() {
+    const canDelta = !!(window.AndroidBridge && window.AndroidBridge.dbSaveDelta);
+    if (canDelta && !this._fullSave && this._recSnapshot) {
+      // 计算差异
+      const cur = new Map();
+      for (const r of this.s.records) cur.set(r.id, JSON.stringify(r));
+      const upserts = [], deletes = [];
+      for (const [id, json] of cur) if (this._recSnapshot.get(id) !== json) upserts.push(JSON.parse(json));
+      for (const id of this._recSnapshot.keys()) if (!cur.has(id)) deletes.push(id);
+      const headJson = JSON.stringify(Object.assign({}, this.s, { records: undefined }));
+      const headChanged = headJson !== this._headSnapshot;
+      if (upserts.length || deletes.length || headChanged) {
+        try {
+          window.AndroidBridge.dbSaveDelta(headJson, JSON.stringify(upserts), JSON.stringify(deletes));
+          this._recSnapshot = cur; this._headSnapshot = headJson;
+          return true;
+        } catch (e) { console.warn("dbSaveDelta failed, fallback full", e); }
+      } else {
+        return true; // 无任何变化，跳过写盘
+      }
+    }
+    // 全量路径（浏览器 / 首次 / 全量场景 / 增量不可用）
+    const json = JSON.stringify(this.s);
+    const ok = this.storagePut(json);
+    if (canDelta) this._buildSnapshot();
+    this._fullSave = false;
+    return ok;
+  },
   save() {
     /* APK（原生桥）：去抖合并——批量写入（如演示数据 100 笔）只落一次盘，
        避免同步桥逐笔阻塞 UI；浏览器（localStorage）保持同步直写 */
@@ -149,7 +192,7 @@ const Store = {
       clearTimeout(this._saveTimer);
       this._saveTimer = setTimeout(() => this.saveNow(), 300);
     } else {
-      this.storagePut(JSON.stringify(this.s));
+      this._persist();
     }
     /* 自动云备份钩子：记账后 N 秒自动推坚果云（内部再去抖，只推最后一次） */
     try { if (window.WebDAV) WebDAV.onDataSetChanged(); } catch (e) {}
@@ -157,11 +200,12 @@ const Store = {
   },
   saveNow() {
     clearTimeout(this._saveTimer);
-    return this.storagePut(JSON.stringify(this.s));
+    return this._persist();
   },
   /* 清空记账数据。设备级凭证（WebDAV 配置、应用锁）默认保留，
      避免用户清数据后还要重新去坚果云生成应用密码 */
   reset(opts) {
+    this.markFull();
     const keepDevice = !opts || opts.keepDeviceConfig !== false;
     const keepWebdav = keepDevice && this.s && this.s.settings && this.s.settings.webdav;
     const keepLock = keepDevice && this.s && this.s.settings && this.s.settings.lock;
@@ -174,6 +218,7 @@ const Store = {
   },
   /* 恢复备份：保留本机设备配置（WebDAV 凭证、应用锁），避免恢复后云端失联或被旧锁挡住 */
   replaceState(next) {
+    this.markFull();
     const keepWebdav = this.s && this.s.settings && this.s.settings.webdav;
     const keepLock = this.s && this.s.settings && this.s.settings.lock;
     this.s = next;
@@ -531,7 +576,7 @@ const Store = {
       return { total, expense, income, balanceRows };
     }
 
-    if (mode === "replace") this.s.records = this.s.records.filter(r => r.bookId !== this.book().id);
+    if (mode === "replace") { this.s.records = this.s.records.filter(r => r.bookId !== this.book().id); this.markFull(); }
     // 去重键：日期归一化（/→-，去秒）+ 类型 + 金额绝对值 + 备注
     const normDate = d => String(d || "").replace(/\//g, "-").slice(0, 16);
     const existKeys = new Set(this.s.records.map(r => normDate(r.date) + "|" + r.type + "|" + (+r.amount).toFixed(2) + "|" + (r.note || "")));
@@ -588,6 +633,7 @@ const Store = {
 
   /* ---------- 演示数据 ---------- */
   seedDemo() {
+    this.markFull();
     const s = this.s;
     const bid = s.currentBookId;
     const expCats = this.categories("expense"), incCats = this.categories("income");

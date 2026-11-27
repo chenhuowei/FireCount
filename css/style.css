@@ -501,6 +501,9 @@ body[data-theme="deep"] .bill-top { background: linear-gradient(150deg, #D95E12,
 .empty .big { font-size: 46px; margin-bottom: 10px; }
 .empty .t1 { font-size: 15px; color: var(--text-2); margin-bottom: 18px; }
 .empty .btns { display: flex; gap: 10px; justify-content: center; }
+/* 账单列表分页：加载更多 */
+.load-more { text-align: center; padding: 14px; margin: 4px 12px 18px; border-radius: 12px; background: var(--card); box-shadow: var(--shadow); color: var(--brand); font-size: 13.5px; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.load-more:active { background: var(--chip); }
 
 /* ---------- 按钮 ---------- */
 .btn {

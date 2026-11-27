@@ -49,6 +49,8 @@ const ViewsBills = {
     this.renderList();
   },
 
+  _listKey: null, visibleCount: 30, pageSize: 30,
+
   renderList() {
     const host = UI.$("#billList");
     const groups = Store.dayGroups(App.billMonth, App.billFilter.account);
@@ -64,15 +66,38 @@ const ViewsBills = {
         "</div></div>";
       return;
     }
-    let html = "";
+    // 分页：切月/切账本/切账户筛选时重置，滚动加载更多
+    const key = App.billMonth + "|" + (App.billFilter.account || "") + "|" + Store.s.currentBookId;
+    if (this._listKey !== key) { this._listKey = key; this.visibleCount = this.pageSize; }
+    const total = groups.reduce((s, g) => s + g.items.length, 0);
+    let remaining = this.visibleCount;
+    const paged = [];
     for (const g of groups) {
+      if (remaining <= 0) break;
+      const items = g.items.slice(0, remaining);
+      paged.push(Object.assign({}, g, { items }));
+      remaining -= items.length;
+    }
+    let html = "";
+    for (const g of paged) {
       html += '<div class="day-group"><div class="day-head"><span class="d">' + fmt.dayLabel(g.date) + "</span>" +
         '<span class="sums">' + (g.in ? '<span class="money-in">收 ' + fmt.money(g.in) + "</span>" : "") +
         (g.out ? '<span class="money-out">支 ' + fmt.money(g.out) + "</span>" : "") + "</span></div>";
       for (const r of g.items) html += ViewsBills.itemHTML(r, cur);
       html += "</div>";
     }
+    const shown = paged.reduce((s, g) => s + g.items.length, 0);
+    if (shown < total) {
+      html += '<div class="load-more" id="loadMore">加载更多 · 已显示 ' + shown + "/" + total + "</div>";
+    }
     host.innerHTML = html;
+    const lm = UI.$("#loadMore", host);
+    if (lm) lm.onclick = () => {
+      const main = UI.$("#pageMain"), top = main ? main.scrollTop : 0;
+      this.visibleCount += this.pageSize;
+      this.renderList();
+      if (main) main.scrollTop = top;
+    };
     this.bindSwipe(host);
   },
 

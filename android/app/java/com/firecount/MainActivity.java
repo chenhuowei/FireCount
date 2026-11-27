@@ -179,6 +179,65 @@ public class MainActivity extends Activity {
         }
     }
 
+    /** 增量落库：写 head（备份旧 head）+ 按 upserts/deletes 增量改 records，不整表重建 */
+    private void dbSaveDeltaInternal(String headJson, String upsertsJson, String deletesJson) {
+        try {
+            SQLiteDatabase d = db();
+            d.beginTransaction();
+            try {
+                // 写 head 前先备份旧 head
+                try {
+                    Cursor pc = d.rawQuery("SELECT v FROM meta WHERE k='head'", null);
+                    if (pc.moveToFirst() && pc.getString(0) != null && pc.getString(0).length() > 0) {
+                        ContentValues bak = new ContentValues();
+                        bak.put("k", "head_bak"); bak.put("v", pc.getString(0));
+                        d.insertWithOnConflict("meta", null, bak, SQLiteDatabase.CONFLICT_REPLACE);
+                    }
+                    pc.close();
+                } catch (Exception ignore) {}
+                ContentValues meta = new ContentValues();
+                meta.put("k", "head"); meta.put("v", headJson);
+                d.insertWithOnConflict("meta", null, meta, SQLiteDatabase.CONFLICT_REPLACE);
+
+                // 删除
+                JSONArray dels = new JSONArray(deletesJson == null ? "[]" : deletesJson);
+                for (int i = 0; i < dels.length(); i++) {
+                    d.delete("records", "id=?", new String[]{dels.optString(i)});
+                }
+                // 新增/更新
+                JSONArray ups = new JSONArray(upsertsJson == null ? "[]" : upsertsJson);
+                for (int i = 0; i < ups.length(); i++) {
+                    JSONObject o = ups.getJSONObject(i);
+                    ContentValues row = new ContentValues();
+                    row.put("id", o.optString("id", "r" + i));
+                    row.put("book_id", o.optString("bookId"));
+                    row.put("type", o.optString("type"));
+                    row.put("amount", o.optDouble("amount", 0));
+                    row.put("category_id", o.optString("categoryId"));
+                    row.put("account_id", o.optString("accountId"));
+                    row.put("to_account_id", o.optString("toAccountId"));
+                    row.put("date", o.optString("date"));
+                    row.put("note", o.optString("note"));
+                    row.put("member", o.optString("member"));
+                    JSONArray tags = o.optJSONArray("tags");
+                    row.put("tags", tags == null ? "[]" : tags.toString());
+                    JSONArray photos = o.optJSONArray("photos");
+                    row.put("photos", photos == null ? "[]" : photos.toString());
+                    row.put("created_at", o.optLong("createdAt", 0));
+                    row.put("updated_at", o.optLong("updatedAt", 0));
+                    d.insertWithOnConflict("records", null, row, SQLiteDatabase.CONFLICT_REPLACE);
+                }
+                d.setTransactionSuccessful();
+            } finally {
+                d.endTransaction();
+            }
+        } catch (final Exception e) {
+            log("dbSaveDelta failed: " + e);
+            runOnUiThread(() -> Toast.makeText(MainActivity.this,
+                    "增量保存失败：" + e.getMessage(), Toast.LENGTH_LONG).show());
+        }
+    }
+
     private void dbClearInternal() {
         try {
             SQLiteDatabase d = db();
@@ -197,30 +256,40 @@ public class MainActivity extends Activity {
 
     /* ---------- 异步落盘：单线程队列 + 最新优先合并（JS 永不阻塞） ---------- */
     private final Object writeLock = new Object();
-    private String pendingJson;
+    private Runnable pendingTask;             // 待执行写任务（全量或增量），最新覆盖旧的
     private boolean writerRunning;
     private final java.util.concurrent.ExecutorService writer =
             java.util.concurrent.Executors.newSingleThreadExecutor();
 
-    private void enqueueWrite(final String json) {
+    /** 提交写任务：同一时刻只保留最后一个任务（合并中间态），保证顺序与不阻塞 JS */
+    private void enqueueTask(final Runnable task) {
         synchronized (writeLock) {
-            pendingJson = json;               // 最新快照覆盖旧的
+            pendingTask = task;               // 最新快照覆盖旧的
             if (writerRunning) return;
             writerRunning = true;
         }
         writer.execute(new Runnable() {
             @Override public void run() {
                 while (true) {
-                    String job;
-                    synchronized (writeLock) { job = pendingJson; pendingJson = null; }
+                    Runnable job;
+                    synchronized (writeLock) { job = pendingTask; pendingTask = null; }
                     if (job == null) {
                         synchronized (writeLock) { writerRunning = false; }
                         return;
                     }
-                    dbSaveInternal(job);
+                    job.run();
                 }
             }
         });
+    }
+
+    private void enqueueWrite(final String json) {
+        enqueueTask(() -> dbSaveInternal(json));
+    }
+
+    /** 增量保存：写 head + 按 upserts/deletes 增量改 records（不整表重建） */
+    private void enqueueDelta(final String headJson, final String upsertsJson, final String deletesJson) {
+        enqueueTask(() -> dbSaveDeltaInternal(headJson, upsertsJson, deletesJson));
     }
 
     @Override
@@ -364,6 +433,11 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public void dbSave(String json) { enqueueWrite(json); }
+
+        @JavascriptInterface
+        public void dbSaveDelta(String headJson, String upsertsJson, String deletesJson) {
+            enqueueDelta(headJson, upsertsJson, deletesJson);
+        }
 
         @JavascriptInterface
         public void dbClear() { dbClearInternal(); }
