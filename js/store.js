@@ -471,6 +471,28 @@ const Store = {
       return { date, items: items.sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt), in: in_, out };
     });
   },
+  /* 跨月按天分组（日期倒序）：账单列表连续分页用。
+     untilMonth 为锚点月（含），只取该月及更早的记录；账本/账户过滤与 dayGroups 一致。 */
+  allDayGroups(filterAccountId, untilMonth) {
+    const groups = new Map();
+    const bid = this.book().id;
+    for (const r of this.s.records) {
+      if (r.bookId !== bid) continue;
+      if (untilMonth && r.date.slice(0, 7) > untilMonth) continue;
+      if (filterAccountId) {
+        const hit = r.accountId === filterAccountId || r.toAccountId === filterAccountId;
+        if (!hit) continue;
+      }
+      const d = r.date.slice(0, 10);
+      if (!groups.has(d)) groups.set(d, []);
+      groups.get(d).push(r);
+    }
+    return [...groups.entries()].sort((a, b) => b[0].localeCompare(a[0])).map(([date, items]) => {
+      let in_ = 0, out = 0;
+      for (const r of items) { if (r.type === "income") in_ += r.amount; else if (r.type === "expense") out += r.amount; }
+      return { date, items: items.sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt), in: in_, out };
+    });
+  },
   monthDaysWithRecords(month) {
     const set = new Set(this.monthRecords(month).map(r => r.date.slice(0, 10)));
     return set.size;

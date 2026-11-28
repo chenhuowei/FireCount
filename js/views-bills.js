@@ -10,7 +10,6 @@ const ViewsBills = {
   render(header, main) {
     header.classList.add("hidden");
     const m = App.billMonth;
-    const sum = Store.monthSummary(m);
     const book = Store.book();
     const y = +m.slice(0, 4), mm = +m.slice(5, 7);
     const filtering = !!App.billFilter.account;
@@ -26,11 +25,7 @@ const ViewsBills = {
             '<button id="mNext">' + UI.svg("right", 16) + "</button>" +
           "</div>" +
         "</div>" +
-        '<div class="bill-sum">' +
-          '<div class="item"><div class="lab">本月支出</div><div class="val">' + fmt.money(sum.out) + "</div></div>" +
-          '<div class="item"><div class="lab">本月收入</div><div class="val">' + fmt.money(sum.in) + "</div></div>" +
-          '<div class="item"><div class="lab">结余</div><div class="val">' + (sum.balance >= 0 ? "+" : "") + fmt.money(sum.balance) + "</div></div>" +
-        "</div>" +
+        '<div class="bill-sum" id="billSum"></div>' +
       "</div>" +
       '<div class="bill-tools">' +
         '<button class="tool' + (filtering ? " active" : "") + '" id="tFilter">' + (filtering ? UI.escape(fAcc.name) : "全部账户") + UI.svg("down", 13) + "</button>" +
@@ -39,9 +34,10 @@ const ViewsBills = {
       "</div>" +
       '<div id="billList"></div>' +
       "</div>";
-    UI.$("#mTitle").onclick = () => UI.periodPicker("month", App.billMonth, v => { App.billMonth = v; App.refresh({ skipAnim: true }); });
-    UI.$("#mPrev").onclick = () => App.shiftMonth(-1);
-    UI.$("#mNext").onclick = () => App.shiftMonth(1);
+    UI.$("#mTitle").onclick = () => UI.periodPicker("month", this._visibleMonth || App.billMonth, v => { App.billMonth = v; App.refresh({ skipAnim: true }); });
+    // 切月以「当前可见月份」为基准，符合用户看到的标题
+    UI.$("#mPrev").onclick = () => { App.billMonth = ViewsBills._shiftMonth(this._visibleMonth || App.billMonth, -1); App.refresh({ skipAnim: true }); };
+    UI.$("#mNext").onclick = () => { App.billMonth = ViewsBills._shiftMonth(this._visibleMonth || App.billMonth, 1); App.refresh({ skipAnim: true }); };
     UI.$("#bBookBtn").onclick = () => ViewsBills.bookSheet();
     UI.$("#tCal").onclick = () => App.go("calendar");
     UI.$("#tSearch").onclick = () => App.go("search");
@@ -49,15 +45,38 @@ const ViewsBills = {
     this.renderList();
   },
 
-  _listKey: null, visibleCount: 30, pageSize: 30,
+  _listKey: null, _visibleMonth: null, visibleCount: 30, pageSize: 30,
+  _shiftMonth(month, delta) {
+    const y = +month.slice(0, 4), m = +month.slice(5, 7);
+    const d = new Date(y, m - 1 + delta, 1);
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+  },
 
   renderList() {
     const host = UI.$("#billList");
-    const groups = Store.dayGroups(App.billMonth, App.billFilter.account);
+    // 跨月按天倒序：锚点月为 App.billMonth，往前补足 pageSize 个有账日期
+    const groups = Store.allDayGroups(App.billFilter.account, App.billMonth);
     const cur = Store.s.settings.currency;
     // 空状态也要重置分页 key，否则切到无数据月再切回会保留旧的 visibleCount
     const key = App.billMonth + "|" + (App.billFilter.account || "") + "|" + Store.s.currentBookId;
     if (this._listKey !== key) { this._listKey = key; this.visibleCount = this.pageSize; }
+
+    // 顶部标题月份 = 当前可见记录里最新那天的月份（可见为空则回退锚点月）
+    const pagedAll = groups.slice(0, this.visibleCount);
+    const visMonth = pagedAll.length ? pagedAll[0].date.slice(0, 7) : App.billMonth;
+    this._visibleMonth = visMonth;
+    const vy = +visMonth.slice(0, 4), vm = +visMonth.slice(5, 7);
+    const titleEl = UI.$("#mTitle");
+    if (titleEl) titleEl.textContent = vy + "年" + vm + "月";
+    const sumEl = UI.$("#billSum");
+    if (sumEl) {
+      const sum = Store.monthSummary(visMonth);
+      sumEl.innerHTML =
+        '<div class="item"><div class="lab">本月支出</div><div class="val">' + fmt.money(sum.out) + "</div></div>" +
+        '<div class="item"><div class="lab">本月收入</div><div class="val">' + fmt.money(sum.in) + "</div></div>" +
+        '<div class="item"><div class="lab">结余</div><div class="val">' + (sum.balance >= 0 ? "+" : "") + fmt.money(sum.balance) + "</div></div>";
+    }
+
     if (!groups.length) {
       const hasAny = Store.s.records.length > 0;
       host.innerHTML =
@@ -70,7 +89,7 @@ const ViewsBills = {
       return;
     }
     // 分页：按整天显示，不切断日组
-    const paged = groups.slice(0, this.visibleCount);
+    const paged = pagedAll;
     const total = groups.length;
     let html = "";
     for (const g of paged) {

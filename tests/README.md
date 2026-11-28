@@ -6,7 +6,7 @@
 
 ```bash
 npm install          # 首次：安装 jsdom（仅测试用）
-npm test             # 全量：静态审查 + 4 套测试，共 178 项
+npm test             # 全量：静态审查 + 4 套测试，共 180 项
 ```
 
 单独运行：
@@ -14,7 +14,7 @@ npm test             # 全量：静态审查 + 4 套测试，共 178 项
 ```bash
 npm run test:static   # 静态审查：缺失方法/图标/死代码/调试残留
 npm run test:core     # 核心逻辑（63 项）
-npm run test:ui       # UI 交互（43 项）
+npm run test:ui       # UI 交互（45 项）
 npm run test:apk      # APK 环境（47 项）
 npm run test:assets   # 资源与样式（25 项）
 ```

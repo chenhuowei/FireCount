@@ -388,5 +388,39 @@ test('切月/切账本后分页自动重置', () => {
   eq(main().querySelectorAll('.day-group').length, 2, '应重新显示 2 天');
 });
 
+/* ============ 账单跨月连续分页 ============ */
+suite('账单 · 跨月按天连续加载');
+test('本月 1 条 + 上月多天：首屏补齐到 30 个有账日组（跨月）', () => {
+  resetState();
+  const cur = fmt.curMonth();
+  const [y, m] = cur.split('-').map(Number);
+  const prev = new Date(y, m - 2, 1);
+  const pm = prev.getFullYear() + '-' + String(prev.getMonth() + 1).padStart(2, '0');
+  S.addRecord({ type: 'expense', amount: 1, categoryId: 'ce_canyin', accountId: S.s.accounts[0].id, date: cur + '-01 10:00' });
+  const dim = new Date(prev.getFullYear(), prev.getMonth() + 1, 0).getDate();
+  for (let d = 1; d <= dim; d++) {
+    S.addRecord({ type: 'expense', amount: 1, categoryId: 'ce_canyin', accountId: S.s.accounts[0].id, date: pm + '-' + String(d).padStart(2, '0') + ' 10:00' });
+  }
+  App.page = 'bills'; App.billMonth = cur;
+  ViewsBills._listKey = null; ViewsBills.visibleCount = ViewsBills.pageSize;
+  ViewsBills.render(header(), main());
+  eq(main().querySelectorAll('.day-group').length, 30, '首屏应为 30 个有账日组（本月1天 + 上月29天）');
+  ok(main().querySelector('#loadMore'), '还有更早账单，应显示加载更多');
+});
+test('顶部标题月份 = 当前可见记录里最新那天的月份', () => {
+  resetState();
+  const cur = fmt.curMonth();
+  const [y, m] = cur.split('-').map(Number);
+  const prev = new Date(y, m - 2, 1);
+  const pm = prev.getFullYear() + '-' + String(prev.getMonth() + 1).padStart(2, '0');
+  S.addRecord({ type: 'expense', amount: 1, date: pm + '-15 10:00' });
+  // 锚点设为未来空月，所有可见记录都在上月 → 标题应显示上月
+  App.page = 'bills'; App.billMonth = ViewsBills._shiftMonth(cur, 2);
+  ViewsBills._listKey = null; ViewsBills.visibleCount = ViewsBills.pageSize;
+  ViewsBills.render(header(), main());
+  const title = main().querySelector('#mTitle').textContent;
+  eq(title, +pm.slice(0, 4) + '年' + (+pm.slice(5, 7)) + '月', '标题应为可见最新月份 ' + pm);
+});
+
 const okAll = summary();
 process.exit(okAll ? 0 : 1);
