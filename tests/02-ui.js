@@ -333,5 +333,60 @@ test('shiftMonth 不再抛错（viewMonth 残留回归）', () => {
   catch (e) { throw new Error('shiftMonth 抛错: ' + e.message); }
 });
 
+/* ============ 账单分页：按整天显示（Bug 回归） ============ */
+suite('账单分页 · 按整天不切断日组');
+test('同一天 40 笔也只在一个 day-group 里，日小计与明细一致', () => {
+  resetState();
+  // 模拟同一天 40 笔各 10 元
+  const d = fmt.curMonth() + '-15 10:00';
+  for (let i = 0; i < 40; i++) {
+    S.addRecord({ type: 'expense', amount: 10, categoryId: 'ce_canyin', accountId: S.s.accounts[0].id, date: d });
+  }
+  App.page = 'bills';
+  App.billMonth = fmt.curMonth();
+  ViewsBills._listKey = null; ViewsBills.visibleCount = ViewsBills.pageSize;
+  ViewsBills.render(header(), main());
+  const groups = main().querySelectorAll('.day-group');
+  eq(groups.length, 1, '同一天应只渲染 1 个 day-group');
+  const items = groups[0].querySelectorAll('.bill-item');
+  eq(items.length, 40, '该日应完整显示 40 笔明细');
+  const dayOut = groups[0].querySelector('.day-head .money-out');
+  ok(dayOut && dayOut.textContent.includes('400.00'), '日小计应为 400.00，实际 ' + (dayOut && dayOut.textContent));
+});
+test('多天时首次最多渲染 pageSize 个 day-group，加载更多递增', () => {
+  resetState();
+  const m = fmt.curMonth();
+  for (let day = 1; day <= 35; day++) {
+    S.addRecord({ type: 'expense', amount: 1, categoryId: 'ce_canyin', accountId: S.s.accounts[0].id, date: m + '-' + String(day).padStart(2, '0') + ' 10:00' });
+  }
+  App.page = 'bills'; App.billMonth = m;
+  ViewsBills._listKey = null; ViewsBills.visibleCount = ViewsBills.pageSize;
+  ViewsBills.render(header(), main());
+  eq(main().querySelectorAll('.day-group').length, 30, '首屏应显示 30 天');
+  ok(main().querySelector('#loadMore'), '应有加载更多按钮');
+  main().querySelector('#loadMore').onclick();
+  eq(main().querySelectorAll('.day-group').length, 35, '点击后应显示全部 35 天');
+});
+test('切月/切账本后分页自动重置', () => {
+  resetState();
+  const m = fmt.curMonth();
+  S.addRecord({ type: 'expense', amount: 1, categoryId: 'ce_canyin', accountId: S.s.accounts[0].id, date: m + '-01 10:00' });
+  S.addRecord({ type: 'expense', amount: 1, categoryId: 'ce_canyin', accountId: S.s.accounts[0].id, date: m + '-02 10:00' });
+  App.page = 'bills'; App.billMonth = m;
+  ViewsBills.render(header(), main());
+  eq(main().querySelectorAll('.day-group').length, 2, '当前月显示 2 天');
+  // 模拟用户加载更多后 visibleCount 变大
+  ViewsBills.visibleCount = 999;
+  // 切月后重新 render 会触发 key 变化，重置 visibleCount
+  App.shiftMonth(-1);
+  ViewsBills.render(header(), main());
+  eq(ViewsBills.visibleCount, ViewsBills.pageSize, '切月后 visibleCount 应重置为 pageSize');
+  eq(main().querySelectorAll('.day-group').length, 0, '上个月无数据应为 0 天');
+  // 切回
+  App.shiftMonth(1);
+  ViewsBills.render(header(), main());
+  eq(main().querySelectorAll('.day-group').length, 2, '应重新显示 2 天');
+});
+
 const okAll = summary();
 process.exit(okAll ? 0 : 1);

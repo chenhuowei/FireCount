@@ -120,125 +120,91 @@ public class MainActivity extends Activity {
         o.put(key, v == null ? "" : v);
     }
 
-    /** 全量落库：meta.head（除 records 外的头部）+ records 整表重建（事务） */
-    private void dbSaveInternal(String json) {
+    /** JSONObject record → ContentValues，供全量/增量写入复用 */
+    private ContentValues recordToValues(JSONObject o) {
+        ContentValues row = new ContentValues();
+        row.put("id", o.optString("id"));
+        row.put("book_id", o.optString("bookId"));
+        row.put("type", o.optString("type"));
+        row.put("amount", o.optDouble("amount", 0));
+        row.put("category_id", o.optString("categoryId"));
+        row.put("account_id", o.optString("accountId"));
+        row.put("to_account_id", o.optString("toAccountId"));
+        row.put("date", o.optString("date"));
+        row.put("note", o.optString("note"));
+        row.put("member", o.optString("member"));
+        JSONArray tags = o.optJSONArray("tags");
+        row.put("tags", tags == null ? "[]" : tags.toString());
+        JSONArray photos = o.optJSONArray("photos");
+        row.put("photos", photos == null ? "[]" : photos.toString());
+        row.put("created_at", o.optLong("createdAt", 0));
+        row.put("updated_at", o.optLong("updatedAt", 0));
+        return row;
+    }
+
+    /** 全量落库：meta.head（除 records 外的头部）+ records 整表重建（事务）。异常上抛给重试层。 */
+    private void dbSaveInternal(String json) throws Exception {
+        JSONObject s = new JSONObject(json);
+        JSONArray recs = s.optJSONArray("records");
+        if (recs != null) s.remove("records");
+        SQLiteDatabase d = db();
+        d.beginTransaction();
         try {
-            JSONObject s = new JSONObject(json);
-            JSONArray recs = s.optJSONArray("records");
-            if (recs != null) s.remove("records");
-            SQLiteDatabase d = db();
-            d.beginTransaction();
-            try {
-                // 写入前先把旧 head 备份到 head_bak（防主数据异常时全丢）
-                try {
-                    Cursor pc = d.rawQuery("SELECT v FROM meta WHERE k='head'", null);
-                    if (pc.moveToFirst() && pc.getString(0) != null && pc.getString(0).length() > 0) {
-                        ContentValues bak = new ContentValues();
-                        bak.put("k", "head_bak");
-                        bak.put("v", pc.getString(0));
-                        d.insertWithOnConflict("meta", null, bak, SQLiteDatabase.CONFLICT_REPLACE);
-                    }
-                    pc.close();
-                } catch (Exception ignore) {}
-                ContentValues meta = new ContentValues();
-                meta.put("k", "head");
-                meta.put("v", s.toString());
-                d.insertWithOnConflict("meta", null, meta, SQLiteDatabase.CONFLICT_REPLACE);
-                d.execSQL("DELETE FROM records");
-                if (recs != null) {
-                    for (int i = 0; i < recs.length(); i++) {
-                        JSONObject o = recs.getJSONObject(i);
-                        ContentValues row = new ContentValues();
-                        row.put("id", o.optString("id", "r" + i));
-                        row.put("book_id", o.optString("bookId"));
-                        row.put("type", o.optString("type"));
-                        row.put("amount", o.optDouble("amount", 0));
-                        row.put("category_id", o.optString("categoryId"));
-                        row.put("account_id", o.optString("accountId"));
-                        row.put("to_account_id", o.optString("toAccountId"));
-                        row.put("date", o.optString("date"));
-                        row.put("note", o.optString("note"));
-                        row.put("member", o.optString("member"));
-                        JSONArray tags = o.optJSONArray("tags");
-                        row.put("tags", tags == null ? "[]" : tags.toString());
-                        JSONArray photos = o.optJSONArray("photos");
-                        row.put("photos", photos == null ? "[]" : photos.toString());
-                        row.put("created_at", o.optLong("createdAt", 0));
-                        row.put("updated_at", o.optLong("updatedAt", 0));
-                        d.insert("records", null, row);
-                    }
+            backupHead(d);
+            ContentValues meta = new ContentValues();
+            meta.put("k", "head");
+            meta.put("v", s.toString());
+            d.insertWithOnConflict("meta", null, meta, SQLiteDatabase.CONFLICT_REPLACE);
+            d.execSQL("DELETE FROM records");
+            if (recs != null) {
+                for (int i = 0; i < recs.length(); i++) {
+                    d.insert("records", null, recordToValues(recs.getJSONObject(i)));
                 }
-                d.setTransactionSuccessful();
-            } finally {
-                d.endTransaction();
             }
-        } catch (final Exception e) {
-            log("dbSave failed: " + e);
-            runOnUiThread(() -> Toast.makeText(MainActivity.this,
-                    "数据库保存失败：" + e.getMessage(), Toast.LENGTH_LONG).show());
+            d.setTransactionSuccessful();
+        } finally {
+            d.endTransaction();
         }
     }
 
-    /** 增量落库：写 head（备份旧 head）+ 按 upserts/deletes 增量改 records，不整表重建 */
-    private void dbSaveDeltaInternal(String headJson, String upsertsJson, String deletesJson) {
+    /** 增量落库：写 head（备份旧 head）+ 按 upserts/deletes 增量改 records，不整表重建。异常上抛。 */
+    private void dbSaveDeltaInternal(String headJson, String upsertsJson, String deletesJson) throws Exception {
+        SQLiteDatabase d = db();
+        d.beginTransaction();
         try {
-            SQLiteDatabase d = db();
-            d.beginTransaction();
-            try {
-                // 写 head 前先备份旧 head
-                try {
-                    Cursor pc = d.rawQuery("SELECT v FROM meta WHERE k='head'", null);
-                    if (pc.moveToFirst() && pc.getString(0) != null && pc.getString(0).length() > 0) {
-                        ContentValues bak = new ContentValues();
-                        bak.put("k", "head_bak"); bak.put("v", pc.getString(0));
-                        d.insertWithOnConflict("meta", null, bak, SQLiteDatabase.CONFLICT_REPLACE);
-                    }
-                    pc.close();
-                } catch (Exception ignore) {}
-                ContentValues meta = new ContentValues();
-                meta.put("k", "head"); meta.put("v", headJson);
-                d.insertWithOnConflict("meta", null, meta, SQLiteDatabase.CONFLICT_REPLACE);
+            backupHead(d);
+            ContentValues meta = new ContentValues();
+            meta.put("k", "head"); meta.put("v", headJson);
+            d.insertWithOnConflict("meta", null, meta, SQLiteDatabase.CONFLICT_REPLACE);
 
-                // 删除
-                JSONArray dels = new JSONArray(deletesJson == null ? "[]" : deletesJson);
-                for (int i = 0; i < dels.length(); i++) {
-                    d.delete("records", "id=?", new String[]{dels.optString(i)});
-                }
-                // 新增/更新
-                JSONArray ups = new JSONArray(upsertsJson == null ? "[]" : upsertsJson);
-                for (int i = 0; i < ups.length(); i++) {
-                    JSONObject o = ups.getJSONObject(i);
-                    ContentValues row = new ContentValues();
-                    row.put("id", o.optString("id", "r" + i));
-                    row.put("book_id", o.optString("bookId"));
-                    row.put("type", o.optString("type"));
-                    row.put("amount", o.optDouble("amount", 0));
-                    row.put("category_id", o.optString("categoryId"));
-                    row.put("account_id", o.optString("accountId"));
-                    row.put("to_account_id", o.optString("toAccountId"));
-                    row.put("date", o.optString("date"));
-                    row.put("note", o.optString("note"));
-                    row.put("member", o.optString("member"));
-                    JSONArray tags = o.optJSONArray("tags");
-                    row.put("tags", tags == null ? "[]" : tags.toString());
-                    JSONArray photos = o.optJSONArray("photos");
-                    row.put("photos", photos == null ? "[]" : photos.toString());
-                    row.put("created_at", o.optLong("createdAt", 0));
-                    row.put("updated_at", o.optLong("updatedAt", 0));
-                    d.insertWithOnConflict("records", null, row, SQLiteDatabase.CONFLICT_REPLACE);
-                }
-                d.setTransactionSuccessful();
-            } finally {
-                d.endTransaction();
+            JSONArray dels = new JSONArray(deletesJson == null ? "[]" : deletesJson);
+            for (int i = 0; i < dels.length(); i++) d.delete("records", "id=?", new String[]{dels.optString(i)});
+
+            JSONArray ups = new JSONArray(upsertsJson == null ? "[]" : upsertsJson);
+            for (int i = 0; i < ups.length(); i++) {
+                d.insertWithOnConflict("records", null, recordToValues(ups.getJSONObject(i)), SQLiteDatabase.CONFLICT_REPLACE);
             }
-        } catch (final Exception e) {
-            log("dbSaveDelta failed: " + e);
-            runOnUiThread(() -> Toast.makeText(MainActivity.this,
-                    "增量保存失败：" + e.getMessage(), Toast.LENGTH_LONG).show());
+            d.setTransactionSuccessful();
+        } finally {
+            d.endTransaction();
         }
+    }
+
+    private void backupHead(SQLiteDatabase d) {
+        try {
+            Cursor pc = d.rawQuery("SELECT v FROM meta WHERE k='head'", null);
+            if (pc.moveToFirst() && pc.getString(0) != null && pc.getString(0).length() > 0) {
+                ContentValues bak = new ContentValues();
+                bak.put("k", "head_bak");
+                bak.put("v", pc.getString(0));
+                d.insertWithOnConflict("meta", null, bak, SQLiteDatabase.CONFLICT_REPLACE);
+            }
+            pc.close();
+        } catch (Exception ignore) {}
     }
 
     private void dbClearInternal() {
+        clearPendingWrites();
         try {
             SQLiteDatabase d = db();
             d.beginTransaction();
@@ -254,42 +220,48 @@ public class MainActivity extends Activity {
 
     private void log(String msg) { android.util.Log.w("FircountDroid", msg); }
 
-    /* ---------- 异步落盘：单线程队列 + 最新优先合并（JS 永不阻塞） ---------- */
-    private final Object writeLock = new Object();
-    private Runnable pendingTask;             // 待执行写任务（全量或增量），最新覆盖旧的
-    private boolean writerRunning;
-    private final java.util.concurrent.ExecutorService writer =
+    /* ---------- 异步落盘：单线程 FIFO + 失败重试 3 次 + dbClear 清队列 ---------- */
+    private java.util.concurrent.ExecutorService writer =
             java.util.concurrent.Executors.newSingleThreadExecutor();
 
-    /** 提交写任务：同一时刻只保留最后一个任务（合并中间态），保证顺序与不阻塞 JS */
-    private void enqueueTask(final Runnable task) {
-        synchronized (writeLock) {
-            pendingTask = task;               // 最新快照覆盖旧的
-            if (writerRunning) return;
-            writerRunning = true;
-        }
-        writer.execute(new Runnable() {
-            @Override public void run() {
-                while (true) {
-                    Runnable job;
-                    synchronized (writeLock) { job = pendingTask; pendingTask = null; }
-                    if (job == null) {
-                        synchronized (writeLock) { writerRunning = false; }
-                        return;
-                    }
-                    job.run();
-                }
+    /** 清空待执行写任务（reset 用）：中断并重建线程池 */
+    private synchronized void clearPendingWrites() {
+        try {
+            writer.shutdownNow();
+            writer.awaitTermination(800, java.util.concurrent.TimeUnit.MILLISECONDS);
+        } catch (Throwable ignore) {}
+        writer = java.util.concurrent.Executors.newSingleThreadExecutor();
+    }
+
+    /** 带 3 次重试的执行；最终仍失败则 Toast 并抛 RuntimeException，让调用方/日志能感知 */
+    private void runWithRetry(String name, Runnable task) {
+        Exception last = null;
+        for (int i = 0; i < 3; i++) {
+            try {
+                task.run();
+                return;
+            } catch (Exception e) {
+                last = e;
+                log(name + " attempt " + (i + 1) + " failed: " + e);
+                try { Thread.sleep(50); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
             }
-        });
+        }
+        final String msg = name + " 最终失败：" + (last != null ? last.getMessage() : "unknown");
+        runOnUiThread(() -> Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show());
+        throw new RuntimeException(msg, last);
+    }
+
+    private void enqueueTask(final String name, final Runnable task) {
+        writer.execute(() -> runWithRetry(name, task));
     }
 
     private void enqueueWrite(final String json) {
-        enqueueTask(() -> dbSaveInternal(json));
+        enqueueTask("dbSave", () -> { try { dbSaveInternal(json); } catch (Exception e) { throw new RuntimeException(e); } });
     }
 
     /** 增量保存：写 head + 按 upserts/deletes 增量改 records（不整表重建） */
     private void enqueueDelta(final String headJson, final String upsertsJson, final String deletesJson) {
-        enqueueTask(() -> dbSaveDeltaInternal(headJson, upsertsJson, deletesJson));
+        enqueueTask("dbSaveDelta", () -> { try { dbSaveDeltaInternal(headJson, upsertsJson, deletesJson); } catch (Exception e) { throw new RuntimeException(e); } });
     }
 
     @Override

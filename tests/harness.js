@@ -39,11 +39,27 @@ function createEnv(opts = {}) {
 
   // 原生桥 mock（可选启用 = 模拟 APK 环境）
   if (opts.android) {
-    const store = { db: null, webdav: [] };
+    const store = { db: null, deltas: [], webdav: [] };
     window.AndroidBridge = {
       dbLoad() { return store.db || ''; },
       dbSave(json) { store.db = json; },
-      dbClear() { store.db = null; },
+      dbSaveDelta(headJson, upsertsJson, deletesJson) {
+        store.deltas.push({ headJson, upsertsJson, deletesJson });
+        // mock 层：把 delta 合并到当前内存状态，再存完整 state，使 dbLoad 可恢复
+        try {
+          const head = JSON.parse(headJson);
+          const ups = JSON.parse(upsertsJson || '[]');
+          const dels = JSON.parse(deletesJson || '[]');
+          const state = JSON.parse(JSON.stringify(window.__T.Store.s));
+          for (const id of dels) state.records = state.records.filter(r => r.id !== id);
+          for (const u of ups) {
+            state.records = state.records.filter(r => r.id !== u.id);
+            state.records.push(u);
+          }
+          store.db = JSON.stringify(Object.assign({}, head, { records: state.records }));
+        } catch (e) { /* mock 解析失败不阻断 */ }
+      },
+      dbClear() { store.db = null; store.deltas = []; },
       saveFile() {},
       biometricAvailable() { return opts.biometric !== false; },
       showBiometric() { window.__bioResult && window.__bioResult(true); },

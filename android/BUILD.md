@@ -1,6 +1,7 @@
 # Android APK 构建指南
 
-将本仓库的 Web 应用打包为原生 APK（WebView 壳，零权限、离线运行、SQLite 持久化）。
+将本仓库的 Web 应用打包为原生 APK（WebView 壳，离线运行、SQLite 持久化）。
+权限清单见 `app/AndroidManifest.xml`：INTERNET（WebDAV 云同步）、USE_FINGERPRINT（指纹解锁）。
 
 ## 一次性准备（约 120MB，下载两份官方工具）
 
@@ -21,7 +22,7 @@ KS_PASS=你的签名密码 \
 ./build.sh
 ```
 
-产物：仓库根目录 `小伙记账-<版本>.apk`（versionCode/versionName 可用环境变量覆盖，脚本默认 `VC=12 VN=1.1.2`）。
+产物：仓库根目录 `小伙记账-<版本>.apk`（versionCode/versionName 可用环境变量覆盖，脚本默认 `VC=13 VN=1.1.3`）。
 
 ## 签名密钥库（重要）
 

@@ -112,6 +112,77 @@ suite('APK · SQLite 持久化桥');
     eq(after.records.length, 0, '清空后库中无记录');
     ok(after.books.length >= 1, '保留默认账本结构');
   });
+  test('delta 保存后 dbLoad 能恢复记录', () => {
+    S.reset(); S.boot();
+    const r = S.addRecord({ type: 'expense', amount: 77, categoryId: 'ce_canyin', accountId: S.s.accounts[0].id, date: '2026-10-05 10:00' });
+    S.saveNow();
+    // 破坏内存，强制从 db 恢复
+    const snapshot = window.__androidStore.db;
+    S.s.records = [];
+    S.boot();
+    const restored = S.s.records.find(x => x.id === r.id);
+    ok(restored, 'delta 保存的记录应能从 db 恢复');
+    eq(restored.amount, 77);
+  });
+  test('连续 saveNow 产生独立 delta，不丢失中间变更（FIFO）', () => {
+    S.reset(); S.boot();
+    const r1 = S.addRecord({ type: 'expense', amount: 10, categoryId: 'ce_canyin', accountId: S.s.accounts[0].id, date: '2026-10-01 10:00' });
+    S.saveNow(); // delta1
+    const r2 = S.addRecord({ type: 'expense', amount: 20, categoryId: 'ce_canyin', accountId: S.s.accounts[0].id, date: '2026-10-02 10:00' });
+    S.saveNow(); // delta2
+    // mock 会把 delta 合并到 store.db，最终应包含两笔
+    const state = JSON.parse(window.__androidStore.db);
+    eq(state.records.length, 2, '两笔 delta 都应落盘');
+    ok(state.records.some(r => r.id === r1.id), '第一笔应存在');
+    ok(state.records.some(r => r.id === r2.id), '第二笔应存在');
+  });
+  test('dbSaveDelta 失败时不推进快照，后续可重试/兜底', () => {
+    S.reset(); S.boot();
+    // 先建立基准快照
+    S.saveNow();
+    ok(S._recSnapshot !== null, '基准快照应存在');
+    const snapSize = S._recSnapshot.size;
+    // 模拟 delta 与全量均失败
+    const origDelta = window.AndroidBridge.dbSaveDelta;
+    window.AndroidBridge.dbSaveDelta = () => { throw new Error('mock disk full'); };
+    const origStoragePut = S.storagePut;
+    S.storagePut = () => false; // 全量也失败
+    const origSaveFn = S.save;
+    S.save = () => {}; // 屏蔽去抖，避免残留 timer 干扰断言
+    const r = S.addRecord({ type: 'expense', amount: 99, categoryId: 'ce_canyin', accountId: S.s.accounts[0].id, date: '2026-10-03 10:00' });
+    S.save = origSaveFn;
+    S.saveNow(); // delta 失败 → fallback 全量 → 也失败
+    // 恢复
+    window.AndroidBridge.dbSaveDelta = origDelta;
+    S.storagePut = origStoragePut;
+    // 关键：快照未被推进，失败那次不认为已保存
+    eq(S._recSnapshot.size, snapSize, '写失败不应推进快照');
+    ok(!S._recSnapshot.has(r.id), '新增记录不应进入快照');
+    // 再次 saveNow 时仍应把这笔作为 upsert 发出
+    const before = window.__androidStore.deltas.length;
+    S.saveNow();
+    const after = window.__androidStore.deltas.length;
+    ok(after > before, '再次 saveNow 应重新发出 delta（含那笔未保存记录）');
+  });
+  test('20 次 delta 后强制走全量保存（自愈兜底）', () => {
+    S.reset(); S.boot();
+    S.saveNow(); // 建立基准
+    S._deltaCount = 20; // 已达到阈值，下一次应强制全量
+    S._deltaSince = Date.now();
+    S.addRecord({ type: 'expense', amount: 1, categoryId: 'ce_canyin', accountId: S.s.accounts[0].id, date: '2026-10-04 10:00' });
+    S.saveNow();
+    // 全量保存后 _deltaCount 归零
+    eq(S._deltaCount, 0, '强制全量后 delta 计数应重置');
+    ok(S._deltaSince > 0, 'delta 计时器应更新');
+  });
+  test('2 分钟后强制走全量保存（自愈兜底）', () => {
+    S.reset(); S.boot();
+    S._deltaCount = 0;
+    S._deltaSince = Date.now() - 3 * 60 * 1000; // 3 分钟前
+    S.addRecord({ type: 'expense', amount: 2, categoryId: 'ce_canyin', accountId: S.s.accounts[0].id, date: '2026-10-05 10:00' });
+    S.saveNow();
+    eq(S._deltaCount, 0, '超时应走全量，delta 计数重置');
+  });
 }
 
 /* ============ WebDAV ============ */

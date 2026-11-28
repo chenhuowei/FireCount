@@ -150,6 +150,10 @@ const Store = {
   _recSnapshot: null,
   _headSnapshot: null,
   _fullSave: true,
+  _deltaCount: 0,
+  _deltaSince: 0,
+  MAX_DELTA_BEFORE_FULL: 20,
+  MAX_DELTA_AGE_MS: 2 * 60 * 1000,
   markFull() { this._fullSave = true; },
   _buildSnapshot() {
     const m = new Map();
@@ -159,8 +163,11 @@ const Store = {
   },
   _persist() {
     const canDelta = !!(window.AndroidBridge && window.AndroidBridge.dbSaveDelta);
-    if (canDelta && !this._fullSave && this._recSnapshot) {
-      // 计算差异
+    const forceFull = this._fullSave || !this._recSnapshot ||
+      this._deltaCount >= this.MAX_DELTA_BEFORE_FULL ||
+      (this._deltaSince && (Date.now() - this._deltaSince) > this.MAX_DELTA_AGE_MS);
+
+    if (canDelta && !forceFull) {
       const cur = new Map();
       for (const r of this.s.records) cur.set(r.id, JSON.stringify(r));
       const upserts = [], deletes = [];
@@ -171,17 +178,25 @@ const Store = {
       if (upserts.length || deletes.length || headChanged) {
         try {
           window.AndroidBridge.dbSaveDelta(headJson, JSON.stringify(upserts), JSON.stringify(deletes));
-          this._recSnapshot = cur; this._headSnapshot = headJson;
+          // 成功落盘后才推进快照，失败走下方全量兜底
+          this._recSnapshot = cur;
+          this._headSnapshot = headJson;
+          this._deltaCount++;
+          if (!this._deltaSince) this._deltaSince = Date.now();
           return true;
         } catch (e) { console.warn("dbSaveDelta failed, fallback full", e); }
       } else {
         return true; // 无任何变化，跳过写盘
       }
     }
-    // 全量路径（浏览器 / 首次 / 全量场景 / 增量不可用）
+    // 全量路径（浏览器 / 首次 / 全量场景 / 增量不可用 / 强制兜底）
     const json = JSON.stringify(this.s);
     const ok = this.storagePut(json);
-    if (canDelta) this._buildSnapshot();
+    if (ok && canDelta) {
+      this._buildSnapshot();
+      this._deltaCount = 0;
+      this._deltaSince = Date.now();
+    }
     this._fullSave = false;
     return ok;
   },
