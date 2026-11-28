@@ -1,11 +1,10 @@
 /* ============================================================
- * 数据层：localStorage 持久化 + 业务计算
- * 数据模型对齐 APK 证据：
- *  - 多账本 Books（BooksManageActivity）
+ * 数据层：本地存储 + 业务计算
+ * 数据模型：
+ *  - 多账本 Books
  *  - 账户（现金/储蓄卡/信用卡等）
- *  - 记录 Record（AddNewRecordActivity：支出/收入/转账）
+ *  - 记录 Record（支出/收入/转账）
  *  - 预算（月总预算 + 分类预算）
- *  - 周期记账 Cycle（NoticeAddActivity 定期提醒）
  * ============================================================ */
 "use strict";
 
@@ -548,8 +547,8 @@ const Store = {
     return "\uFEFF" + [head, ...rows].map(r => r.join(",")).join("\n");
   },
 
-  /* ---------- 口袋记账导出格式 CSV 导入 ----------
-   * 格式依据：口袋记账导出 Excel/CSV（表头：时间 / 账目分类 / 金额 / ...）
+  /* ---------- 常见记账导出格式 CSV 导入 ----------
+   * 格式依据：常见记账导出 Excel/CSV（表头：时间 / 账目分类 / 金额 / ...）
    * 金额：正数=收入，负数=支出；“余额变更”行跳过。
    * 也兼容本应用导出的 CSV（日期/类型/分类/金额/...）
    * 模式：append 合并（跳过 重复行）或 replace 覆盖当前账本账单
@@ -585,7 +584,7 @@ const Store = {
     const col = names => { for (const n of names) { const i = head.indexOf(n); if (i >= 0) return i; } return -1; };
     const cTime = col(["时间", "日期"]), cAmt = col(["金额"]),
           cCat = col(["账目分类", "分类"]), cType = col(["类型"]), cNote = col(["备注"]),
-          cAcc = col(["账户"]), cMem = col(["成员"]), cBook = col(["账本"]), cTags = col(["标签"]);
+          cAcc = col(["账户"]), cToAcc = col(["转入账户"]), cMem = col(["成员"]), cBook = col(["账本"]), cTags = col(["标签"]);
     if (cTime < 0 || cAmt < 0) throw new Error("表头缺少 时间/金额 列");
 
     // 导入分类名 → 图标键/分类名映射（覆盖常见导出分类）
@@ -632,7 +631,7 @@ const Store = {
     };
 
     if (mode === "preview") {
-      let expense = 0, income = 0, balanceRows = 0, total = 0;
+      let expense = 0, income = 0, transfer = 0, balanceRows = 0, total = 0;
       for (let i = headIdx + 1; i < lines.length; i++) {
         const cells = parseLine(lines[i]);
         if (!cells.length) continue;
@@ -642,10 +641,14 @@ const Store = {
         const amt = parseFloat(String(cells[cAmt]).replace(/[¥￥,\s]/g, ""));
         if (!time || isNaN(amt) || amt === 0) continue;
         const t2 = cType >= 0 && cells[cType] ? (String(cells[cType]).includes("收") ? "income" : String(cells[cType]).includes("转") ? "transfer" : "expense") : (amt > 0 ? "income" : "expense");
-        if (t2 === "transfer") continue;
-        total++; if (t2 === "income") income++; else expense++;
+        // 转账需有「账户 / 转入账户」两列且均可匹配，否则无法完整还原
+        if (t2 === "transfer") {
+          if (cAcc < 0 || cToAcc < 0 || !matchAcc(cellText(cells[cAcc])) || !matchAcc(cellText(cells[cToAcc]))) continue;
+        }
+        total++;
+        if (t2 === "income") income++; else if (t2 === "transfer") transfer++; else expense++;
       }
-      return { total, expense, income, balanceRows };
+      return { total, expense, income, transfer, balanceRows };
     }
 
     if (mode === "replace") { this.s.records = this.s.records.filter(r => r.bookId !== this.book().id); this.markFull(); }
@@ -670,17 +673,23 @@ const Store = {
       const amt = parseFloat(String(cells[cAmt]).replace(/[¥￥,\s]/g, ""));
       if (!time || !validDate(time) || isNaN(amt) || amt === 0) { skipped++; continue; }
       const type = cType >= 0 && cells[cType] ? (String(cells[cType]).includes("收") ? "income" : String(cells[cType]).includes("转") ? "transfer" : "expense") : (amt > 0 ? "income" : "expense");
-      if (type === "transfer") { skipped++; continue; } // CSV/XLSX 缺转入账户列，转账行无法完整还原
       const note = cNote >= 0 ? cellText(cells[cNote]) : "";
       const bookId = cBook >= 0 ? matchBook(cellText(cells[cBook])) : this.book().id;
+      // 转账：解析转入账户；缺列/未知账户/同账户则跳过（无法完整还原）
+      let accountId = cAcc >= 0 ? matchAcc(cellText(cells[cAcc])) : "";
+      let toAccountId = "";
+      if (type === "transfer") {
+        toAccountId = cToAcc >= 0 ? matchAcc(cellText(cells[cToAcc])) : "";
+        if (!accountId || !toAccountId || accountId === toAccountId) { skipped++; continue; }
+      }
       const key = keyOf(bookId, time, type, amt, note);
       if (existKeys.has(key)) { skipped++; continue; }
       existKeys.add(key);
       this.addRecord({
         bookId,
         type, amount: Math.round(Math.abs(amt) * 100) / 100,
-        categoryId: matchCat(cat0, type),
-        accountId: cAcc >= 0 ? matchAcc(cellText(cells[cAcc])) : "",
+        categoryId: type === "transfer" ? "" : matchCat(cat0, type),
+        accountId, toAccountId,
         date: normDate(time),
         note, member: cMem >= 0 ? cellText(cells[cMem]) || "我" : "我",
         tags: cTags >= 0 ? cellText(cells[cTags]).split(/[|;]/).map(s => s.trim()).filter(Boolean) : []
@@ -718,7 +727,7 @@ const Store = {
     this.markFull();
     const s = this.s;
     const bid = s.currentBookId;
-    const expCats = this.categories("expense"), incCats = this.categories("income");
+    const expCats = this.categories("expense");
     const cat = k => s.categories.find(c => c.id === ("ce_" + k) || c.id === ("ci_" + k));
     const accs = s.accounts;
     const now = new Date();

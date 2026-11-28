@@ -11,7 +11,7 @@
   },
   "rules": {
     "no-undef": "error",
-    "no-unused-vars": ["warn", { "args": "none" }],
+    "no-unused-vars": ["warn", { "args": "none", "varsIgnorePattern": "^[A-Z][A-Za-z]*$" }],
     "no-dupe-keys": "error",
     "no-unreachable": "error",
     "no-empty": ["error", { "allowEmptyCatch": true }],

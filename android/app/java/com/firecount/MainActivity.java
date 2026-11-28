@@ -535,7 +535,7 @@ public class MainActivity extends Activity {
                     }
                     // 部分服务器 WAF 对无 UA 的请求直接 403，补标准 UA
                     if (conn.getRequestProperty("User-Agent") == null) {
-                        conn.setRequestProperty("User-Agent", "FireCount/1.3 (Android)");
+                        conn.setRequestProperty("User-Agent", "FireCount/1.1.3 (Android)");
                     }
                     // PROPFIND/MKCOL 也可能带 body（propfind 请求体），需要 doOutput 支援
                     if (body != null && !body.isEmpty() && !"GET".equals(method) && !"HEAD".equals(method)) {

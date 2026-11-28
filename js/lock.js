@@ -169,7 +169,7 @@ const Lock = {
     const bio = el.querySelector("#lockBio");
     if (bio) bio.onclick = () => {
       window.__bioResult = ok => { if (ok && this.active) this.unlock(); };
-      try { window.AndroidBridge.showBiometric("验证指纹以解锁口袋记账"); }
+      try { window.AndroidBridge.showBiometric("验证指纹以解锁小伙记账"); }
       catch (e) { UI.toast("指纹不可用"); }
     };
     el.querySelector("#lockForgot").onclick = () => this.forgotFlow();

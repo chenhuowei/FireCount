@@ -147,7 +147,6 @@ const ViewsReport = {
     }
     const sum = { in: Math.round(inSum * 100) / 100, out: Math.round(outSum * 100) / 100, balance: Math.round((inSum - outSum) * 100) / 100 };
     const entries = [...catMap.values()].map(e => ({ ...e, amount: Math.round(e.amount * 100) / 100 })).sort((a, b) => b.amount - a.amount);
-    const total = t === "expense" ? sum.out : sum.in;
 
     /* KPI */
     const maxOne = recs.length ? Math.max(...recs.map(r => r.amount)) : 0;

@@ -83,7 +83,7 @@ const UI = {
         '<button class="btn btn-ghost" data-r="0">' + (opts.cancel || "取消") + "</button>" +
         '<button class="btn ' + (opts.danger ? "btn-danger" : "btn-primary") + '" data-r="1">' + (opts.ok || "确定") + "</button>" +
         "</div></div></div>";
-      const wrap = host.querySelector(".modal-wrap"), mask = host.querySelector(".modal-mask"), modal = host.querySelector(".modal");
+      const mask = host.querySelector(".modal-mask"), modal = host.querySelector(".modal");
       requestAnimationFrame(() => { mask.style.opacity = 1; modal.classList.add("on"); });
       const done = v => {
         mask.style.opacity = 0; modal.classList.remove("on");
@@ -127,7 +127,7 @@ const UI = {
       '<div class="sheet-foot"></div>' +
       "</div></div>";
     host.appendChild(node);
-    const wrap = node.querySelector(".sheet-wrap"), mask = node.querySelector(".sheet-mask"), sheet = node.querySelector(".sheet");
+    const mask = node.querySelector(".sheet-mask"), sheet = node.querySelector(".sheet");
     requestAnimationFrame(() => { mask.style.opacity = 1; sheet.classList.add("on"); });
     const entry = { node, sub: lvl > 0, level: lvl };
     const close = () => {
@@ -268,7 +268,7 @@ const UI = {
     wY.addEventListener("scroll", () => {
       const atTop = wY.scrollTop <= 2, atBottom = wY.scrollTop + wY.clientHeight >= wY.scrollHeight - 2;
       if (!atTop && !atBottom) return;
-      const prevH = wY.scrollHeight, prevTop = wY.scrollTop;
+      const prevH = wY.scrollHeight;
       const added = expandY(atTop ? -1 : 1);
       if (!added) return;
       colY.render();

@@ -144,7 +144,6 @@ const ViewsWallet = {
       ? { ...editAcc }
       : { type: "cash", name: "", icon: "", color: "", initial: 0, creditLimit: 0, billDay: 0, repayDay: 0 };
     const render = () => {
-      const meta = Store.accountTypeMeta(S.type);
       sh.body.innerHTML =
         (editing ? "" :
           '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:4px 0 10px">' +

@@ -1,7 +1,7 @@
 /* ============================================================
-   口袋记账 · 功能复刻版
-   布局证据：add_new_record.xml / records_line_layout.xml / budget_v3.xml
-   深色主题证据：assets/Default_deep/config.json
+   小伙记账 · FireCount 样式表
+   布局结构：记账页 / 账单页 / 报表页 / 我的页
+   主题：浅色 / 深色 / 玻璃
    ============================================================ */
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { height: 100%; }

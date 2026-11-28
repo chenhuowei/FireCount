@@ -1,7 +1,7 @@
 /* ============================================================
  * 记一笔（三模式 + 计算器键盘 + 分类宫格）
- *   支出 / 收入 / 转账 三模式（jiyibi_btn_zhichu/shouru/zhuanzhang 证据）
- *   分类宫格分页 + 计算器键盘（仅 + −，与原 App 键盘一致）
+ *   支出 / 收入 / 转账 三模式
+ *   分类全量宫格 + 计算器键盘（仅 + −）
  *   属性行：时间 / 账户 / 成员 / 备注 / 报销
  * ============================================================ */
 "use strict";
@@ -107,7 +107,7 @@ const ViewsAdd = {
       '<div id="jyBody"></div>';
     sh.body.style.padding = "0 10px 6px";
     sh.body.classList.add("jy-sheet-body"); // flex 布局：快捷条常驻键盘上方
-    /* 计算器键盘固定在弹层底部（不随内容滚动，与原 App 一致） */
+    /* 计算器键盘固定在弹层底部（不随内容滚动） */
     const kb = document.createElement("div");
     kb.className = "jy-keyboard";
     kb.id = "jyKeys";
@@ -138,7 +138,6 @@ const ViewsAdd = {
           ).join("") +
           '<div class="jy-cat" data-addcat><div class="ci" style="background:var(--chip);color:var(--brand)">＋</div><div class="cn">添加</div></div>' +
           "</div>";
-        const acc = Store.account(S.accountId);
         const quickBar = ViewsAdd.quickBarHTML(S);
         body.innerHTML =
           '<div class="jy-amount-zone">' +
@@ -154,8 +153,8 @@ const ViewsAdd = {
         body.querySelectorAll(".jy-cat[data-cid]").forEach(el => {
           el.onclick = () => { S.categoryId = el.dataset.cid; renderBody(); };
           // 长按：排序模式（拖动换位）或弹出操作（编辑/移除）
-          let lpTimer = null, lpFired = false;
-          const startLP = () => { lpFired = false; lpTimer = setTimeout(() => { lpFired = true; ViewsAdd.catLongPress(el.dataset.cid, () => renderBody()); }, 450); };
+          let lpTimer = null;
+          const startLP = () => { lpTimer = setTimeout(() => { ViewsAdd.catLongPress(el.dataset.cid, () => renderBody()); }, 450); };
           el.addEventListener("touchstart", startLP, { passive: true });
           el.addEventListener("touchend", () => clearTimeout(lpTimer), { passive: true });
           el.addEventListener("touchmove", () => clearTimeout(lpTimer), { passive: true });

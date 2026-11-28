@@ -218,7 +218,6 @@ const ViewsMine = {
         '<div id="bgCatList"></div></div></div>';
 
     function ring(id, used, budget, title, sub) {
-      const pct = budget > 0 ? used / budget : 0;
       return '<div class="budget-ring"><canvas id="' + id + '" width="92" height="92" data-h="92"></canvas>' +
         '<div class="t">' + title + "</div><div class='sub'>" + sub + "</div></div>";
     }
@@ -445,9 +444,9 @@ const ViewsMine = {
   importSheet() {
     const sh = UI.sheet({ title: "数据导入" });
     sh.body.innerHTML =
-      '<div style="font-size:13.5px;color:var(--text-2);line-height:1.7;padding:6px 2px 12px">支持 XLSX/CSV（口袋记账导出格式：时间/账目分类/金额）与 JSON 完整备份。</div>' +
+      '<div style="font-size:13.5px;color:var(--text-2);line-height:1.7;padding:6px 2px 12px">支持 XLSX/CSV（时间/账目分类/金额，兼容常见记账导出格式）与 JSON 完整备份。</div>' +
       '<input type="file" id="impFile" accept=".json,.csv,.xlsx,application/json,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none">' +
-      '<div class="cell" id="impSheet"><div class="cell-icon">📊</div><div class="cell-main"><div class="cell-title">导入 XLSX / CSV（口袋记账格式）</div><div class="cell-desc">自动识别表头，可合并或覆盖</div></div>' + UI.svg("arrow", 15) + "</div>" +
+      '<div class="cell" id="impSheet"><div class="cell-icon">📊</div><div class="cell-main"><div class="cell-title">导入 XLSX / CSV</div><div class="cell-desc">自动识别表头，可合并或覆盖</div></div>' + UI.svg("arrow", 15) + "</div>" +
       '<div class="cell" id="impJson"><div class="cell-icon">🗂️</div><div class="cell-main"><div class="cell-title">导入 JSON 完整备份</div><div class="cell-desc">将覆盖当前全部数据</div></div>' + UI.svg("arrow", 15) + "</div>";
     let pick = null;
     UI.$("#impSheet", sh.body).onclick = () => { pick = "sheet"; UI.$("#impFile", sh.body).click(); };
@@ -511,6 +510,7 @@ const ViewsMine = {
             '<div style="font-size:13.5px;color:var(--text-2);line-height:1.8;padding:6px 2px">' +
             '表头识别成功，共 <b>' + parsed.total + '</b> 行有效数据<br>' +
             '预计新增 <b style="color:var(--primary)">' + parsed.expense + '</b> 笔支出、<b style="color:var(--income)">' + parsed.income + '</b> 笔收入' +
+            (parsed.transfer ? '、<b style="color:var(--text-2)">' + parsed.transfer + '</b> 笔转账' : '') +
             (parsed.balanceRows ? '<br>跳过余额变更行 ' + parsed.balanceRows + ' 条' : "") + '</div>' +
             '<div class="cell" id="csvAppend"><div class="cell-main"><div class="cell-title">合并导入</div><div class="cell-desc">自动跳过与现有重复的账单</div></div>' + UI.svg("arrow", 15) + "</div>" +
             '<div class="cell" id="csvReplace"><div class="cell-main"><div class="cell-title" style="color:var(--danger)">覆盖当前账本</div><div class="cell-desc">删除当前账本全部账单后导入</div></div>' + UI.svg("arrow", 15) + "</div>";
@@ -563,7 +563,7 @@ const ViewsMine = {
     const sh = UI.sheet({ title: "币种符号" });
     sh.body.innerHTML = '<div class="form-row" style="border:none"><div class="lab">货币符号</div><div class="sel" style="justify-content:flex-end">' +
       DATA.currencies.map(c => '<button class="chip' + (Store.s.settings.currency === c ? " active" : "") + '" data-c="' + c + '">' + c + "</button>").join("") + "</div></div>" +
-      '<div style="font-size:12px;color:var(--text-3);padding:4px">注意：仅切换显示符号，不做汇率换算（与原 App 的多币种展示一致）。</div>';
+      '<div style="font-size:12px;color:var(--text-3);padding:4px">注意：仅切换显示符号，不做汇率换算。</div>';
     sh.body.querySelectorAll("[data-c]").forEach(el => el.onclick = () => {
       Store.s.settings.currency = el.dataset.c;
       Store.save(); sh.close(); UI.toast("已切换币种");

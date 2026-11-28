@@ -1,12 +1,11 @@
 /* ============================================================
- * 静态数据（证据来源：APK drawable 命名 icon_zhichu_type_* / icon_shouru_type_*）
- * 默认分类与口袋记账 v4.5.0 一致：支出 17 项 / 收入 9 项
+ * 静态数据：默认分类 / 账户类型 / 选项集合
  * ============================================================ */
 "use strict";
 
 const DATA = {
   appName: "小伙记账",
-  /* 支出分类：与用户口袋记账导出数据完全一致（24 项） */
+  /* 支出分类：24 项（覆盖常见记账导出分类） */
   expenseCategories: [
     { key: "canyin", name: "餐饮", icon: "svg:canyin", color: "#FF8A3C" },
     { key: "maicai", name: "买菜", icon: "svg:maicai", color: "#22C55E" },

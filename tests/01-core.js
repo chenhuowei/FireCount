@@ -145,6 +145,30 @@ test('口袋格式 CSV 导入（正负号判收支）', () => {
   eq(recs.find(x => x.type === 'expense').amount, 35.5);
   eq(recs.find(x => x.type === 'income').amount, 8000);
 });
+test('CSV 转账导出→导入回环（含转入账户）', () => {
+  S.reset(); S.boot();
+  const a1 = S.s.accounts[0], a2 = S.s.accounts[1];
+  const rec = S.addRecord({ type: 'transfer', amount: 123.45, accountId: a1.id, toAccountId: a2.id, date: '2026-11-01 10:00', note: '转账测试' });
+  const csv = S.exportCSV();
+  ok(csv.includes('转入账户'), '导出应含转入账户列');
+  ok(csv.includes(a2.name), '导出应含转入账户名');
+  // 清空后用导出的 CSV 恢复
+  S.reset(); S.boot();
+  const pv = S.importKdjzCSV(csv, 'preview');
+  eq(pv.transfer, 1, '预览应识别 1 笔转账');
+  const r = S.importKdjzCSV(csv, 'append');
+  eq(r.added, 1, '应恢复 1 笔');
+  const t = S.s.records.find(x => x.type === 'transfer');
+  ok(t, '应有转账记录');
+  eq(t.amount, 123.45);
+  ok(S.account(t.accountId) && S.account(t.toAccountId), '转入转出账户应可解析');
+});
+test('CSV 转账缺转入账户时跳过（无法完整还原）', () => {
+  S.reset(); S.boot();
+  const csv = '日期,类型,金额,账户\n2026-11-01 10:00,转账,50,现金';
+  const r = S.importKdjzCSV(csv, 'append');
+  eq(r.added, 0, '缺转入账户列应跳过');
+});
 test('余额变更行被跳过', () => {
   S.reset(); S.boot();
   const csv = '时间,账目分类,金额\n2026-09-01 09:00,余额变更,1000';
