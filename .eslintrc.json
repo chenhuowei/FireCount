@@ -1,0 +1,20 @@
+{
+  "env": { "browser": true, "es2020": true },
+  "parserOptions": { "ecmaVersion": 2019, "sourceType": "script" },
+  "globals": {
+    "Store": "readonly", "App": "readonly", "UI": "readonly", "DATA": "readonly",
+    "ICONS": "readonly", "IconUI": "readonly", "Charts": "readonly",
+    "ViewsBills": "readonly", "ViewsAdd": "readonly", "ViewsReport": "readonly",
+    "ViewsWallet": "readonly", "ViewsMine": "readonly", "ViewsCalendar": "readonly",
+    "ViewsSearch": "readonly", "Lock": "readonly", "WebDAV": "readonly",
+    "fmt": "readonly", "A": "readonly", "XLSX": "readonly"
+  },
+  "rules": {
+    "no-undef": "error",
+    "no-unused-vars": ["warn", { "args": "none" }],
+    "no-dupe-keys": "error",
+    "no-unreachable": "error",
+    "no-empty": ["error", { "allowEmptyCatch": true }],
+    "eqeqeq": ["warn", "smart"]
+  }
+}

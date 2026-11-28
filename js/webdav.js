@@ -32,7 +32,12 @@ const WebDAV = {
     catch (e) { return false; }
   },
   configured() { const c = this.cfg(); return !!(c.user && c.pass && (c.server || this.PRESETS[c.provider])); },
-  serverBase() { const c = this.cfg(); return (c.server || this.PRESETS[c.provider].server).replace(/\/+$/, "") + "/"; },
+  serverBase() {
+    const c = this.cfg();
+    const base = (c.server || this.PRESETS[c.provider].server).replace(/\/+$/, "") + "/";
+    if (base.indexOf("https://") !== 0) throw new Error("WebDAV 服务器地址必须使用 https://（当前配置不合法）");
+    return base;
+  },
   dirPath() { const d = this.cfg().dir || "/firecount/"; return "/" + d.replace(/^\/+|\/+$/g, "") + "/"; },
   url(name) { return this.serverBase() + this.dirPath().replace(/^\//, "") + encodeURIComponent(name); },
   dirUrl() { return this.serverBase() + this.dirPath().replace(/^\//, ""); },
@@ -189,11 +194,12 @@ const WebDAV = {
     if (r.code !== 200) throw new Error("下载失败 (" + r.code + ")");
     let obj;
     try { obj = JSON.parse(r.body); } catch (e) { throw new Error("备份文件损坏"); }
-    if (!obj.records || !obj.books) throw new Error("不是有效的备份文件");
+    const verr = Store.validateState(obj);
+    if (verr) throw new Error("不是有效的备份文件：" + verr);
     const ok = await UI.confirm({
       title: "恢复备份",
       body: "将用备份「" + UI.escape(name) + "」(" + obj.records.length + " 笔账单) <b style='color:var(--danger)'>覆盖当前全部数据</b>。建议先手动备份。",
-      ok: "覆盖恢复", danger: true
+      ok: "覆盖恢复", danger: true, raw: true
     });
     if (!ok) return;
     Store.replaceState(obj);
@@ -260,11 +266,15 @@ const WebDAV = {
       "</div>" + (avail ? '<button class="btn btn-ghost btn-block" style="margin-top:10px" id="wdSaveOnly">保存配置</button>' : "");
 
     const saveCfg = () => {
-      c.server = UI.$("#wdServer", sh.body).value.trim();
+      const srv = UI.$("#wdServer", sh.body).value.trim();
+      // 自定义服务器强制 https（原生桥强转 HttpsURLConnection，http 会 ClassCastException）
+      if (srv && srv.indexOf("https://") !== 0) { UI.toast("服务器地址必须以 https:// 开头"); return false; }
+      c.server = srv;
       c.user = UI.$("#wdUser", sh.body).value.trim();
       c.pass = UI.$("#wdPass", sh.body).value.trim();
       c.dir = UI.$("#wdDir", sh.body).value.trim() || "/firecount/";
       Store.save();
+    return true;
     };
     // 密码显示/隐藏切换
     const eye = UI.$("#wdEye", sh.body);
@@ -291,7 +301,7 @@ const WebDAV = {
     keepInput.onblur = saveKeep;
     sh.body.querySelectorAll("[data-auto]").forEach(b => b.onclick = () => {
       c.autoAfterSave = b.dataset.auto !== "off";
-      saveCfg();
+      if (saveCfg() === false) return;
       b.parentElement.querySelectorAll(".chip").forEach(x => x.classList.toggle("active", x === b));
       UI.$("#wdDelayRow", sh.body).style.display = c.autoAfterSave ? "flex" : "none";
       UI.toast(c.autoAfterSave ? "已开启：记账后 " + (c.autoDelaySec || 5) + " 秒自动备份" : "已关闭自动备份");
@@ -310,23 +320,23 @@ const WebDAV = {
     UI.$("#wdDelayRow", sh.body).style.display = c.autoAfterSave ? "flex" : "none";
     const t = UI.$("#wdTest", sh.foot);
     if (t) t.onclick = async () => {
-      saveCfg();
+      if (saveCfg() === false) return;
       if (!avail) { UI.toast("仅 APK 版可测试连接"); return; }
       UI.toast("正在连接…");
       try { const n = await this.testConn(); UI.toast(n >= 0 ? "✅ 连接成功，目录内 " + n + " 个文件" : "✅ 连接成功"); }
       catch (e) { UI.toast((e.message || "连接失败"), 4000); }
     };
     const bk = UI.$("#wdBackup", sh.foot);
-    if (bk) bk.onclick = () => { saveCfg(); sh.close(); this.backupNow(true); };
+    if (bk) bk.onclick = () => { if (saveCfg() === false) return; sh.close(); this.backupNow(true); };
     const ls = UI.$("#wdRestore", sh.foot);
     if (ls) ls.onclick = async () => {
-      saveCfg();
+      if (saveCfg() === false) return;
       if (!avail) { UI.toast("仅 APK 版可恢复"); return; }
       UI.toast("正在读取云端备份…");
       try { await this.listSheet(); } catch (e) { UI.toast(e.message || "读取失败"); }
     };
     const so = UI.$("#wdSaveOnly", sh.foot);
-    if (so) so.onclick = () => { saveCfg(); sh.close(); UI.toast("配置已保存"); this.initAuto(); };
+    if (so) so.onclick = () => { if (saveCfg() === false) return; sh.close(); UI.toast("配置已保存"); this.initAuto(); };
   },
 
   async listSheet() {

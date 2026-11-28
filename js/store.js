@@ -53,21 +53,23 @@ const Store = {
   /* ---------- 初始化 ---------- */
   boot() {
     const raw = this.storageGet();
+    let parsed = false;
     if (raw) {
-      try { this.s = JSON.parse(raw); this.migrate(); } catch (e) { console.warn("state parse fail", e); }
+      try { this.s = JSON.parse(raw); this.migrate(); parsed = true; } catch (e) { console.warn("state parse fail", e); }
     }
-    if (!this.s) this.s = this.freshState();
-    // 兜底：主存储为空但备份槽有数据 → 从备份槽恢复（防存储异常导致配置全丢）
-    if (!raw) {
+    // 主存储为空或解析失败时，都尝试从本地备份槽恢复（防数据静默丢失）
+    if (!parsed) {
       try {
         const bak = localStorage.getItem(this.KEY + ":bak");
         if (bak) {
           this.s = JSON.parse(bak);
           this.migrate();
+          parsed = true;
           if (typeof UI !== "undefined" && UI.toast) UI.toast("已从本地备份恢复数据");
         }
-      } catch (e) {}
+      } catch (e) { console.warn("backup parse fail", e); }
     }
+    if (!this.s) this.s = this.freshState();
     this.save();
   },
   freshState() {
@@ -150,6 +152,23 @@ const Store = {
   _recSnapshot: null,
   _headSnapshot: null,
   _fullSave: true,
+  _saveTimer: null,
+  _batching: false,
+  /* 批量写入：内部 addRecord/save 不逐笔落盘，退出时统一 saveNow 一次。
+     避免浏览器环境导入 N 笔触发 N 次全量 JSON.stringify + localStorage 写入（O(n²)） */
+  batch(fn) {
+    if (this._batching) return fn();
+    this._batching = true;
+    let result;
+    try { result = fn(); }
+    finally {
+      this._batching = false;
+      clearTimeout(this._saveTimer);
+      this.saveNow();
+      try { if (window.WebDAV) WebDAV.onDataSetChanged(); } catch (e) {}
+    }
+    return result;
+  },
   _deltaCount: 0,
   _deltaSince: 0,
   MAX_DELTA_BEFORE_FULL: 20,
@@ -162,8 +181,12 @@ const Store = {
     this._headSnapshot = JSON.stringify(Object.assign({}, this.s, { records: undefined }));
   },
   _persist() {
-    const canDelta = !!(window.AndroidBridge && window.AndroidBridge.dbSaveDelta);
-    const forceFull = this._fullSave || !this._recSnapshot ||
+    const bridge = window.AndroidBridge;
+    const canDelta = !!(bridge && bridge.dbSaveDelta);
+    // 原生侧最近一次写盘失败时，强制全量兜底（不推进快照，避免静默丢数据）
+    let unhealthy = false;
+    try { if (bridge && bridge.dbWriteHealthy && bridge.dbWriteHealthy() === false) unhealthy = true; } catch (e) {}
+    const forceFull = this._fullSave || !this._recSnapshot || unhealthy ||
       this._deltaCount >= this.MAX_DELTA_BEFORE_FULL ||
       (this._deltaSince && (Date.now() - this._deltaSince) > this.MAX_DELTA_AGE_MS);
 
@@ -201,6 +224,7 @@ const Store = {
     return ok;
   },
   save() {
+    if (this._batching) return true; // 批量写入期间由 batch() 统一落盘
     /* APK（原生桥）：去抖合并——批量写入（如演示数据 100 笔）只落一次盘，
        避免同步桥逐笔阻塞 UI；浏览器（localStorage）保持同步直写 */
     if (window.AndroidBridge && window.AndroidBridge.dbSave) {
@@ -232,7 +256,27 @@ const Store = {
     this.saveNow();
   },
   /* 恢复备份：保留本机设备配置（WebDAV 凭证、应用锁），避免恢复后云端失联或被旧锁挡住 */
+  /* 导入/恢复前统一校验备份形状，避免 migrate 中途抛错留下半初始化状态 */
+  validateState(o) {
+    if (!o || typeof o !== "object" || Array.isArray(o)) return "不是有效对象";
+    for (const k of ["books", "accounts", "categories", "records"]) {
+      if (!Array.isArray(o[k])) return "缺少或无效的 " + k + " 数组";
+    }
+    if (o.settings != null && typeof o.settings !== "object") return "settings 类型无效";
+    if (o.currentBookId != null && typeof o.currentBookId !== "string") return "currentBookId 类型无效";
+    if (o.budgets != null && typeof o.budgets !== "object") return "budgets 类型无效";
+    // 每条记录至少要有可比较的日期与金额，否则后续统计会出 NaN
+    for (let i = 0; i < o.records.length; i++) {
+      const r = o.records[i];
+      if (!r || typeof r !== "object" || typeof r.date !== "string" || typeof r.amount !== "number" || !isFinite(r.amount)) {
+        return "第 " + (i + 1) + " 条账单字段无效";
+      }
+    }
+    return "";
+  },
   replaceState(next) {
+    const err = this.validateState(next);
+    if (err) throw new Error("备份数据无效：" + err);
     this.markFull();
     const keepWebdav = this.s && this.s.settings && this.s.settings.webdav;
     const keepLock = this.s && this.s.settings && this.s.settings.lock;
@@ -294,7 +338,7 @@ const Store = {
   },
   /* 账户余额 = 期初 + 收入 − 支出 − 转出 + 转入；信用卡为负表示欠款 */
   accountBalance(id) {
-    let b = (this.account(id)?.initial || 0);
+    const acc0 = this.account(id); let b = (acc0 ? acc0.initial : 0) || 0;
     for (const r of this.s.records) {
       if (r.type === "income" && r.accountId === id) b += r.amount;
       else if (r.type === "expense" && r.accountId === id) b -= r.amount;
@@ -436,12 +480,15 @@ const Store = {
     q = String(q || "").trim().toLowerCase();
     if (!q) return [];
     const list = bookOnly ? this.bookRecords() : this.s.records;
-    return list.filter(r => {
+    const hits = list.filter(r => {
       const c = this.category(r.categoryId);
       const acc = this.account(r.accountId), acc2 = this.account(r.toAccountId);
       const hay = [r.note, c && c.name, acc && acc.name, acc2 && acc2.name, r.member, (r.tags || []).join(" "), String(r.amount), r.date].filter(Boolean).join(" ").toLowerCase();
       return hay.includes(q);
-    }).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 100);
+    }).sort((a, b) => b.date.localeCompare(a.date));
+    const out = hits.slice(0, 100);
+    out.total = hits.length; // 供 UI 显示真实命中数（避免"共 N 条"谎报）
+    return out;
   },
   /* 记账天数 */
   tallyDays() {
@@ -523,6 +570,8 @@ const Store = {
 
   /* 统一导入入口：rows 为二维数组（CSV 行或 XLSX 工作表），mode: preview/append/replace */
   importRows(rows, mode) {
+    // 批量落盘：避免浏览器环境逐笔 addRecord 触发 N 次全量序列化（O(n²)）
+    return this.batch(() => {
     const lines = rows.filter(r => (r || []).some(v => String(v == null ? "" : v).trim()));
     // 保留原始单元格类型（数字/Date），否则 Excel 序列日期无法识别；需要字符串时再转
     const parseLine = r => (r || []).map(v => (v == null ? "" : v));
@@ -561,7 +610,15 @@ const Store = {
       return c.id;
     };
     const matchAcc = name => name ? (this.s.accounts.find(a => a.name === name) || {}).id || "" : "";
-    const matchBook = name => name ? (this.s.books.find(b => b.name === name) || {}).id || this.book().id : this.book().id;
+    // 未知账本名自动创建（导入多账本 CSV 时避免静默混入当前账本）
+    let newBooks = 0;
+    const matchBook = name => {
+      if (!name) return this.book().id;
+      const found = this.s.books.find(b => b.name === name);
+      if (found) return found.id;
+      newBooks++;
+      return this.addBook(name).id;
+    };
     // XLSX 单元格日期可能是 Date 对象或 Excel 序列数（纯 JS 转换，不依赖 XLSX 库）
     const cellText = v => {
       if (v == null) return "";
@@ -592,9 +649,17 @@ const Store = {
     }
 
     if (mode === "replace") { this.s.records = this.s.records.filter(r => r.bookId !== this.book().id); this.markFull(); }
-    // 去重键：日期归一化（/→-，去秒）+ 类型 + 金额绝对值 + 备注
+    // 去重键：账本 + 日期归一化 + 类型 + 金额 + 备注（避免跨账本误判重复）
     const normDate = d => String(d || "").replace(/\//g, "-").slice(0, 16);
-    const existKeys = new Set(this.s.records.map(r => normDate(r.date) + "|" + r.type + "|" + (+r.amount).toFixed(2) + "|" + (r.note || "")));
+    const validDate = d => {
+      const s = normDate(d);
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+      if (!m) return false;
+      const mo = +m[2], day = +m[3];
+      return mo >= 1 && mo <= 12 && day >= 1 && day <= 31;
+    };
+    const keyOf = (bid, d, type, amt, note) => bid + "|" + normDate(d) + "|" + type + "|" + Math.abs(amt).toFixed(2) + "|" + note;
+    const existKeys = new Set(this.s.records.map(r => keyOf(r.bookId, r.date, r.type, r.amount, r.note || "")));
     let added = 0, skipped = 0;
     for (let i = headIdx + 1; i < lines.length; i++) {
       const cells = parseLine(lines[i]);
@@ -603,15 +668,16 @@ const Store = {
       if (cat0 === "余额变更") { skipped++; continue; }  // 口袋的余额调整行，非真实交易
       const time = cellText(cells[cTime]);
       const amt = parseFloat(String(cells[cAmt]).replace(/[¥￥,\s]/g, ""));
-      if (!time || isNaN(amt) || amt === 0) { skipped++; continue; }
+      if (!time || !validDate(time) || isNaN(amt) || amt === 0) { skipped++; continue; }
       const type = cType >= 0 && cells[cType] ? (String(cells[cType]).includes("收") ? "income" : String(cells[cType]).includes("转") ? "transfer" : "expense") : (amt > 0 ? "income" : "expense");
       if (type === "transfer") { skipped++; continue; } // CSV/XLSX 缺转入账户列，转账行无法完整还原
       const note = cNote >= 0 ? cellText(cells[cNote]) : "";
-      const key = normDate(time) + "|" + type + "|" + Math.abs(amt).toFixed(2) + "|" + note;
+      const bookId = cBook >= 0 ? matchBook(cellText(cells[cBook])) : this.book().id;
+      const key = keyOf(bookId, time, type, amt, note);
       if (existKeys.has(key)) { skipped++; continue; }
       existKeys.add(key);
       this.addRecord({
-        bookId: cBook >= 0 ? matchBook(cellText(cells[cBook])) : this.book().id,
+        bookId,
         type, amount: Math.round(Math.abs(amt) * 100) / 100,
         categoryId: matchCat(cat0, type),
         accountId: cAcc >= 0 ? matchAcc(cellText(cells[cAcc])) : "",
@@ -621,8 +687,8 @@ const Store = {
       });
       added++;
     }
-    this.save();
-    return { added, skipped };
+    return { added, skipped, newBooks };
+    });
   },
 
   /* CSV 文本 → 二维数组（供 importRows） */
@@ -648,6 +714,7 @@ const Store = {
 
   /* ---------- 演示数据 ---------- */
   seedDemo() {
+    return this.batch(() => {
     this.markFull();
     const s = this.s;
     const bid = s.currentBookId;
@@ -660,7 +727,7 @@ const Store = {
     const mk = (type, amount, ckey, aidx, d, hhmm, note, reimb) => {
       const date = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0") + " " + hhmm;
       const a = accs[aidx % accs.length];
-      this.addRecord({ bookId: bid, type, amount: Math.round(amount * 100) / 100, categoryId: cat(ckey)?.id || expCats[0].id, accountId: a.id, date, note: note || "", member: "我", tags: (reimb || Math.random() < 0.12) ? ["报销"] : [] });
+      this.addRecord({ bookId: bid, type, amount: Math.round(amount * 100) / 100, categoryId: (cat(ckey) || {}).id || (expCats[0] || {}).id || "", accountId: a.id, date, note: note || "", member: "我", tags: (reimb || Math.random() < 0.12) ? ["报销"] : [] });
     };
     const rnd = (min, max) => Math.round((min + Math.random() * (max - min)) * 100) / 100;
     for (const mStart of demoRange) {
@@ -705,9 +772,7 @@ const Store = {
     const b = this.budget(cur);
     b.total = 4500; b.perCategory = { "ce_canyin": 1200, "ce_gouwu": 800, "ce_jiaotong": 400 };
     this.setBudget(cur, b);
-
-
-    this.save();
+    });
   }
 };
 

@@ -60,6 +60,7 @@ function createEnv(opts = {}) {
         } catch (e) { /* mock 解析失败不阻断 */ }
       },
       dbClear() { store.db = null; store.deltas = []; },
+      dbWriteHealthy() { return true; },  // 可被测试覆盖为 false 模拟写失败
       saveFile() {},
       biometricAvailable() { return opts.biometric !== false; },
       showBiometric() { window.__bioResult && window.__bioResult(true); },

@@ -61,8 +61,25 @@ const Lock = {
     for (let i = 0; i < 8; i++) s += Math.floor(Math.random() * 256).toString(16).padStart(2, "0");
     return s;
   },
-  hash(salt, text) { return this.sha256(salt + "·" + text); },
+  /* 同步拉伸：4~6 位 PIN 单轮 SHA-256 可秒破，这里做 5000 轮迭代。
+     不用 crypto.subtle，避免 file:// WebView 下不可用；旧版纯 64 hex 由 verifyStored 平滑升级。 */
+  PIN_ROUNDS: 5000,
+  stretch(salt, text, rounds) {
+    rounds = rounds || this.PIN_ROUNDS;
+    const seed = salt + "·" + text;
+    let h = this.sha256(seed);
+    for (let i = 0; i < rounds; i++) h = this.sha256(seed + "·" + i + "·" + h);
+    return h;
+  },
+  hash(salt, text) { return "p" + this.PIN_ROUNDS + ":" + this.stretch(salt, text); },
   hashAnswer(salt, text) { return this.hash(salt, String(text || "").trim().toLowerCase()); },
+  /* 校验并自动升级旧格式哈希 */
+  verifyStored(salt, text, stored) {
+    if (!stored) return false;
+    if (this.hash(salt, text) === stored) return true;
+    if (stored.length === 64 && stored.indexOf(":") < 0 && this.sha256(salt + "·" + text) === stored) return true;
+    return false;
+  },
 
   /* ---------- 配置 ---------- */
   cfg() {
@@ -89,7 +106,13 @@ const Lock = {
     if (this.enabled()) this.showLock();
   },
 
-  verify(pin) { const c = this.cfg(); return this.hash(c.pinSalt, pin) === c.pinHash; },
+  verify(pin) {
+    const c = this.cfg();
+    if (!this.verifyStored(c.pinSalt, pin, c.pinHash)) return false;
+    // 旧格式自动升级为新格式
+    if (c.pinHash && c.pinHash.length === 64 && c.pinHash.indexOf(":") < 0) { c.pinHash = this.hash(c.pinSalt, pin); Store.save(); }
+    return true;
+  },
 
   /* ---------- 锁屏 ---------- */
   showLock() {
@@ -176,7 +199,7 @@ const Lock = {
     sh.foot.innerHTML = '<button class="btn btn-primary btn-block" id="fkOk">验证并重置 PIN</button>';
     UI.$("#fkOk", sh.foot).onclick = () => {
       const ans = UI.$("#fkAns", sh.body).value;
-      if (this.hashAnswer(c.answerSalt, ans) !== c.answerHash) { UI.toast("答案不正确"); return; }
+      if (!this.verifyStored(c.answerSalt, String(ans || "").trim().toLowerCase(), c.answerHash)) { UI.toast("答案不正确"); return; }
       sh.close();
       this.setupPin("设置新 PIN", () => {
         UI.toast("PIN 已重置");

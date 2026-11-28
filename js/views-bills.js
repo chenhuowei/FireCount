@@ -116,13 +116,13 @@ const ViewsBills = {
     }
     tag = (r.tags || []).map(t => '<span class="tags">#' + UI.escape(t) + "</span>").join("");
     return (
-      '<div class="bill-item" data-id="' + r.id + '">' +
+      '<div class="bill-item" data-id="' + UI.escAttr(r.id) + '">' +
       '<div class="bi-acts"><button class="a-edit" data-act="edit">' + UI.svg("edit", 16) + '编辑</button>' +
       '<button class="a-del" data-act="del">' + UI.svg("trash", 16) + "删除</button></div>" +
       '<div class="bi-inner">' + icon +
       '<div class="bi-main"><div class="bi-title">' + UI.escape(title) + tag + "</div>" +
       '<div class="bi-sub"><span class="bi-sub-txt">' + UI.escape(sub) + "</span>" +
-      (r.photos && r.photos.length ? '<img class="bi-thumb" src="' + r.photos[0] + '" onclick="event.stopPropagation();A.viewPhoto(this.src)">' : "") +
+      (r.photos && r.photos.length ? '<img class="bi-thumb" src="' + UI.escAttr(UI.safeImgSrc(r.photos[0])) + '" onclick="event.stopPropagation();A.viewPhoto(this.src)">' : "") +
       "</div></div>" +
       '<div class="bi-amt ' + amtCls + '"><small>' + cur + "</small>" + amt + "</div>" +
       "</div></div>"
@@ -130,46 +130,61 @@ const ViewsBills = {
   },
 
   /* 触摸左滑编辑/删除 + 点击编辑 + 桌面 hover 的 ⋯ */
+  /* 事件委托：容器只绑 4 个监听器，子项频繁重渲染也无需逐项绑定 */
   bindSwipe(root) {
+    if (!root || root.__swipeBound) return;
+    root.__swipeBound = true;
     let openItem = null;
-    const closeOpen = () => { if (openItem) { openItem.querySelector(".bi-inner").style.transform = ""; openItem = null; } };
-    UI.$$(".bill-item", root).forEach(item => {
+    const st = new WeakMap();
+    const closeOpen = () => {
+      if (openItem) { const el = openItem.querySelector(".bi-inner"); if (el) el.style.transform = ""; openItem = null; }
+    };
+    const itemOf = e => {
+      if (!e.target || !e.target.closest) return null;
+      const it = e.target.closest(".bill-item");
+      return it && root.contains(it) ? it : null;
+    };
+    root.addEventListener("touchstart", e => {
+      const item = itemOf(e); if (!item) return;
+      const t = e.touches[0];
+      st.set(item, { sx: t.clientX, sy: t.clientY, dx: 0, dragging: true, swiped: false });
+    }, { passive: true });
+    root.addEventListener("touchmove", e => {
+      const item = itemOf(e); if (!item) return;
+      const s = st.get(item); if (!s || !s.dragging) return;
+      const t = e.touches[0], mx = t.clientX - s.sx, my = t.clientY - s.sy;
+      if (Math.abs(mx) > Math.abs(my)) { s.dx = Math.max(Math.min(mx, 0), -136); if (Math.abs(mx) > 12) s.swiped = true; }
+    }, { passive: true });
+    root.addEventListener("touchend", e => {
+      const item = itemOf(e); if (!item) return;
+      const s = st.get(item); if (!s || !s.dragging) return;
+      s.dragging = false;
       const inner = item.querySelector(".bi-inner");
-      let sx = 0, sy = 0, dx = 0, dragging = false, swiped = false;
-      inner.addEventListener("touchstart", e => {
-        sx = e.touches[0].clientX; sy = e.touches[0].clientY; dx = 0; dragging = true; swiped = false;
-      }, { passive: true });
-      inner.addEventListener("touchmove", e => {
-        if (!dragging) return;
-        const mx = e.touches[0].clientX - sx, my = e.touches[0].clientY - sy;
-        if (Math.abs(mx) > Math.abs(my)) { dx = Math.max(Math.min(mx, 0), -136); if (Math.abs(mx) > 12) swiped = true; }
-      }, { passive: true });
-      inner.addEventListener("touchend", () => {
-        if (!dragging) return; dragging = false;
-        if (dx < -50) { closeOpen(); openItem = item; inner.style.transform = "translateX(-136px)"; }
-        else { inner.style.transform = ""; if (openItem === item) openItem = null; }
-        if (swiped) setTimeout(() => { swiped = false; }, 350); // 防滑动后误触发点击
-      });
-      inner.addEventListener("click", e => {
-        if (swiped) return;
-        if (openItem && openItem !== item) { closeOpen(); return; }
-        if (openItem === item) { closeOpen(); return; }
-        const r = Store.s.records.find(x => x.id === item.dataset.id);
-        if (r) ViewsAdd.open(r); // 点击即进入编辑（与原 App 一致）
-      });
-      item.querySelectorAll(".bi-acts button").forEach(b => {
-        b.addEventListener("click", e => {
-          e.stopPropagation();
-          const r = Store.s.records.find(x => x.id === item.dataset.id);
-          if (!r) return;
-          if (b.dataset.act === "edit") { closeOpen(); ViewsAdd.open(r); }
-          else {
-            UI.confirm({ title: "删除账单", body: "删除后无法恢复，确定删除这条账单吗？", ok: "删除", danger: true }).then(ok => {
-              if (ok) { Store.deleteRecord(r.id); UI.toast("已删除"); App.refresh(); }
-            });
-          }
-        });
-      });
+      if (openItem && !root.contains(openItem)) openItem = null;
+      if (s.dx < -50) { closeOpen(); openItem = item; if (inner) inner.style.transform = "translateX(-136px)"; }
+      else { if (inner) inner.style.transform = ""; if (openItem === item) openItem = null; }
+      if (s.swiped) setTimeout(() => { s.swiped = false; }, 350); // 防滑动后误触发点击
+    }, { passive: true });
+    root.addEventListener("click", e => {
+      const item = itemOf(e); if (!item) return;
+      const act = e.target.closest ? e.target.closest(".bi-acts button") : null;
+      const r = Store.s.records.find(x => x.id === item.dataset.id);
+      if (act) {
+        if (!r) return;
+        if (act.dataset.act === "edit") { closeOpen(); ViewsAdd.open(r); }
+        else {
+          UI.confirm({ title: "删除账单", body: "删除后无法恢复，确定删除这条账单吗？", ok: "删除", danger: true }).then(ok => {
+            if (ok) { Store.deleteRecord(r.id); UI.toast("已删除"); App.refresh(); }
+          });
+        }
+        return;
+      }
+      const s = st.get(item);
+      if (s && s.swiped) return;
+      if (openItem && !root.contains(openItem)) openItem = null;
+      if (openItem && openItem !== item) { closeOpen(); return; }
+      if (openItem === item) { closeOpen(); return; }
+      if (r) ViewsAdd.open(r); // 点击即进入编辑
     });
   },
 
@@ -177,7 +192,7 @@ const ViewsBills = {
     const sh = UI.sheet({ title: "切换账本" });
     sh.body.innerHTML =
       Store.s.books.map(b =>
-        '<div class="cell" data-id="' + b.id + '"><div class="cell-main"><div class="cell-title">' + UI.escape(b.name) + "</div>" +
+        '<div class="cell" data-id="' + UI.escAttr(b.id) + '"><div class="cell-main"><div class="cell-title">' + UI.escape(b.name) + "</div>" +
         '<div class="cell-desc">' + Store.recordsOf(b.id).length + ' 笔账单</div></div>' +
         (b.id === Store.s.currentBookId ? '<span style="color:var(--brand)">✓</span>' : "") + "</div>"
       ).join("") +
@@ -194,7 +209,7 @@ const ViewsBills = {
       '<div class="cell" data-id=""><div class="cell-icon">🗂️</div><div class="cell-main"><div class="cell-title">全部账户</div></div>' +
       (!App.billFilter.account ? '<span style="color:var(--brand)">✓</span>' : "") + "</div>" +
       Store.s.accounts.map(a =>
-        '<div class="cell" data-id="' + a.id + '">' + UI.accIcon(a, "cell-icon") +
+        '<div class="cell" data-id="' + UI.escAttr(a.id) + '">' + UI.accIcon(a, "cell-icon") +
         '<div class="cell-main"><div class="cell-title">' + UI.escape(a.name) + "</div></div>" +
         (App.billFilter.account === a.id ? '<span style="color:var(--brand)">✓</span>' : "") + "</div>"
       ).join("");
@@ -282,7 +297,7 @@ const ViewsSearch = {
       const list = Store.searchRecords(q, false);
       if (!list.length) { results.innerHTML = '<div class="empty"><div class="big">🤷</div><div class="t1">没有找到相关账单</div></div>'; return; }
       results.innerHTML =
-        '<div class="sec-title">共 ' + list.length + " 条结果</div>" +
+        '<div class="sec-title">共 ' + (list.total || list.length) + " 条结果" + (list.total > 100 ? "（显示前 100 条）" : "") + "</div>" +
         '<div class="day-group" style="margin:0 0 12px">' + list.map(r => ViewsBills.itemHTML(r, Store.s.settings.currency)).join("") + "</div>";
       ViewsBills.bindSwipe(results);
     };

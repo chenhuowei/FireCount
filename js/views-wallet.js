@@ -53,7 +53,7 @@ const ViewsWallet = {
     } else {
       right = '<div class="ab"><div class="n ' + (bal < 0 ? "money-out" : "") + '">' + fmt.money(bal) + '</div><div class="d">余额</div></div>';
     }
-    return '<div class="acc-item" data-id="' + a.id + '">' + UI.accIcon(a, "ai") +
+    return '<div class="acc-item" data-id="' + UI.escAttr(a.id) + '">' + UI.accIcon(a, "ai") +
       '<div style="flex:1;min-width:0"><div class="an">' + UI.escape(a.name) + '</div><div class="ad">' + UI.escape(desc) + "</div></div>" +
       right + "</div>";
   },
@@ -96,7 +96,7 @@ const ViewsWallet = {
     UI.$("#accEdit").onclick = () => ViewsWallet.addAccountSheet(a);
     UI.$("#accDel").onclick = () => {
       UI.confirm({
-        title: "删除账户", body: "删除「" + UI.escape(a.name) + "」将同时删除其下所有账单记录，且无法恢复。", ok: "删除", danger: true
+        title: "删除账户", body: "删除「" + a.name + "」将同时删除其下所有账单记录，且无法恢复。", ok: "删除", danger: true
       }).then(ok => {
         if (ok) { Store.deleteAccount(a.id); UI.toast("账户已删除"); App.back(); }
       });
@@ -128,10 +128,10 @@ const ViewsWallet = {
       amt = (r.type === "income" ? "+" : "-") + fmt.money(r.amount);
       icon = UI.catIcon(c);
     }
-    return '<div class="bill-item" data-id="' + r.id + '"><div class="bi-inner">' + icon +
+    return '<div class="bill-item" data-id="' + UI.escAttr(r.id) + '"><div class="bi-inner">' + icon +
       '<div class="bi-main"><div class="bi-title" style="font-size:14px">' + UI.escape(title) + "</div>" +
-      '<div class="bi-sub"><span class="bi-sub-txt">' + r.date + "</span>" +
-      (r.photos && r.photos.length ? '<img class="bi-thumb" src="' + r.photos[0] + '" onclick="event.stopPropagation();A.viewPhoto(this.src)">' : "") +
+      '<div class="bi-sub"><span class="bi-sub-txt">' + UI.escape(r.date) + "</span>" +
+      (r.photos && r.photos.length ? '<img class="bi-thumb" src="' + UI.escAttr(UI.safeImgSrc(r.photos[0])) + '" onclick="event.stopPropagation();A.viewPhoto(this.src)">' : "") +
       "</div></div>" +
       '<div class="bi-amt ' + cls + '" style="font-size:15px"><small>' + cur + "</small>" + amt + "</div></div></div>";
   },
@@ -210,8 +210,8 @@ const ViewsWallet = {
   transferSheet() {
     const sh = UI.sheet({ title: "账户转账" });
     const S = {
-      from: Store.s.accounts[0]?.id,
-      to: Store.s.accounts[1]?.id || Store.s.accounts[0]?.id,
+      from: (Store.s.accounts[0] || {}).id || "",
+      to: (Store.s.accounts[1] || Store.s.accounts[0] || {}).id || "",
       amount: "", date: fmt.now(), note: ""
     };
     const render = () => {
@@ -219,7 +219,7 @@ const ViewsWallet = {
         '<div class="jy-transfer-box">' +
           '<div class="row row-chips"><div class="lab">转出账户</div>' + ViewsAdd.accountChipsHTML("from", S.from) + "</div>" +
           '<div class="row row-chips"><div class="lab">转入账户</div>' + ViewsAdd.accountChipsHTML("to", S.to) + "</div>" +
-          '<div class="row"><div class="lab">金额</div><input type="number" id="tfAmt" step="0.01" placeholder="0.00" value="' + S.amount + '" style="border:none;background:none;outline:none;text-align:right;font-size:16px;font-weight:700;width:100%"></div>' +
+          '<div class="row"><div class="lab">金额</div><input type="number" id="tfAmt" step="0.01" placeholder="0.00" value="' + UI.escAttr(S.amount) + '" style="border:none;background:none;outline:none;text-align:right;font-size:16px;font-weight:700;width:100%"></div>' +
           '<div class="row" data-k="date"><div class="lab">时间</div><div class="val" id="tfDate">' + fmt.dayLabel(S.date.slice(0, 10)) + " " + fmt.timeLabel(S.date) + " " + UI.svg("arrow", 14) + "</div></div>" +
           '<div class="row"><div class="lab">备注</div><input type="text" id="tfNote" maxlength="40" placeholder="选填" value="' + UI.escape(S.note) + '" style="border:none;background:none;outline:none;text-align:right;width:100%"></div>' +
         "</div>";

@@ -12,12 +12,12 @@
 |---|---|
 | 项目代号 | FireCount |
 | 应用名 | 小伙记账 |
-| Android 包名 | `com.firecount` · versionCode 13 · versionName 1.1.3 |
+| Android 包名 | `com.firecount` · versionCode 14 · versionName 1.1.4 |
 | 环境 | minSdk 24 / targetSdk 34 |
 | 技术栈 | 原生 JavaScript SPA（无框架、无构建步骤，约 4000 行）+ 单 Activity WebView 壳 |
 | 运行时依赖 | 仅 SheetJS mini 0.20.3（XLSX 解析，Apache-2.0） |
 | 权限 | `INTERNET`（仅 WebDAV 同步）、`USE_FINGERPRINT` |
-| 自动化测试 | 159 项（jsdom + 原生桥 mock，`npm test` 一键运行） |
+| 自动化测试 | 174 项（jsdom + 原生桥 mock，`npm test` 一键运行） |
 
 ## 快速开始
 
@@ -31,7 +31,7 @@ npm install && npm test
 ```
 
 - 首次打开为空账本，点「载入演示数据」可生成近 3 个月示例账单与预算
-- Android APK：`cd android && ./build.sh`（详见 BUILD.md），产物按版本号命名：`小伙记账-1.1.3.apk`
+- Android APK：`cd android && ./build.sh`（详见 BUILD.md），产物按版本号命名：`小伙记账-1.1.4.apk`
 
 ---
 
@@ -45,7 +45,7 @@ npm install && npm test
 |---|---|---|
 | 任意编辑器 | — | 改 js/css/html（原生 JS，无框架） |
 | Node.js | ≥ 18 | 本地预览服务器与自动化测试 |
-| npm（jsdom） | 仅测试用 | `npm install && npm test`（159 项） |
+| npm（jsdom） | 仅测试用 | `npm install && npm test`（174 项） |
 
 ```bash
 npm run serve   # 本地预览 http://127.0.0.1:8765
@@ -216,7 +216,7 @@ firecount/
 │           · 指纹认证桥（FingerprintManager + CancellationSignal）
 │           · WebDAV HTTP 代理（反射支持 PROPFIND/MKCOL，标准 UA）
 │           · 快捷方式分发                     · 边缘滑动/返回键逐级返回
-├── tests/                     # 自动化测试（jsdom，159 项）
+├── tests/                     # 自动化测试（jsdom，174 项）
 └── android/app/res/           # 应用图标资源（mipmap）
 ```
 
@@ -231,7 +231,7 @@ firecount/
 
 ```bash
 npm install     # 首次：安装 jsdom（仅测试用）
-npm test        # 全量 159 项（静态审查 + 核心/UI/APK/资源五套）
+npm test        # 全量 174 项（静态审查 + 核心/UI/APK/资源五套）
 ```
 
 | 套件 | 项数 | 覆盖 |
@@ -255,7 +255,8 @@ npm test        # 全量 159 项（静态审查 + 核心/UI/APK/资源五套）
 
 | 版本 | 要点 |
 |---|---|
-| 1.1.3 | 增量保存可靠性修复：写队列改 FIFO 串行 + 3 次重试 + dbClear 清队列；落盘失败不推进快照；每 20 次 delta/2 分钟强制全量兜底自愈；账单分页改按整天显示，避免日小计与明细不一致；测试覆盖增至 159 项 |
+| 1.1.4 | 全面审查整改：修复启动解析失败丢数据回归；批量导入/演示数据改单次落盘（消除浏览器 O(n²)）；导入自动建账本+日期校验+形状校验；HTML 属性转义与 confirm 默认转义；WebDAV https 强制校验；写失败状态回传 JS 强制全量兜底；Java 写队列加锁防竞态；PIN 同步拉伸 5000 轮并兼容旧哈希；去 ES2020 语法兼容老 WebView；版本单一来源脚本、CI、字段对账测试；清理死样式与测试文档 |
+| 1.1.3 | 增量保存可靠性修复：写队列改 FIFO 串行 + 3 次重试 + dbClear 清队列；落盘失败不推进快照；每 20 次 delta/2 分钟强制全量兜底自愈；账单分页改按整天显示，避免日小计与明细不一致；测试覆盖增至 168 项 |
 | 1.1.2 | 账单列表分页（每页30条加载更多）；SQLite 增量保存（记录快照 diff，按 upserts/deletes 增量写，替代全表重建）；报表 KPI 改为三格 5:4:3（笔数/天数合并、左对齐、大额横滑）；计算器布局调整（OK跨两行、C短按删一位长按清空、0与.换位） |
 | 1.1.1 | 性能优化：XLSX 解析库按需加载（首屏减约 60% JS）；关闭生产版 WebView 远程调试；修复玻璃主题账单项透出左滑按钮颜色、报表每月天数多算 1 天的问题 |
 | 1.1.0 | 苹果液态玻璃主题（彩色光斑底层 + 半透明折射面板 + 悬浮 dock）；主题三循环（浅色/深色/玻璃）；dock 激活项与计算器 OK 键等统一为透明玻璃底+橙色文字；我的页统计背景统一、报表记账天数去单位；修复 WebDAV 备份文件名正则与 UTC 时区记账天数 bug、版本号显示不一致、visibilitychange 监听器泄漏 |

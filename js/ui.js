@@ -72,10 +72,13 @@ const UI = {
   confirm(opts) {
     return new Promise(resolve => {
       const host = UI.$("#modalHost");
+      // 默认转义用户输入；确需富文本的调用方显式 opts.raw=true
+      const t = opts.raw ? (opts.title || "") : UI.escape(opts.title || "");
+      const b = opts.raw ? (opts.body || "") : UI.escape(opts.body || "");
       host.innerHTML =
         '<div class="modal-mask"></div><div class="modal-wrap"><div class="modal">' +
-        '<div class="m-title">' + opts.title + "</div>" +
-        '<div class="m-body">' + (opts.body || "") + "</div>" +
+        '<div class="m-title">' + t + "</div>" +
+        '<div class="m-body">' + b + "</div>" +
         '<div class="m-btns">' +
         '<button class="btn btn-ghost" data-r="0">' + (opts.cancel || "取消") + "</button>" +
         '<button class="btn ' + (opts.danger ? "btn-danger" : "btn-primary") + '" data-r="1">' + (opts.ok || "确定") + "</button>" +
@@ -296,6 +299,13 @@ const UI = {
   },
 
   escape(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); },
+  /* HTML 属性专用：额外转义单引号，防止跳出属性上下文 */
+  escAttr(s) { return this.escape(s).replace(/'/g, '&#39;'); },
+  /* 仅允许 data:image / blob: 图片 URL，挡住 javascript: 等伪协议 */
+  safeImgSrc(src) {
+    const v = String(src == null ? '' : src), a = v.toLowerCase();
+    return a.indexOf('blob:') === 0 || (a.indexOf('data:image/') === 0 && a.indexOf(';base64,') > 0) ? v : '';
+  },
 
   /* ---------- 账单附件（图片） ---------- */
   /* 本地压缩：长边缩到 maxEdge、JPEG 输出，控制 localStorage 体积 */
@@ -324,7 +334,7 @@ const UI = {
   /* 全屏查看附件 */
   viewPhoto(src) {
     const host = UI.$("#modalHost");
-    host.innerHTML = '<div class="photo-viewer"><img src="' + src + '" alt="账单附件"></div>';
+    host.innerHTML = '<div class="photo-viewer"><img src="' + UI.escAttr(UI.safeImgSrc(src)) + '" alt="账单附件"></div>';
     host.querySelector(".photo-viewer").onclick = () => { host.innerHTML = ""; };
   },
   /* XLSX 解析库按需加载：首屏不加载 273KB，只在真正导入 xlsx 时拉取 */

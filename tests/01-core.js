@@ -4,7 +4,7 @@
 const { createEnv, suite, test, assert, eq, ok, throws, summary } = require('./harness');
 
 const { window, T } = createEnv();
-const S = T.Store, fmt = T.fmt, WebDAV = T.WebDAV, Lock = T.Lock;
+const S = T.Store, fmt = T.fmt, WebDAV = T.WebDAV, Lock = T.Lock, UI = T.UI;
 
 /* ============ 数据层 ============ */
 suite('数据层 · 初始化');
@@ -450,6 +450,77 @@ test('本地备份槽可兜底恢复（浏览器路径）', () => {
   S.s = null;
   S.boot();
   ok(S.s.settings.members.includes('兜底'), '应从备份槽恢复');
+});
+test('主存储解析失败也回退备份槽（B1 回归）', () => {
+  S.reset(); S.boot();
+  S.s.settings.members = ['我', '备份有效'];
+  S.saveNow();
+  window.localStorage.setItem(S.KEY, '{坏掉的 JSON'); // 主槽存在但损坏
+  S.s = null;
+  S.boot();
+  ok(S.s.settings.members.includes('备份有效'), '应从备份槽恢复而非静默回到默认账本');
+});
+test('主槽与备份槽都损坏时安全降级 freshState', () => {
+  S.reset();
+  window.localStorage.setItem(S.KEY, '{坏');
+  window.localStorage.setItem(S.KEY + ':bak', '也坏');
+  S.s = null;
+  S.boot();
+  ok(S.s && S.s.books.length >= 1 && Array.isArray(S.s.records), '应生成可用的默认状态');
+});
+test('批量导入只落盘一次（浏览器路径 O(n²) 回归）', () => {
+  S.reset(); S.boot();
+  let writes = 0;
+  const orig = S.storagePut;
+  S.storagePut = function (j) { writes++; return orig.call(this, j); };
+  try {
+    const csv = '时间,金额\n' + Array.from({ length: 30 }, (_, i) => `2026-11-${String(i + 1).padStart(2, '0')} 10:00,-${i + 1}`).join('\n');
+    const r = S.importKdjzCSV(csv, 'append');
+    eq(r.added, 30, '应导入 30 笔');
+    eq(writes, 1, '批量写入应只触发 1 次 storagePut，实际 ' + writes);
+  } finally { S.storagePut = orig; }
+});
+test('导入非法日期计入 skipped 且不落库', () => {
+  S.reset(); S.boot();
+  const r = S.importKdjzCSV('时间,金额\n2026-13-45 10:00,-5\n2026-11-01 10:00,-6', 'append');
+  eq(r.added, 1, '仅合法行入库');
+  eq(r.skipped, 1, '非法日期应跳过');
+});
+test('导入未知账本名自动建账本，不混入当前账本', () => {
+  S.reset(); S.boot();
+  const cur = S.book().id;
+  const r = S.importKdjzCSV('时间,金额,账本\n2026-11-01 10:00,-5,装修账本', 'append');
+  eq(r.added, 1);
+  eq(r.newBooks, 1, '应自动创建 1 个账本');
+  const rec = S.s.records[S.s.records.length - 1];
+  ok(rec.bookId !== cur, '新记录应归属新建账本');
+  ok(S.s.books.some(b => b.name === '装修账本'), '账本列表应含新账本');
+});
+test('跨账本重复行不被误判跳过（B8 回归）', () => {
+  S.reset(); S.boot();
+  const b2 = S.addBook('第二账本');
+  S.addRecord({ type: 'expense', amount: 7, bookId: b2.id, date: '2026-11-01 10:00', note: '同额' });
+  const r = S.importKdjzCSV('时间,金额,备注\n2026-11-01 10:00,-7,同额', 'append');
+  eq(r.added, 1, '其它账本的同额记录不应阻止当前账本导入');
+});
+
+test('searchRecords 返回真实命中数 total（列表仍截断 100）', () => {
+  S.reset(); S.boot();
+  for (let i = 0; i < 105; i++) S.addRecord({ type: 'expense', amount: 1, date: '2026-11-01 10:00', note: '星巴克' + i });
+  const out = S.searchRecords('星巴克');
+  eq(out.length, 100, '列表截 100');
+  eq(out.total, 105, 'total 应为真实命中数');
+});
+test('UI.escAttr / safeImgSrc 防注入', () => {
+  eq(UI.escAttr("a'b\"c"), 'a&#39;b&quot;c');
+  eq(UI.safeImgSrc('javascript:alert(1)'), '', '伪协议应被清空');
+  eq(UI.safeImgSrc('data:image/png;base64,AAAA'), 'data:image/png;base64,AAAA', '合法图片应保留');
+});
+test('UI.confirm 默认转义，富文本需显式 raw', () => {
+  UI.confirm({ title: '<b>x</b>', body: '<img src=x onerror=1>' });
+  const html = window.document.getElementById('modalHost').innerHTML;
+  ok(html.indexOf('&lt;b&gt;') >= 0, '标题应被转义');
+  ok(html.indexOf('&lt;img') >= 0, '正文应被转义');
 });
 
 const okAll = summary();

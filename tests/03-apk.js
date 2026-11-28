@@ -136,6 +136,34 @@ suite('APK · SQLite 持久化桥');
     ok(state.records.some(r => r.id === r1.id), '第一笔应存在');
     ok(state.records.some(r => r.id === r2.id), '第二笔应存在');
   });
+  test('dbWriteHealthy=false 时强制走全量兜底（写失败感知）', () => {
+    S.reset(); S.boot();
+    S.saveNow();
+    ok(S._recSnapshot !== null, '基准快照应存在');
+    S._deltaCount = 0;
+    const orig = window.AndroidBridge.dbWriteHealthy;
+    window.AndroidBridge.dbWriteHealthy = () => false;
+    const r = S.addRecord({ type: 'expense', amount: 5, categoryId: 'ce_canyin', accountId: S.s.accounts[0].id, date: '2026-11-06 10:00' });
+    const before = window.__androidStore.deltas.length;
+    S.saveNow();
+    window.AndroidBridge.dbWriteHealthy = orig;
+    eq(window.__androidStore.deltas.length, before, '写失败时不应再发 delta');
+    ok(JSON.parse(window.__androidStore.db).records.some(x => x.id === r.id), '全量兜底应写入该记录');
+  });
+  test('validateState 拒绝形状错误的备份', () => {
+    ok(S.validateState({ books: [], records: [] }).length > 0, '缺 accounts/categories 应报错');
+    ok(S.validateState({ books: [], accounts: [], categories: [], records: [{ date: 'x', amount: NaN }] }).length > 0, '非法金额应报错');
+    eq(S.validateState({ books: [], accounts: [], categories: [], records: [], settings: {} }), '', '合法结构应通过');
+  });
+  test('PIN 拉伸哈希：同 PIN 自洽、错 PIN 拒绝、旧格式兼容', () => {
+    const { Lock } = T;
+    const salt = Lock.randSalt();
+    const h = Lock.hash(salt, '1234');
+    ok(h.indexOf('p5000:') === 0, '应为拉伸格式');
+    ok(Lock.verifyStored(salt, '1234', h), '同 PIN 应通过');
+    ok(!Lock.verifyStored(salt, '9999', h), '错 PIN 应拒绝');
+    ok(Lock.verifyStored(salt, '1234', Lock.sha256(salt + '·1234')), '旧格式应兼容');
+  });
   test('dbSaveDelta 失败时不推进快照，后续可重试/兜底', () => {
     S.reset(); S.boot();
     // 先建立基准快照

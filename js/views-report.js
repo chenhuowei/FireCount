@@ -130,14 +130,27 @@ const ViewsReport = {
     const R = this.resolve();
     const t = this.type;
     const cur = Store.s.settings.currency;
-    const sum = Store.rangeSummary(R.start, R.end);
-    const entries = Store.rangeByCategory(R.start, R.end, t);
-    const recs = Store.rangeRecords(R.start, R.end).filter(r => r.type === t);
+    // 一次取回区间记录，后续统计全部基于同一集合派生（避免重复扫全表）
+    const all = Store.rangeRecords(R.start, R.end);
+    let inSum = 0, outSum = 0;
+    const catMap = new Map(), daySet = new Set();
+    const recs = [];
+    for (const r of all) {
+      daySet.add(r.date.slice(0, 10));
+      if (r.type === "income") inSum += r.amount;
+      else if (r.type === "expense") outSum += r.amount;
+      if (r.type !== t) continue;
+      recs.push(r);
+      const c = Store.category(r.categoryId) || { id: "__uncat", name: "未分类", icon: "❓", color: "#94A3B8" };
+      if (!catMap.has(c.id)) catMap.set(c.id, { cat: c, amount: 0, count: 0 });
+      const e = catMap.get(c.id); e.amount += r.amount; e.count++;
+    }
+    const sum = { in: Math.round(inSum * 100) / 100, out: Math.round(outSum * 100) / 100, balance: Math.round((inSum - outSum) * 100) / 100 };
+    const entries = [...catMap.values()].map(e => ({ ...e, amount: Math.round(e.amount * 100) / 100 })).sort((a, b) => b.amount - a.amount);
     const total = t === "expense" ? sum.out : sum.in;
 
     /* KPI */
     const maxOne = recs.length ? Math.max(...recs.map(r => r.amount)) : 0;
-    const daySet = new Set(Store.rangeRecords(R.start, R.end).map(r => r.date.slice(0, 10)));
     const dayCount = daySet.size;
     // 区间天数（全部模式：第一笔到今天，而非哨兵 0000~9999）
     const spanS = R.spanStart || R.start, spanE = R.spanEnd || R.end;
@@ -216,7 +229,7 @@ const ViewsReport = {
         '<div class="dn-row"><span class="dn-k">总天数</span><span class="dn-v">' + spanDays + ' 天</span></div>' +
         '<div class="dn-row"><span class="dn-k">　└ 从</span><span class="dn-v">' + sd + '</span></div>' +
         '<div class="dn-row"><span class="dn-k">　└ 到</span><span class="dn-v">' + ed + '</span></div>' +
-        '<div class="dn-tip">记账天数 = 该期间内有账单的天数；总天数 = 该期间的总天数</div>' +
+        '<div class="dn-tip">记账天数 = 该期间内有账单的天数（含转账）；总天数 = 该期间的总天数；笔数仅统计当前分析的收支类型</div>' +
         '</div>';
     };
     Charts.pie(UI.$("#rpPie"), pieEntries);

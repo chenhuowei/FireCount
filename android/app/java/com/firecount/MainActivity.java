@@ -95,12 +95,12 @@ public class MainActivity extends Activity {
                 o.put("bookId", r.getString(1));
                 o.put("type", r.getString(2));
                 o.put("amount", r.isNull(3) ? 0 : r.getDouble(3));
-                putIfNotEmpty(o, "categoryId", r.getString(4));
-                putIfNotEmpty(o, "accountId", r.getString(5));
-                putIfNotEmpty(o, "toAccountId", r.getString(6));
+                putStr(o, "categoryId", r.getString(4));
+                putStr(o, "accountId", r.getString(5));
+                putStr(o, "toAccountId", r.getString(6));
                 o.put("date", r.getString(7));
-                putIfNotEmpty(o, "note", r.getString(8));
-                putIfNotEmpty(o, "member", r.getString(9));
+                putStr(o, "note", r.getString(8));
+                putStr(o, "member", r.getString(9));
                 o.put("tags", new JSONArray(r.getString(10) == null ? "[]" : r.getString(10)));
                 o.put("photos", new JSONArray(r.getString(11) == null ? "[]" : r.getString(11)));
                 o.put("createdAt", r.getLong(12));
@@ -116,7 +116,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void putIfNotEmpty(JSONObject o, String key, String v) throws Exception {
+    private void putStr(JSONObject o, String key, String v) throws Exception {
         o.put(key, v == null ? "" : v);
     }
 
@@ -221,16 +221,21 @@ public class MainActivity extends Activity {
     private void log(String msg) { android.util.Log.w("FircountDroid", msg); }
 
     /* ---------- 异步落盘：单线程 FIFO + 失败重试 3 次 + dbClear 清队列 ---------- */
+    private final Object writeLock = new Object();
     private java.util.concurrent.ExecutorService writer =
             java.util.concurrent.Executors.newSingleThreadExecutor();
+    private volatile boolean lastWriteFailed = false;   // 供 JS 查询：最近一次写盘是否失败
 
-    /** 清空待执行写任务（reset 用）：中断并重建线程池 */
-    private synchronized void clearPendingWrites() {
-        try {
-            writer.shutdownNow();
-            writer.awaitTermination(800, java.util.concurrent.TimeUnit.MILLISECONDS);
-        } catch (Throwable ignore) {}
-        writer = java.util.concurrent.Executors.newSingleThreadExecutor();
+    /** 清空待执行写任务（reset 用）：中断并重建线程池；与 enqueueTask 共用同一把锁 */
+    private void clearPendingWrites() {
+        synchronized (writeLock) {
+            try {
+                writer.shutdownNow();
+                writer.awaitTermination(800, java.util.concurrent.TimeUnit.MILLISECONDS);
+            } catch (Throwable ignore) {}
+            writer = java.util.concurrent.Executors.newSingleThreadExecutor();
+            lastWriteFailed = false;
+        }
     }
 
     /** 带 3 次重试的执行；最终仍失败则 Toast 并抛 RuntimeException，让调用方/日志能感知 */
@@ -239,6 +244,7 @@ public class MainActivity extends Activity {
         for (int i = 0; i < 3; i++) {
             try {
                 task.run();
+                synchronized (writeLock) { lastWriteFailed = false; }
                 return;
             } catch (Exception e) {
                 last = e;
@@ -247,13 +253,25 @@ public class MainActivity extends Activity {
             }
         }
         final String msg = name + " 最终失败：" + (last != null ? last.getMessage() : "unknown");
+        synchronized (writeLock) { lastWriteFailed = true; }
         runOnUiThread(() -> Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show());
         throw new RuntimeException(msg, last);
     }
 
     private void enqueueTask(final String name, final Runnable task) {
-        writer.execute(() -> runWithRetry(name, task));
+        synchronized (writeLock) {
+            for (int i = 0; i < 2; i++) {
+                try { writer.execute(() -> runWithRetry(name, task)); return; }
+                catch (java.util.concurrent.RejectedExecutionException e) {
+                    // dbClear 重建窗口：重建后再试一次
+                    writer = java.util.concurrent.Executors.newSingleThreadExecutor();
+                }
+            }
+        }
     }
+
+    /** JS 查询最近一次写盘是否最终失败（失败时不推进快照，下次强制全量兜底） */
+    private boolean writeHealthyInternal() { return !lastWriteFailed; }
 
     private void enqueueWrite(final String json) {
         enqueueTask("dbSave", () -> { try { dbSaveInternal(json); } catch (Exception e) { throw new RuntimeException(e); } });
@@ -410,6 +428,9 @@ public class MainActivity extends Activity {
         public void dbSaveDelta(String headJson, String upsertsJson, String deletesJson) {
             enqueueDelta(headJson, upsertsJson, deletesJson);
         }
+
+        @JavascriptInterface
+        public boolean dbWriteHealthy() { return writeHealthyInternal(); }
 
         @JavascriptInterface
         public void dbClear() { dbClearInternal(); }

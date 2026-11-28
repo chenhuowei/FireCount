@@ -72,7 +72,9 @@ const markup = all + html;
 const cssClasses = new Set();
 for (const m of css.matchAll(/\.([a-z][\w-]*)/g)) cssClasses.add(m[1]);
 const unused = [];
+const CSS_ORPHAN_ALLOW = new Set(['xml']); // CSS 注释中的证据文件名，非真实类名
 for (const c of cssClasses) {
+  if (CSS_ORPHAN_ALLOW.has(c)) continue;
   // 允许前缀式动态拼接（如 jy-cat / tab 等），做宽松匹配
   const used = new RegExp('["\'\\s.]' + c.replace(/[-]/g, '\\-') + '\\b').test(markup);
   if (!used) unused.push(c);

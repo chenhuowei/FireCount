@@ -57,7 +57,7 @@ const Charts = {
     ctx.clearRect(0, 0, w, h);
     const padL = 8, padR = 8, padT = 14, padB = 22;
     const iw = w - padL - padR, ih = h - padT - padB;
-    const all = series.flatMap(s => s.values);
+    const all = []; for (const s of series) for (const v of s.values) all.push(v);
     const max = Math.max(...all, 1) * 1.12;
     const x = i => padL + (labels.length === 1 ? iw / 2 : iw * i / (labels.length - 1));
     const y = v => padT + ih * (1 - v / max);

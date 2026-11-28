@@ -133,5 +133,44 @@ test('applyTheme 切换 data-theme', () => {
   eq(window.document.body.dataset.theme, 'light');
 });
 
+suite('跨层一致性');
+test('JS 记录字段 ↔ Java recordToValues 映射一致', () => {
+  const java = fs.readFileSync(path.join(ROOT, 'android/app/java/com/firecount/MainActivity.java'), 'utf8');
+  const fn = java.slice(java.indexOf('private ContentValues recordToValues'), java.indexOf('private void dbSaveInternal'));
+  ok(fn.includes('private ContentValues recordToValues'), 'Java 应含 recordToValues');
+  // JS 端 addRecord 的字段名 → Java 端 put 的列名
+  const pairs = [
+    ['"id"', '"id"'], ['"bookId"', '"book_id"'], ['"type"', '"type"'],
+    ['"amount"', '"amount"'], ['"categoryId"', '"category_id"'],
+    ['"accountId"', '"account_id"'], ['"toAccountId"', '"to_account_id"'],
+    ['"date"', '"date"'], ['"note"', '"note"'], ['"member"', '"member"'],
+    ['"tags"', '"tags"'], ['"photos"', '"photos"'],
+    ['"createdAt"', '"created_at"'], ['"updatedAt"', '"updated_at"'],
+  ];
+  for (const [, col] of pairs) ok(fn.includes('row.put(' + col), 'Java 缺字段映射: ' + col);
+  const r = S.addRecord({ amount: 1, date: '2026-11-01 10:00' });
+  for (const [jsField] of pairs) ok(Object.prototype.hasOwnProperty.call(r, jsField.replace(/"/g, '')), 'JS 记录缺字段: ' + jsField);
+});
+test('版本号单一来源一致（package/Manifest/build.sh/关于页/README）', () => {
+  const v = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
+  const mf = fs.readFileSync(path.join(ROOT, 'android/app/AndroidManifest.xml'), 'utf8');
+  const bs = fs.readFileSync(path.join(ROOT, 'android/build.sh'), 'utf8');
+  const vm = fs.readFileSync(path.join(ROOT, 'js/views-mine.js'), 'utf8');
+  const rd = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+  ok(mf.includes('versionName="' + v + '"'), 'Manifest 版本不一致');
+  ok(bs.includes('VN="${VN:-' + v + '}"'), 'build.sh 版本不一致');
+  ok(vm.includes('版本 ' + v) && vm.includes('v' + v), '关于页版本不一致');
+  ok(rd.includes('versionName ' + v), 'README 版本不一致');
+});
+test('业务 JS 无 ES2020 语法（minSdk24 老 WebView 兼容）', () => {
+  const files = fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js') && f.indexOf('xlsx') < 0);
+  for (const f of files) {
+    const s = fs.readFileSync(path.join(ROOT, 'js', f), 'utf8');
+    ok(s.indexOf('?.') < 0, f + ' 含可选链');
+    ok(s.indexOf('??') < 0, f + ' 含空值合并');
+    ok(s.indexOf('flatMap') < 0, f + ' 含 flatMap');
+  }
+});
+
 const okAll = summary();
 process.exit(okAll ? 0 : 1);

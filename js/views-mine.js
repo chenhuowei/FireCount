@@ -38,7 +38,7 @@ const ViewsMine = {
         cell("budget", "币种设置", "当前符号 " + s.settings.currency, "currency") +
       "</div>" +
       '<div class="card">' +
-        cell("info", "关于", "版本 1.1.3", "about") +
+        cell("info", "关于", "版本 1.1.4", "about") +
         cell("trash", "清空数据", "删除全部账单与设置", "wipe") +
       "</div>" +
       '<div style="text-align:center;color:var(--text-3);font-size:11px;padding:6px 0 20px">小伙记账 · 纯本地记账（数据仅存于本机）</div></div>';
@@ -75,7 +75,7 @@ const ViewsMine = {
       if (go === "webdav") { WebDAV.settingsSheet(); return; }
       if (go === "currency") { ViewsMine.currencySheet(); return; }
       if (go === "about") {
-        UI.toast("小伙记账 · FireCount v1.1.3", 2500);
+        UI.toast("小伙记账 · FireCount v1.1.4", 2500);
         return;
       }
       if (go === "wipe") { ViewsMine.wipeSheet(); return; }
@@ -116,7 +116,7 @@ const ViewsMine = {
     main.innerHTML =
       '<div class="page page-anim">' +
       '<div class="card">' + Store.s.books.map(b =>
-        '<div class="cell" data-id="' + b.id + '"><div class="cell-icon">' + UI.svg("book", 18) + "</div>" +
+        '<div class="cell" data-id="' + UI.escAttr(b.id) + '"><div class="cell-icon">' + UI.svg("book", 18) + "</div>" +
         '<div class="cell-main"><div class="cell-title">' + UI.escape(b.name) +
         (b.id === Store.s.currentBookId ? ' <span class="tags" style="font-size:10px;background:var(--brand-soft);color:var(--brand);border-radius:4px;padding:1px 5px">使用中</span>' : "") +
         "</div>" +
@@ -163,7 +163,7 @@ const ViewsMine = {
     };
     const del = UI.$("#bkDel", sh.foot);
     if (del) del.onclick = () => {
-      UI.confirm({ title: "删除账本", body: "「" + UI.escape(book.name) + "」及其下所有账单将被删除。", ok: "删除", danger: true }).then(ok => {
+      UI.confirm({ title: "删除账本", body: "「" + book.name + "」及其下所有账单将被删除。", ok: "删除", danger: true }).then(ok => {
         if (ok) { Store.deleteBook(book.id); sh.close(); UI.toast("账本已删除"); cb && cb(); }
       });
     };
@@ -259,7 +259,7 @@ const ViewsMine = {
         '<span style="flex:1;font-size:14px">' + UI.escape(c.name) + "</span>" +
         (over ? '<span class="badge-over">超支</span>' : "") +
         '<span style="font-size:13px;font-variant-numeric:tabular-nums"><b class="' + (over ? "money-out" : "") + '">' + fmt.money(spent) + "</b><span style='color:var(--text-3)'> / " + fmt.money(budget) + "</span></span>" +
-        '<button class="txt-btn" data-del="' + id + '" style="color:var(--text-3);font-size:12px">✕</button></div>' +
+        '<button class="txt-btn" data-del="' + UI.escAttr(id) + '" style="color:var(--text-3);font-size:12px">✕</button></div>' +
         '<div class="mini-progress"><i class="' + (over ? "over" : "") + '" style="width:' + pct + '%"></i></div></div>';
     }).join("");
     host.querySelectorAll("[data-del]").forEach(el => el.onclick = () => {
@@ -274,7 +274,7 @@ const ViewsMine = {
     const sh = UI.sheet({ title: "设置分类预算" });
     const b = Store.budget(month);
     sh.body.innerHTML = Store.categories("expense").map(c =>
-      '<div class="cell" data-id="' + c.id + '">' + UI.catIcon(c, "cell-icon") +
+      '<div class="cell" data-id="' + UI.escAttr(c.id) + '">' + UI.catIcon(c, "cell-icon") +
       '<div class="cell-main"><div class="cell-title">' + UI.escape(c.name) + "</div>" +
       '<div class="cell-desc">本月已支出 ' + fmt.money(Store.categoryBudgetSpent(month, c.id)) + "</div></div>" +
       '<span style="font-size:13px;color:var(--brand)">' + (b.perCategory[c.id] ? fmt.money(b.perCategory[c.id]) : "设置") + "</span></div>"
@@ -302,12 +302,15 @@ const ViewsMine = {
       '<div class="hd"><button class="hd-btn" data-back>' + UI.svg("back") + '</button><div class="hd-title">分类管理</div>' +
       '<div class="hd-sub"><button class="txt-btn" id="ctAdd" style="color:var(--brand)">＋添加</button></div></div>';
     const renderList = () => {
+      // 一次遍历建分类计数，避免 O(分类数 × 记录数)
+      const counts = new Map();
+      for (const r of Store.s.records) counts.set(r.categoryId, (counts.get(r.categoryId) || 0) + 1);
       const mk = (type, title) =>
         '<div class="sec-title">' + title + " · " + Store.categories(type).length + "</div>" +
         '<div class="card">' + Store.categories(type).map(c =>
-          '<div class="cell" data-id="' + c.id + '">' + UI.catIcon(c, "cell-icon") +
+          '<div class="cell" data-id="' + UI.escAttr(c.id) + '">' + UI.catIcon(c, "cell-icon") +
           '<div class="cell-main"><div class="cell-title">' + UI.escape(c.name) + "</div>" +
-          '<div class="cell-desc">' + Store.s.records.filter(r => r.categoryId === c.id).length + " 笔</div></div>" +
+          '<div class="cell-desc">' + (counts.get(c.id) || 0) + " 笔</div></div>" +
           (c.custom ? '<span class="tags" style="font-size:10px;background:var(--brand-soft);color:var(--brand);border-radius:4px;padding:1px 5px">自定义</span>' : "") +
           UI.svg("arrow", 14) + "</div>"
         ).join("") + "</div>";
@@ -334,7 +337,7 @@ const ViewsMine = {
         '<div class="card">' + (tags.length ? tags.map(t =>
           '<div class="cell"><div class="cell-main"><div class="cell-title">#' + UI.escape(t) + "</div>" +
           '<div class="cell-desc">' + Store.tagUsage(t) + " 笔账单使用</div></div>" +
-          '<button class="txt-btn" data-deltag="' + UI.escape(t) + '" style="color:var(--danger)">删除</button></div>'
+          '<button class="txt-btn" data-deltag="' + UI.escAttr(t) + '" style="color:var(--danger)">删除</button></div>'
         ).join("") : '<div class="empty" style="padding:26px"><div class="t1">还没有标签</div><div class="t2" style="font-size:11px;color:var(--text-3)">点右上角＋添加</div></div>') + "</div>" +
         '<div class="sec-title">删除标签会同时从使用它的账单中移除该标记</div></div>';
       UI.$("[data-back]", header).onclick = () => App.back();
@@ -355,7 +358,7 @@ const ViewsMine = {
         const used = Store.tagUsage(t);
         UI.confirm({
           title: "删除标签",
-          body: "将删除标签 #" + UI.escape(t) + (used ? "，并从 " + used + " 笔账单中移除该标记" : "") + "。",
+          body: "将删除标签 #" + t + (used ? "，并从 " + used + " 笔账单中移除该标记" : "") + "。",
           ok: "删除", danger: true
         }).then(ok => {
           if (!ok) return;
@@ -458,14 +461,15 @@ const ViewsMine = {
         rd.onload = () => {
           try {
             const obj = JSON.parse(rd.result);
-            if (!obj.books || !obj.records) throw new Error("bad");
+            const verr = Store.validateState(obj);
+            if (verr) throw new Error(verr);
             UI.confirm({ title: "确认导入", body: "将覆盖当前 " + Store.s.records.length + " 笔账单，替换为备份中的 " + obj.records.length + " 笔。", ok: "覆盖导入", danger: true }).then(ok => {
               if (!ok) return;
               Store.replaceState(obj);
               sh.close(); UI.toast("导入成功");
               App.applyTheme(); App.billMonth = fmt.curMonth(); App.refresh();
             });
-          } catch (err) { UI.toast("文件格式不正确"); }
+          } catch (err) { UI.toast("导入失败：" + (err.message || "文件格式不正确")); }
         };
         rd.readAsText(f, "utf-8");
         return;

@@ -10,7 +10,7 @@ const ViewsAdd = {
   /* ---------- 平铺横滑直选（替代底部弹层选择） ---------- */
   accountChipsHTML(field, selectedId) {
     const chips = Store.s.accounts.map(a =>
-      '<button class="pick-chip' + (a.id === selectedId ? " active" : "") + '" data-f="' + field + '" data-id="' + a.id + '">' +
+      '<button class="pick-chip' + (a.id === selectedId ? " active" : "") + '" data-f="' + field + '" data-id="' + UI.escAttr(a.id) + '">' +
       '<span class="pc-ico" style="color:' + (a.color || Store.accountTypeMeta(a.type).color) + '">' + IconUI.raw(a, 15) + "</span>" + UI.escape(a.name) + "</button>"
     ).join("");
     return '<div class="chip-scroll">' + chips +
@@ -18,12 +18,12 @@ const ViewsAdd = {
   },
   memberChipsHTML(selected) {
     return '<div class="chip-scroll">' + Store.s.settings.members.map(m =>
-      '<button class="pick-chip' + (m === selected ? " active" : "") + '" data-member="' + UI.escape(m) + '">' + UI.escape(m) + "</button>"
+      '<button class="pick-chip' + (m === selected ? " active" : "") + '" data-member="' + UI.escAttr(m) + '">' + UI.escape(m) + "</button>"
     ).join("") + "</div>";
   },
   tagChipsHTML(selected) {
     return '<div class="chip-scroll">' + Store.tags().map(t =>
-      '<button class="pick-chip' + (selected.includes(t) ? " active" : "") + '" data-tag="' + UI.escape(t) + '">#' + UI.escape(t) + "</button>"
+      '<button class="pick-chip' + (selected.includes(t) ? " active" : "") + '" data-tag="' + UI.escAttr(t) + '">#' + UI.escape(t) + "</button>"
     ).join("") +
       '<button class="pick-chip add" data-addtag>＋</button></div>';
   },
@@ -37,7 +37,7 @@ const ViewsAdd = {
       sh.body.innerHTML =
         (tags.length
           ? '<div class="tag-pick-wrap">' + tags.map(t =>
-              '<button class="tag-pick' + (sel.includes(t) ? " on" : "") + '" data-toggletag="' + UI.escape(t) + '">' +
+              '<button class="tag-pick' + (sel.includes(t) ? " on" : "") + '" data-toggletag="' + UI.escAttr(t) + '">' +
               '<span class="tp-check">' + (sel.includes(t) ? "✓" : "") + "</span>#" + UI.escape(t) +
               '<span class="tp-usage">' + Store.tagUsage(t) + "</span></button>").join("") + "</div>"
           : '<div class="empty" style="padding:20px 0"><div class="t1">还没有标签，在下方添加</div></div>') +
@@ -132,7 +132,7 @@ const ViewsAdd = {
         // 全量平铺宫格（不分页，可换行滚动）
         const catHTML =
           '<div class="jy-grid-page jy-grid-full">' + cats.map(c =>
-            '<div class="jy-cat' + (c.id === S.categoryId ? " selected" : "") + '" data-cid="' + c.id + '">' +
+            '<div class="jy-cat' + (c.id === S.categoryId ? " selected" : "") + '" data-cid="' + UI.escAttr(c.id) + '">' +
             '<div class="ci" style="background:' + c.color + '22;color:' + c.color + '">' + IconUI.raw(c, 24) + "</div>" +
             '<div class="cn">' + UI.escape(c.name) + "</div></div>"
           ).join("") +
@@ -303,7 +303,7 @@ const ViewsAdd = {
       S.mode = b.dataset.mode;
       if (S.mode !== "transfer") {
         const ok = Store.categories(S.mode).some(c => c.id === S.categoryId);
-        if (!ok) S.categoryId = Store.categories(S.mode)[0]?.id || "";
+        if (!ok) { const cs = Store.categories(S.mode); S.categoryId = cs.length ? cs[0].id : ""; }
       }
       // 同步 Tab 激活态（renderBody 不重绘 modeRow）
       UI.$$("#modeRow .jy-mode", sh.body).forEach(x => x.classList.toggle("active", x === b));
@@ -401,7 +401,7 @@ const ViewsAdd = {
   pickAccount(field, S, cb) {
     const sh = UI.sheet({ title: "选择账户", subLevel: 1 });
     sh.body.innerHTML = Store.s.accounts.map(a =>
-      '<div class="cell" data-id="' + a.id + '">' + UI.accIcon(a, "cell-icon") +
+      '<div class="cell" data-id="' + UI.escAttr(a.id) + '">' + UI.accIcon(a, "cell-icon") +
       '<div class="cell-main"><div class="cell-title">' + UI.escape(a.name) + "</div>" +
       '<div class="cell-desc">' + Store.accountTypeMeta(a.type).name + "</div></div>" +
       (S[field] === a.id ? '<span style="color:var(--brand)">✓</span>' : UI.svg("arrow", 15)) + "</div>"
@@ -438,7 +438,7 @@ const ViewsAdd = {
       sh.body.innerHTML =
         (S.photos.length
           ? '<div class="pa-grid">' + S.photos.map((p, i) =>
-              '<div class="pa-item"><img src="' + p + '" data-view="' + i + '" alt="附件' + (i + 1) + '">' +
+              '<div class="pa-item"><img src="' + UI.escAttr(UI.safeImgSrc(p)) + '" data-view="' + i + '" alt="附件' + (i + 1) + '">' +
               '<button class="pa-del" data-del="' + i + '">✕</button></div>').join("") + "</div>"
           : '<div class="empty" style="padding:20px 0"><div class="big">📎</div><div class="t1">还没有附件</div></div>') +
         '<div class="sec-title">最多 3 张，图片自动压缩至 ~720px 存储</div>';
@@ -505,7 +505,7 @@ const ViewsAdd = {
     const del = UI.$("#lpDel", sh.body);
     if (del) del.onclick = () => {
       sh.close();
-      UI.confirm({ title: "移除分类", body: "移除「" + UI.escape(c.name) + "」？已记账单会保留并归入未分类。", ok: "移除", danger: true }).then(ok => {
+      UI.confirm({ title: "移除分类", body: "移除「" + c.name + "」？已记账单会保留并归入未分类。", ok: "移除", danger: true }).then(ok => {
         if (!ok) return;
         if (Store.deleteCategory(c.id)) { UI.toast("已移除"); refresh && refresh(); }
         else UI.toast("该分类下仍有账单，无法移除");
@@ -521,7 +521,7 @@ const ViewsAdd = {
       '<div class="sec-title">长按任意分类图标拖动到目标位置，松手即保存</div>' +
       '<div id="sortList" style="display:flex;flex-direction:column;gap:6px;padding:4px 0 10px">' +
         cats.map((c, i) =>
-          '<div class="sort-item" draggable="true" data-cid="' + c.id + '">' +
+          '<div class="sort-item" draggable="true" data-cid="' + UI.escAttr(c.id) + '">' +
           '<span class="si-idx">' + (i + 1) + '</span>' +
           '<span class="si-ico" style="background:' + c.color + '22;color:' + c.color + '">' + IconUI.raw(c, 20) + '</span>' +
           '<span class="si-nm">' + UI.escape(c.name) + '</span>' +

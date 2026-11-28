@@ -117,7 +117,6 @@ body[data-theme="glass"] .rp-monthbar button,
 body[data-theme="glass"] .cal-head button,
 body[data-theme="glass"] .rp-kpi,
 body[data-theme="glass"] .rp-datefld,
-body[data-theme="glass"] .pp-cell,
 body[data-theme="glass"] .wheel-col,
 body[data-theme="glass"] .me-hero,
 body[data-theme="glass"] .edge-hint,
@@ -545,9 +544,6 @@ body[data-theme="deep"] .bill-top { background: linear-gradient(150deg, #D95E12,
 }
 .jy-mode.active { color: var(--brand); font-weight: 700; }
 .jy-amount-zone { padding: 10px 6px 6px; }
-.jy-cat-chosen { display: flex; align-items: center; gap: 10px; }
-.jy-cat-chosen .ci { width: 46px; height: 46px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 25px; }
-.jy-cat-chosen .cn { font-size: 16px; font-weight: 600; }
 .jy-amount-row { display: flex; align-items: baseline; gap: 6px; margin-top: 8px; padding: 4px 2px; }
 .jy-currency { font-size: 22px; color: var(--text-2); flex: none; border-bottom: 2px solid transparent; padding: 0 2px 6px; }
 .jy-amount {
@@ -901,16 +897,6 @@ canvas.chart { width: 100%; display: block; }
 
 
 /* ---------- 年月/年份选择器（风格同日历） ---------- */
-.pp-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 6px 0 10px; }
-.pp-cell {
-  background: var(--card); border: 1.5px solid var(--line); border-radius: 10px;
-  padding: 12px 4px; text-align: center; font-size: 14.5px; font-weight: 600;
-  color: var(--text-1); cursor: pointer; -webkit-tap-highlight-color: transparent;
-}
-.pp-cell:active { background: var(--chip); }
-.pp-cell.on { color: var(--brand); }
-.pp-cell.now:not(.on) { border-style: dashed; color: var(--brand); }
-.pp-cell.dis { opacity: .35; pointer-events: none; }
 
 /* ---------- 报表自定义范围：可点击日期字段 ---------- */
 .rp-datefld {
