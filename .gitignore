@@ -1,5 +1,4 @@
 node_modules/
-package-lock.json
 *.apk
 # 签名私钥：仅本地备份，切勿提交到版本库（丢失将无法用同一签名升级）
 *.keystore
