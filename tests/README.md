@@ -6,7 +6,7 @@
 
 ```bash
 npm install          # 首次：安装 jsdom（仅测试用）
-npm test             # 全量：静态审查 + 4 套测试，共 174 项
+npm test             # 全量：静态审查 + 4 套测试，共 176 项
 ```
 
 单独运行：

@@ -238,13 +238,18 @@ public class MainActivity extends Activity {
         }
     }
 
-    /** 带 3 次重试的执行；最终仍失败则 Toast 并抛 RuntimeException，让调用方/日志能感知 */
+    /** 带 3 次重试的执行；最终仍失败则 Toast 并抛 RuntimeException，让调用方/日志能感知。
+     *  失败标志只由全量写成功清除：delta 成功不清除，避免前一个 delta 失败后
+     *  被后续 delta 成功掩盖而错过即时全量自愈。 */
     private void runWithRetry(String name, Runnable task) {
         Exception last = null;
         for (int i = 0; i < 3; i++) {
             try {
                 task.run();
-                synchronized (writeLock) { lastWriteFailed = false; }
+                // 只有全量保存（含完整状态）才能覆盖此前丢失的 delta，清除失败标志
+                if ("dbSave".equals(name)) {
+                    synchronized (writeLock) { lastWriteFailed = false; }
+                }
                 return;
             } catch (Exception e) {
                 last = e;

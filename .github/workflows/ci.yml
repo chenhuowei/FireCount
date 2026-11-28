@@ -15,6 +15,8 @@ jobs:
           node-version: '20'
       - run: npm ci
       - run: npm test
+      - name: ESLint（0 error 即可，警告不阻塞）
+        run: npm run lint
       - name: JS 语法校验（排除第三方压缩库）
         run: |
           for f in js/*.js; do

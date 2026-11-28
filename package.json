@@ -15,6 +15,7 @@
     "lint": "npx --no-install eslint js/*.js --ignore-pattern \"js/xlsx.mini.min.js\""
   },
   "devDependencies": {
+    "eslint": "^8.57.1",
     "jsdom": "^24.0.0"
   }
 }

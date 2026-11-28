@@ -172,5 +172,18 @@ test('业务 JS 无 ES2020 语法（minSdk24 老 WebView 兼容）', () => {
   }
 });
 
+suite('Java 写队列一致性（静态）');
+test('写失败标志只由全量写清除，delta 成功不清除（竞态回归）', () => {
+  const java = fs.readFileSync(path.join(ROOT, 'android/app/java/com/firecount/MainActivity.java'), 'utf8');
+  const fn = java.slice(java.indexOf('private void runWithRetry'), java.indexOf('private void enqueueTask'));
+  ok(fn.includes('"dbSave".equals(name)'), '应仅 dbSave 成功时清标志');
+  ok(/task\.run\(\);[\s\S]*?if \("dbSave"\.equals\(name\)\)/.test(fn), '清标志必须发生在全量写判断内');
+});
+test('全量写任务名与 JS 调用路径一致', () => {
+  const java = fs.readFileSync(path.join(ROOT, 'android/app/java/com/firecount/MainActivity.java'), 'utf8');
+  ok(java.includes('enqueueTask("dbSave"'), '全量任务名应为 dbSave');
+  ok(java.includes('enqueueTask("dbSaveDelta"'), '增量任务名应为 dbSaveDelta');
+});
+
 const okAll = summary();
 process.exit(okAll ? 0 : 1);
